@@ -142,61 +142,45 @@ main {
     border-color 0.18s ease;
   width: 100%;
 }
-/* Deepest layer: themed colour glow rising from the stub corner. */
+/* Deepest layer: a soft mesh of World Cup colour blobs — abstract and
+   organic, deliberately unlike the hero banner's hard sunburst rays. */
 .league-card::after {
   content: "";
   inset: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 60%);
+  mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 60%);
+  opacity: 0.9;
   position: absolute;
+  transition: opacity 0.22s ease;
   z-index: -2;
 }
 .league-card--create::after {
-  background: radial-gradient(
-    135% 150% at 0% 100%,
-    rgba(22, 163, 74, 0.22),
-    transparent 55%
-  );
+  background:
+    radial-gradient(52% 72% at 12% 86%, rgba(22, 163, 74, 0.6), transparent 62%),
+    radial-gradient(46% 60% at 33% 12%, rgba(234, 88, 12, 0.45), transparent 60%),
+    radial-gradient(44% 58% at 2% 40%, rgba(37, 99, 235, 0.42), transparent 58%),
+    radial-gradient(40% 52% at 44% 66%, rgba(124, 58, 237, 0.4), transparent 58%);
 }
 .league-card--join::after {
-  background: radial-gradient(
-    135% 150% at 0% 0%,
-    rgba(37, 99, 235, 0.24),
-    transparent 55%
-  );
+  background:
+    radial-gradient(52% 72% at 12% 14%, rgba(37, 99, 235, 0.6), transparent 62%),
+    radial-gradient(46% 60% at 33% 88%, rgba(124, 58, 237, 0.48), transparent 60%),
+    radial-gradient(44% 58% at 2% 55%, rgba(34, 211, 238, 0.4), transparent 58%),
+    radial-gradient(40% 52% at 46% 30%, rgba(22, 163, 74, 0.34), transparent 58%);
 }
-/* Sunburst rays (same World Cup palette as the hero) behind the stub. */
+/* Fine printed-dot halftone over the mesh, for a ticket-stock texture. */
 .league-card::before {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.11) 1px,
+    transparent 1.5px
+  );
+  background-size: 11px 11px;
   content: "";
   inset: 0;
-  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 18%, transparent 52%);
-  mask-image: linear-gradient(90deg, #000 0, #000 18%, transparent 52%);
-  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 54%);
+  mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 54%);
   position: absolute;
-  transition: opacity 0.22s ease;
   z-index: -1;
-}
-.league-card--create::before {
-  background: repeating-conic-gradient(
-    from 208deg at 26% 126%,
-    #16a34a 0 7deg,
-    #22d3ee 7deg 14deg,
-    #2563eb 14deg 21deg,
-    #7c3aed 21deg 28deg,
-    #dc2626 28deg 35deg,
-    #ea580c 35deg 42deg,
-    #16a34a 42deg 49deg
-  );
-}
-.league-card--join::before {
-  background: repeating-conic-gradient(
-    from 152deg at 26% -26%,
-    #2563eb 0 7deg,
-    #7c3aed 7deg 14deg,
-    #a5b4fc 14deg 21deg,
-    #22d3ee 21deg 28deg,
-    #16a34a 28deg 35deg,
-    #dc2626 35deg 42deg,
-    #2563eb 42deg 49deg
-  );
 }
 .league-card:active {
   transform: scale(0.985);
@@ -209,8 +193,8 @@ main {
   .league-card:hover {
     border-color: rgba(255, 255, 255, 0.2);
   }
-  .league-card:hover::before {
-    opacity: 0.72;
+  .league-card:hover::after {
+    opacity: 1;
   }
   .league-card:hover .league-card-arrow {
     color: rgba(255, 255, 255, 0.75);
