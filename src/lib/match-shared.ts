@@ -585,17 +585,18 @@ export function getDisplayUpdates(
       text = `${prefix}Kickoff.`;
     }
 
-    // VAR / referee review flags: TxLINE marks what outcome is under review.
-    if (action === "possible") {
-      const underReview = ["Goal", "Penalty", "RedCard", "YellowCard", "Corner"]
+    // Only records with an explicit VAR flag are real reviews. TxLINE also
+    // emits scout-side "possible goal/penalty" uncertainty flags (raised and
+    // cleared seconds later, ~26 pairs per match) — those are data
+    // bookkeeping, not broadcast VAR checks, and must not be shown.
+    if (action === "possible" && update.data?.VAR === true) {
+      const underReview = ["Goal", "Penalty", "RedCard", "YellowCard"]
         .filter((key) => update.data?.[key] === true)
         .map((key) => formatFeedLabel(key).toLowerCase());
 
-      if (underReview.length) {
-        text = `${prefix}Check in progress: possible ${underReview.join(", ")}${
-          teamName ? ` (${teamName})` : ""
-        }.`;
-      }
+      text = `${prefix}VAR check in progress${
+        underReview.length ? `: possible ${underReview.join(", ")}` : ""
+      }${teamName ? ` (${teamName})` : ""}.`;
     }
 
     if (action === "additional_time") {

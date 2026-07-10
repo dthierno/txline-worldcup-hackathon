@@ -97,8 +97,10 @@ first (non-standard Next.js version).
 - Shot `Data.Outcome`: OnTarget | Blocked | OffTarget | Woodwork (absent on
   unconfirmed siblings). Goal Data: only GoalType + PlayerId — **no assists
   anywhere in the API**.
-- `possible` records = VAR flags (Goal/Penalty/RedCard/YellowCard/Corner
-  booleans). `additional_time` has Minutes. venue/pitch/weather/jersey exist.
+- `possible` records: two kinds. With `Data.VAR === true` = real VAR review.
+  WITHOUT it (Goal/Penalty/Corner booleans, raised then cleared seconds later,
+  ~26 pairs/match) = scout uncertainty bookkeeping — never display those.
+  `additional_time` has Minutes. venue/pitch/weather/jersey records exist.
 - Possession-phase actions (`*_possession`) carry `Possession: 1|2`; % is
   computed from clock deltas (`computePossessionSplit`).
 - Odds updates: `Ts`, `SuperOddsType`, `Pct` (strings), `Prices` (decimal
