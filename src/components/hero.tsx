@@ -122,7 +122,7 @@ export function Hero({ variant = "pat-4" }: { variant?: string }) {
         {[
           ["fr", "hero-float-1"],
           ["es", "hero-float-2"],
-          ["ar", "hero-float-3"],
+          ["be", "hero-float-3"],
           ["gb-eng", "hero-float-4"],
           ["no", "hero-float-5"],
         ].map(([iso, cls]) => (
