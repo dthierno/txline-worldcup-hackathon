@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { Hero } from "@/components/hero";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,8 +10,10 @@ import {
   fetchJson,
   formatDate,
   isPastFixture,
+  isPotentiallyLive,
   mergeFixtures,
   useIsMounted,
+  useNow,
   type ApiResult,
   type TxlineStatus,
 } from "@/lib/match-shared";
@@ -124,6 +127,11 @@ export function HomePage() {
   const [fixtureValidation, setFixtureValidation] =
     useState<ApiResult<unknown> | null>(null);
   const [status, setStatus] = useState<TxlineStatus | null>(null);
+  const mounted = useIsMounted();
+  const [predictedIds] = useState<Set<number>>(
+    () => new Set(Object.values(loadPredictions()).map((p) => p.fixtureId)),
+  );
+  const now = useNow();
 
   useEffect(() => {
     let cancelled = false;
@@ -194,14 +202,18 @@ export function HomePage() {
       <StoriesRail />
 
       <GameList
-        heading="Past games"
-        emptyText="No past World Cup games found."
-        games={pastGames}
-      />
-      <GameList
         heading="Upcoming games"
         emptyText="No upcoming World Cup games found."
         games={upcomingGames}
+        now={now}
+        predictedIds={mounted ? predictedIds : undefined}
+      />
+      <GameList
+        heading="Past games"
+        emptyText="No past World Cup games found."
+        games={pastGames}
+        now={now}
+        predictedIds={mounted ? predictedIds : undefined}
       />
       <MyPredictionsSection fixtures={fixtures} />
       <KnockoutBracket />
@@ -242,14 +254,7 @@ function StoriesRail() {
     };
   }, []);
 
-  const entries = stories.slice(0, 12).map((story) => ({
-    id: story.id,
-    iso: isoFromTitle(story.title),
-    label: story.title,
-    link: story.link,
-  }));
-
-  if (entries.length === 0) {
+  if (stories.length === 0) {
     return null;
   }
 
@@ -257,28 +262,21 @@ function StoriesRail() {
     <section aria-labelledby="stories-heading">
       <h2 id="stories-heading">Stories</h2>
       <div className="stories-rail">
-        {entries.map((entry) => (
+        {stories.map((story) => (
           <a
-            className="story-circle"
-            href={entry.link}
-            key={entry.id}
+            className="story-card"
+            href={story.link}
+            key={story.id}
             rel="noopener noreferrer"
             target="_blank"
           >
-            <span className="story-ring">
-              {entry.iso ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" src={`https://flagcdn.com/w80/${entry.iso}.png`} />
-              ) : (
-                <span className="story-fallback">26</span>
-              )}
-            </span>
-            <span className="story-label">{entry.label}</span>
+            <span className="story-source">FIFA</span>
+            <span className="story-title">{story.title}</span>
           </a>
         ))}
       </div>
       <p className="muted">
-        Stories and headlines open on FIFA.com in a new tab.
+        Headlines via Google News RSS; each card opens the original story.
       </p>
     </section>
   );
@@ -289,6 +287,7 @@ const titleIso: Array<[string, string]> = [
   ["england", "gb-eng"], ["norway", "no"], ["argentina", "ar"],
   ["switzerland", "ch"], ["egypt", "eg"], ["colombia", "co"],
   ["mexico", "mx"], ["canada", "ca"], ["brazil", "br"], ["portugal", "pt"],
+  ["paraguay", "py"], ["usa", "us"],
 ];
 
 function isoFromTitle(title: string): string | undefined {
@@ -297,14 +296,24 @@ function isoFromTitle(title: string): string | undefined {
   return titleIso.find(([name]) => lower.includes(name))?.[1];
 }
 
+function teamFlag(team: string): string | undefined {
+  const lower = team.toLowerCase();
+
+  return titleIso.find(([name]) => lower.includes(name))?.[1];
+}
+
 function GameList({
   emptyText,
   games,
   heading,
+  now,
+  predictedIds,
 }: {
   emptyText: string;
   games: WorldCupFixture[];
   heading: string;
+  now: number | null;
+  predictedIds?: Set<number>;
 }) {
   return (
     <section aria-labelledby={`${heading.toLowerCase().replaceAll(" ", "-")}-heading`}>
@@ -315,21 +324,42 @@ function GameList({
         <p>{emptyText}</p>
       ) : (
         <ul className="game-list">
-          {games.map((fixture) => (
-            <li key={fixture.fixtureId}>
-              <Link className="game-link" href={`/match/${fixture.fixtureId}`}>
-                {fixture.homeTeam} vs {fixture.awayTeam}
-              </Link>{" "}
-              <span className="muted">
-                {formatDate(fixture.kickoffUtc)} UTC - {fixture.stage}
-              </span>
-            </li>
-          ))}
+          {games.map((fixture) => {
+            const live =
+              now !== null && isPotentiallyLive(fixture, now);
+            const homeIso = teamFlag(fixture.homeTeam);
+            const awayIso = teamFlag(fixture.awayTeam);
+
+            return (
+              <li key={fixture.fixtureId}>
+                <Link className="game-link" href={`/match/${fixture.fixtureId}`}>
+                  {homeIso ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt="" className="game-flag" src={`https://flagcdn.com/w40/${homeIso}.png`} />
+                  ) : null}
+                  {fixture.homeTeam} vs {fixture.awayTeam}
+                  {awayIso ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt="" className="game-flag" src={`https://flagcdn.com/w40/${awayIso}.png`} />
+                  ) : null}
+                </Link>
+                <span className="game-meta">
+                  {live ? <Badge className="badge-live">LIVE</Badge> : null}
+                  {predictedIds?.has(fixture.fixtureId) ? (
+                    <Badge variant="outline">Predicted</Badge>
+                  ) : null}
+                  <Badge variant="secondary">{fixture.stage}</Badge>
+                  <span className="muted">{formatDate(fixture.kickoffUtc)} UTC</span>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
   );
 }
+
 
 function MyPredictionsSection({ fixtures }: { fixtures: WorldCupFixture[] }) {
   // Lazy initializers instead of an effect: this page unmounts whenever a

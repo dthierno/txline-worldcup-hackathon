@@ -105,7 +105,7 @@ input {
 
 main {
   margin: 0 auto;
-  max-width: 920px;
+  max-width: 1080px;
   padding: 24px;
 }
 
@@ -1332,4 +1332,36 @@ dt {
   .hero-fill { animation: hero-sweep 0.9s ease 0.3s both; }
   .hero-float { animation: none; }
   .story-ring { transition: none; }
+}
+
+/* Game rows */
+
+.game-list li {
+  justify-content: space-between;
+}
+
+.game-link {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.game-flag {
+  border-radius: 50%;
+  height: 18px;
+  object-fit: cover;
+  width: 18px;
+}
+
+.game-meta {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge-live {
+  background: #10321d;
+  border-color: #1f6b3d;
+  color: var(--won);
 }
