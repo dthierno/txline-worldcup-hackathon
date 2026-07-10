@@ -1154,3 +1154,59 @@ dt {
 .hero-box[class*="pat-"]::after {
   bottom: 0; height: auto; left: 0; right: 0; top: 0; width: auto;
 }
+
+/* Hero two-zone composition */
+
+.hero-box .hero {
+  align-items: center;
+  flex-direction: row;
+  gap: 32px;
+  justify-content: space-between;
+  padding: 44px 56px 0;
+  text-align: left;
+}
+
+.hero-copy {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 54%;
+  padding-bottom: 44px;
+}
+
+.hero-title { font-size: 44px; }
+
+.hero-cta { margin-top: 6px; }
+
+.hero-visual { align-self: flex-end; }
+
+.hero-visual .hero-card { margin-top: 0; }
+
+.hero-float-1 { left: 47%; top: 16%; }
+.hero-float-2 { right: 5%; top: 16%; }
+.hero-float-4 { left: 5%; top: 13%; }
+.hero-float-5 { bottom: 18%; left: 44%; }
+
+@media (max-width: 900px) {
+  .hero-box .hero {
+    align-items: center;
+    flex-direction: column;
+    gap: 12px;
+    padding: 40px 16px 0;
+    text-align: center;
+  }
+  .hero-copy { align-items: center; max-width: 100%; padding-bottom: 0; }
+  .hero-visual { align-self: center; }
+  .hero-float-1 { left: 8%; top: 40%; }
+  .hero-float-5 { left: 12%; }
+}
+
+.hero-title { font-size: 38px; white-space: nowrap; }
+.hero-float-4 { left: 34%; top: 11%; }
+.hero-float-1 { left: 52%; top: 24%; }
+.hero-float-5 { bottom: 13%; left: 42%; }
+
+.hero-float-4 { left: 37%; top: 30%; }
+
+.hero-float-4 { left: 55%; top: 44%; }

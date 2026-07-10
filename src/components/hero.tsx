@@ -1,7 +1,10 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
 
 const heroPanels = [
   <div className="hero-panel" key="predict">
@@ -98,6 +101,7 @@ export function Hero({ variant = "pat-4" }: { variant?: string }) {
       </div>
       <div className="hero">
         <h1 className="sr-only">Fan Forecast</h1>
+        <div className="hero-copy">
         <div className="wc-strip">
           <span className="wc-badge">26</span>
           <span className="wc-text">World Cup 2026</span>
@@ -118,7 +122,15 @@ export function Hero({ variant = "pat-4" }: { variant?: string }) {
         <p className="text-muted-foreground">
           Guess results, compete with friends - every score verified by TxLINE.
         </p>
-        <HeroCard />
+        <div className="hero-cta">
+          <Button nativeButton={false} render={<Link href="#upcoming-games-heading" />}>
+            Make your first prediction
+          </Button>
+        </div>
+        </div>
+        <div className="hero-visual">
+          <HeroCard />
+        </div>
         {[
           ["fr", "hero-float-1"],
           ["es", "hero-float-2"],
