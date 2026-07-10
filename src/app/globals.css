@@ -1310,9 +1310,33 @@ dt {
 /* Demo-only: country pills clustered in the lower gutters flanking the widget,
    all kept below the title line (nothing above or level with the title).
    Each side zigzags between an inner column (near the widget) and an outer one. */
-/* Uniform pill size + no bob (the old per-flag sizes and the rotating bob
-   animation made the pills look different sizes). */
-.hero-predict .hero-float { animation: none; height: 32px; width: 32px; }
+/* Uniform pill size + a very subtle vertical float (translateY only, so the
+   pills never change size the way the old rotating bob did). */
+.hero-predict .hero-float {
+  animation: pill-float 5s ease-in-out infinite;
+  height: 32px;
+  width: 32px;
+}
+@keyframes pill-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+/* Desync each pill so they don't bob in unison. */
+.hero-predict .hero-float-1  { animation-delay: -0.2s; animation-duration: 4.7s; }
+.hero-predict .hero-float-2  { animation-delay: -0.4s; animation-duration: 5.6s; }
+.hero-predict .hero-float-4  { animation-delay: -1.2s; animation-duration: 4.6s; }
+.hero-predict .hero-float-5  { animation-delay: -2.0s; animation-duration: 5.2s; }
+.hero-predict .hero-float-6  { animation-delay: -0.8s; animation-duration: 6.0s; }
+.hero-predict .hero-float-7  { animation-delay: -2.6s; animation-duration: 4.8s; }
+.hero-predict .hero-float-9  { animation-delay: -1.6s; animation-duration: 5.4s; }
+.hero-predict .hero-float-10 { animation-delay: -0.6s; animation-duration: 4.4s; }
+.hero-predict .hero-float-12 { animation-delay: -2.2s; animation-duration: 5.8s; }
+.hero-predict .hero-float-13 { animation-delay: -1.0s; animation-duration: 4.9s; }
+.hero-predict .hero-float-14 { animation-delay: -3.0s; animation-duration: 5.1s; }
+.hero-predict .hero-float-15 { animation-delay: -1.4s; animation-duration: 5.7s; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-predict .hero-float { animation: none; }
+}
 /* Round-of-16 teams, split by bracket side, 8 per side in a 3-2-3 column set. */
 /* Left bracket — inner column (near the widget). */
 .hero-predict .hero-float-1 { bottom: auto; left: 28%; right: auto; top: 48%; } /* py */
