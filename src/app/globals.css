@@ -153,31 +153,42 @@ main {
     border-color 0.18s ease;
   width: 100%;
 }
-/* Deepest layer: a soft mesh of World Cup colour blobs — abstract and
-   organic, deliberately unlike the hero banner's hard sunburst rays. */
+/* Deepest layer: World Cup colour strips echoing the hero banner, but as
+   parallel diagonal bands (not a radiating sunburst), kept to the stub side
+   and faded out before the copy. */
 .league-card::after {
   content: "";
   inset: 0;
-  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 60%);
-  mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 60%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 15%, transparent 48%);
+  mask-image: linear-gradient(90deg, #000 0, #000 15%, transparent 48%);
   opacity: 0.9;
   position: absolute;
   transition: opacity 0.22s ease;
   z-index: -2;
 }
 .league-card--create::after {
-  background:
-    radial-gradient(52% 72% at 12% 86%, rgba(22, 163, 74, 0.6), transparent 62%),
-    radial-gradient(46% 60% at 33% 12%, rgba(234, 88, 12, 0.45), transparent 60%),
-    radial-gradient(44% 58% at 2% 40%, rgba(37, 99, 235, 0.42), transparent 58%),
-    radial-gradient(40% 52% at 44% 66%, rgba(124, 58, 237, 0.4), transparent 58%);
+  background: repeating-linear-gradient(
+    60deg,
+    #dc2626 0 16px,
+    #ea580c 16px 32px,
+    #a5b4fc 32px 48px,
+    #2563eb 48px 64px,
+    #7c3aed 64px 80px,
+    #16a34a 80px 96px,
+    #22d3ee 96px 112px
+  );
 }
 .league-card--join::after {
-  background:
-    radial-gradient(52% 72% at 12% 14%, rgba(37, 99, 235, 0.6), transparent 62%),
-    radial-gradient(46% 60% at 33% 88%, rgba(124, 58, 237, 0.48), transparent 60%),
-    radial-gradient(44% 58% at 2% 55%, rgba(34, 211, 238, 0.4), transparent 58%),
-    radial-gradient(40% 52% at 46% 30%, rgba(22, 163, 74, 0.34), transparent 58%);
+  background: repeating-linear-gradient(
+    120deg,
+    #2563eb 0 16px,
+    #7c3aed 16px 32px,
+    #22d3ee 32px 48px,
+    #16a34a 48px 64px,
+    #a5b4fc 64px 80px,
+    #ea580c 80px 96px,
+    #dc2626 96px 112px
+  );
 }
 /* Fine printed-dot halftone over the mesh, for a ticket-stock texture. */
 .league-card::before {
