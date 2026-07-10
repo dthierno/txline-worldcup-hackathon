@@ -340,12 +340,11 @@ describe("Home", () => {
       screen.getByRole("heading", { level: 1, name: "World Cup games" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Past games" }),
+      screen.getByRole("heading", { level: 2, name: "Matches" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Upcoming games" }),
+      screen.getByRole("link", { name: /Canada vs Morocco/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Canada vs Morocco/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 2, name: "Knockout" }),
     ).toBeInTheDocument();

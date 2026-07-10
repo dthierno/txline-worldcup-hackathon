@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Hero } from "@/components/hero";
 import { useEffect, useMemo, useState } from "react";
 
@@ -128,10 +127,41 @@ export function HomePage() {
     useState<ApiResult<unknown> | null>(null);
   const [status, setStatus] = useState<TxlineStatus | null>(null);
   const mounted = useIsMounted();
-  const [predictedIds] = useState<Set<number>>(
-    () => new Set(Object.values(loadPredictions()).map((p) => p.fixtureId)),
+  const [predictions] = useState<Record<string, MatchPrediction>>(() =>
+    loadPredictions(),
   );
+  const [finals] = useState<Record<string, StoredSettlement>>(() =>
+    loadSettlements(),
+  );
+  const [odds, setOdds] = useState<Record<number, string[]>>({});
   const now = useNow();
+
+  // Decimal 1X2 odds chips for upcoming fixtures (from TxLINE win
+  // probabilities; at most four fetches).
+  useEffect(() => {
+    const upcoming = fixtures.filter((f) => !isPastFixture(f)).slice(0, 4);
+
+    upcoming.forEach((fixture) => {
+      fetchJson<{
+        awayWinProbability: number | null;
+        drawProbability: number | null;
+        homeWinProbability: number | null;
+      }>(`/api/txline/odds/${fixture.fixtureId}`).then((result) => {
+        const d = result.data;
+
+        if (d?.homeWinProbability && d.drawProbability && d.awayWinProbability) {
+          setOdds((prev) => ({
+            ...prev,
+            [fixture.fixtureId]: [
+              (100 / d.homeWinProbability!).toFixed(2),
+              (100 / d.drawProbability!).toFixed(2),
+              (100 / d.awayWinProbability!).toFixed(2),
+            ],
+          }));
+        }
+      });
+    });
+  }, [fixtures]);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,19 +231,12 @@ export function HomePage() {
 
       <StoriesRail />
 
-      <GameList
-        heading="Upcoming games"
-        emptyText="No upcoming World Cup games found."
-        games={upcomingGames}
+      <MatchDayList
+        finals={mounted ? finals : {}}
+        fixtures={[...pastGames, ...upcomingGames]}
         now={now}
-        predictedIds={mounted ? predictedIds : undefined}
-      />
-      <GameList
-        heading="Past games"
-        emptyText="No past World Cup games found."
-        games={pastGames}
-        now={now}
-        predictedIds={mounted ? predictedIds : undefined}
+        odds={odds}
+        predictions={mounted ? predictions : {}}
       />
       <MyPredictionsSection fixtures={fixtures} />
       <KnockoutBracket />
@@ -302,63 +325,166 @@ function teamFlag(team: string): string | undefined {
   return titleIso.find(([name]) => lower.includes(name))?.[1];
 }
 
-function GameList({
-  emptyText,
-  games,
-  heading,
+// Soft accent per nation for the card corner glows.
+const teamGlow: Record<string, string> = {
+  ar: "#38bdf8", be: "#facc15", br: "#16a34a", ca: "#dc2626",
+  ch: "#dc2626", co: "#facc15", eg: "#dc2626", es: "#f59e0b",
+  fr: "#3b82f6", "gb-eng": "#e11d48", ma: "#dc2626", mx: "#16a34a",
+  no: "#ef4444", pt: "#dc2626", py: "#ef4444", us: "#3b82f6",
+};
+
+function dayLabel(kickoffUtc: string, now: number | null): string {
+  const kickoff = new Date(kickoffUtc);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const reference = now === null ? null : new Date(now);
+  const label = new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+    weekday: "long",
+  }).format(kickoff);
+
+  if (reference === null) {
+    return label;
+  }
+
+  const diff =
+    (Date.UTC(kickoff.getUTCFullYear(), kickoff.getUTCMonth(), kickoff.getUTCDate()) -
+      Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), reference.getUTCDate())) /
+    86_400_000;
+
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff === -1) return "Yesterday";
+
+  return label;
+}
+
+function formatKickoffTime(kickoffUtc: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    hour12: true,
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(kickoffUtc));
+}
+
+function MatchDayList({
+  finals,
+  fixtures,
   now,
-  predictedIds,
+  odds,
+  predictions,
 }: {
-  emptyText: string;
-  games: WorldCupFixture[];
-  heading: string;
+  finals: Record<string, StoredSettlement>;
+  fixtures: WorldCupFixture[];
   now: number | null;
-  predictedIds?: Set<number>;
+  odds: Record<number, string[]>;
+  predictions: Record<string, MatchPrediction>;
 }) {
+  const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
+
+  for (const fixture of fixtures) {
+    const label = dayLabel(fixture.kickoffUtc, now);
+    const group = groups[groups.length - 1];
+
+    if (group?.label === label) {
+      group.matches.push(fixture);
+    } else {
+      groups.push({ label, matches: [fixture] });
+    }
+  }
+
   return (
-    <section aria-labelledby={`${heading.toLowerCase().replaceAll(" ", "-")}-heading`}>
-      <h2 id={`${heading.toLowerCase().replaceAll(" ", "-")}-heading`}>
-        {heading}
-      </h2>
-      {games.length === 0 ? (
-        <p>{emptyText}</p>
-      ) : (
-        <ul className="game-list">
-          {games.map((fixture) => {
-            const live =
-              now !== null && isPotentiallyLive(fixture, now);
+    <section aria-labelledby="matches-heading">
+      <h2 id="matches-heading">Matches</h2>
+      {groups.map((group) => (
+        <div key={group.label}>
+          <h3 className={`day-label${group.label === "Today" ? " day-today" : ""}`}>
+            {group.label}
+          </h3>
+          {group.matches.map((fixture) => {
+            const past = isPastFixture(fixture);
+            const live = now !== null && isPotentiallyLive(fixture, now);
             const homeIso = teamFlag(fixture.homeTeam);
             const awayIso = teamFlag(fixture.awayTeam);
+            const prediction = predictions[String(fixture.fixtureId)];
+            const final = finals[String(fixture.fixtureId)];
+            const fixtureOdds = odds[fixture.fixtureId];
 
             return (
-              <li key={fixture.fixtureId}>
-                <Link className="game-link" href={`/match/${fixture.fixtureId}`}>
-                  {homeIso ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img alt="" className="game-flag" src={`https://flagcdn.com/w40/${homeIso}.png`} />
-                  ) : null}
-                  {fixture.homeTeam} vs {fixture.awayTeam}
-                  {awayIso ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img alt="" className="game-flag" src={`https://flagcdn.com/w40/${awayIso}.png`} />
-                  ) : null}
-                </Link>
-                <span className="game-meta">
-                  {live ? <Badge className="badge-live">LIVE</Badge> : null}
-                  {predictedIds?.has(fixture.fixtureId) ? (
-                    <Badge variant="outline">Predicted</Badge>
-                  ) : null}
-                  <Badge variant="secondary">{fixture.stage}</Badge>
-                  <span className="muted">{formatDate(fixture.kickoffUtc)} UTC</span>
+              <Link
+                aria-label={`${fixture.homeTeam} vs ${fixture.awayTeam}`}
+                className="match-card"
+                href={`/match/${fixture.fixtureId}`}
+                key={fixture.fixtureId}
+                style={{
+                  "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
+                  "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
+                } as React.CSSProperties}
+              >
+                <span className="mc-top">
+                  <span className="mc-time">
+                    {live ? <i className="mc-live" /> : null}
+                    {live ? "LIVE" : formatKickoffTime(fixture.kickoffUtc)}
+                  </span>
+                  <span className="mc-open" aria-hidden="true">↗</span>
                 </span>
-              </li>
+                <span className="mc-teams">
+                  <span className="mc-team">
+                    {homeIso ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img alt="" src={`https://flagcdn.com/w80/${homeIso}.png`} />
+                    ) : null}
+                    <span>{fixture.homeTeam}</span>
+                  </span>
+                  <span className="mc-center">
+                    {past || live ? (
+                      <>
+                        <small>{live ? "" : "FT"}</small>
+                        <b>{final ? final.finalScore.replace("-", " - ") : "- : -"}</b>
+                      </>
+                    ) : prediction ? (
+                      <>
+                        <small>Your pick</small>
+                        <b>{prediction.homeGoals} - {prediction.awayGoals}</b>
+                      </>
+                    ) : (
+                      <>
+                        <small>Predict</small>
+                        <b className="mc-q">? - ?</b>
+                      </>
+                    )}
+                  </span>
+                  <span className="mc-team">
+                    {awayIso ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img alt="" src={`https://flagcdn.com/w80/${awayIso}.png`} />
+                    ) : null}
+                    <span>{fixture.awayTeam}</span>
+                  </span>
+                </span>
+                {!past && fixtureOdds ? (
+                  <span className="mc-odds">
+                    <span>1 <b>{fixtureOdds[0]}</b></span>
+                    <span>X <b>{fixtureOdds[1]}</b></span>
+                    <span>2 <b>{fixtureOdds[2]}</b></span>
+                  </span>
+                ) : null}
+              </Link>
             );
           })}
-        </ul>
-      )}
+        </div>
+      ))}
+      <p className="muted">
+        Odds are TxLINE 1X2 win probabilities shown as decimals. Final scores
+        appear once a match you predicted settles; open any match for the
+        verified result.
+      </p>
     </section>
   );
 }
+
 
 
 function MyPredictionsSection({ fixtures }: { fixtures: WorldCupFixture[] }) {
