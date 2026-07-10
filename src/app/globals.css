@@ -105,8 +105,46 @@ input {
 
 main {
   margin: 0 auto;
-  max-width: 908px;
-  padding: 24px;
+  max-width: 1088px;
+  padding: 12px 24px 24px;
+}
+
+/* Top header (FotMob Predict layout: gradient-to-transparent, logo left,
+   sign-in right, inner column capped at the content width). */
+.app-header {
+  align-items: center;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
+  display: flex;
+  height: 96px;
+  justify-content: center;
+  padding: 0 24px;
+  width: 100%;
+}
+.app-header-inner {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  max-width: 1040px;
+  width: 100%;
+}
+.app-logo {
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.app-logo span {
+  color: var(--won);
+}
+.app-signin {
+  align-items: center;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: inline-flex;
+  transition: color 0.2s ease;
+}
+.app-signin:hover {
+  color: #ffffff;
 }
 
 section {
@@ -1245,13 +1283,10 @@ dt {
 }
 
 /* Predict hero sizing: taller card with the widget glued to the bottom edge.
-   The card breaks out wider than the content column, centered on it, but is
-   capped at the viewport width so it never causes horizontal scroll. */
+   The card fills the content column (now the site's banner width) and sits
+   snug under the header. */
 .hero-predict {
-  left: 50%;
-  position: relative;
-  transform: translateX(-50%);
-  width: min(1040px, 100vw - 24px);
+  margin-top: 0;
 }
 .hero-predict .hero {
   min-height: 502px;

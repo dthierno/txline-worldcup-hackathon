@@ -3,6 +3,8 @@ import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
+import { Header } from "@/components/header";
+
 // Open Runde — a rounded variant of Inter (github.com/lauridskern/open-runde),
 // self-hosted from src/app/fonts.
 const openRunde = localFont({
@@ -36,7 +38,10 @@ export default function RootLayout({
       lang="en"
       className={`${openRunde.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Header />
+        {children}
+      </body>
     </html>
   );
 }
