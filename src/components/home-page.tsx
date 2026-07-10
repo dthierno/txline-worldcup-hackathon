@@ -242,16 +242,16 @@ function StoriesRail() {
     };
   }, []);
 
-  if (stories.length === 0) {
-    return null;
-  }
-
-  const entries = [...featuredStories, ...stories.map((story) => ({
+  const entries = [...featuredStories, ...stories.slice(0, 6).map((story) => ({
     id: story.id,
     iso: isoFromTitle(story.title),
     label: story.title,
     link: story.link,
   }))];
+
+  if (entries.length === 0) {
+    return null;
+  }
 
   return (
     <section aria-labelledby="stories-heading">
@@ -278,20 +278,35 @@ function StoriesRail() {
         ))}
       </div>
       <p className="muted">
-        Via Google News RSS; each circle opens the original story on FIFA.com.
+        Stories and headlines open on FIFA.com in a new tab.
       </p>
     </section>
   );
 }
 
-// Hand-picked story deep links (public URLs; linking out only).
+// FIFA's live stories rail, collected manually from the public homepage
+// (labels + public share links only; videos stay on FIFA.com).
 const featuredStories = [
-  {
-    id: "featured-fr-goals",
-    iso: "fr",
-    label: "France Goals",
-    link: "https://www.fifa.com/#stories/37c02e44-68dd-604e-fc30-3a21a4c80e4a",
-  },
+  { id: "0906e472-7992-9b54-3b4e-3a21aae21752", iso: "fr", label: "FRA 2-0 MAR", link: "https://www.fifa.com/#stories/0906e472-7992-9b54-3b4e-3a21aae21752" },
+  { id: "2c9734df-dd04-1e8d-3e77-3a21aae33663", iso: "es", label: "ESP V BEL", link: "https://www.fifa.com/#stories/2c9734df-dd04-1e8d-3e77-3a21aae33663" },
+  { id: "ec38ff45-56a1-476a-724c-3a224faf7844", iso: undefined, label: "Slow Mo Moments 📹", link: "https://www.fifa.com/#stories/ec38ff45-56a1-476a-724c-3a224faf7844" },
+  { id: "c2cda492-c646-ecee-60d6-3a21a430f5cc", iso: "ar", label: "Lionel Messi", link: "https://www.fifa.com/#stories/c2cda492-c646-ecee-60d6-3a21a430f5cc" },
+  { id: "eae8a4b7-823e-b395-b03c-3a21a4317e8a", iso: "gb-eng", label: "Harry Kane", link: "https://www.fifa.com/#stories/eae8a4b7-823e-b395-b03c-3a21a4317e8a" },
+  { id: "f7ce7bc8-0f75-b8cd-e045-3a21a4ca99ee", iso: "gb-eng", label: "England Goals", link: "https://www.fifa.com/#stories/f7ce7bc8-0f75-b8cd-e045-3a21a4ca99ee" },
+  { id: "37c02e44-68dd-604e-fc30-3a21a4c80e4a", iso: "fr", label: "France Goals", link: "https://www.fifa.com/#stories/37c02e44-68dd-604e-fc30-3a21a4c80e4a" },
+  { id: "aeeafd8e-c3c8-d2be-f05f-3a21a430506e", iso: "fr", label: "Kylian Mbappe", link: "https://www.fifa.com/#stories/aeeafd8e-c3c8-d2be-f05f-3a21a430506e" },
+  { id: "bab55574-885b-d609-4abc-3a21a4c8c2ba", iso: "no", label: "Norway Goals", link: "https://www.fifa.com/#stories/bab55574-885b-d609-4abc-3a21a4c8c2ba" },
+  { id: "aea9d88d-44db-170b-73e3-3a21a430b3cb", iso: "no", label: "Erling Haaland", link: "https://www.fifa.com/#stories/aea9d88d-44db-170b-73e3-3a21a430b3cb" },
+  { id: "9c4d06d6-7cbf-7c4f-bbfc-3a21a4c6abb1", iso: "be", label: "Belgium Goals", link: "https://www.fifa.com/#stories/9c4d06d6-7cbf-7c4f-bbfc-3a21a4c6abb1" },
+  { id: "7f2bdffa-c30d-c859-e3e9-3a21a4c67150", iso: "es", label: "Spain Goals", link: "https://www.fifa.com/#stories/7f2bdffa-c30d-c859-e3e9-3a21a4c67150" },
+  { id: "5e7330f6-1369-c4bc-60e0-3a21a4c32f9f", iso: "ma", label: "Morocco Goals", link: "https://www.fifa.com/#stories/5e7330f6-1369-c4bc-60e0-3a21a4c32f9f" },
+  { id: "8a670d52-2106-1c20-cc7d-3a224faf32e7", iso: "ch", label: "Switzerland Goals", link: "https://www.fifa.com/#stories/8a670d52-2106-1c20-cc7d-3a224faf32e7" },
+  { id: "bc8aefc4-f07e-fb73-3305-3a224faeebee", iso: "ar", label: "Argentina Goals", link: "https://www.fifa.com/#stories/bc8aefc4-f07e-fb73-3305-3a224faeebee" },
+  { id: "5824cf1b-91d8-9420-2003-3a21aae44947", iso: "no", label: "NOR V ENG", link: "https://www.fifa.com/#stories/5824cf1b-91d8-9420-2003-3a21aae44947" },
+  { id: "93bf098e-c514-18c4-c559-3a21aae561c0", iso: "ar", label: "ARG V SUI", link: "https://www.fifa.com/#stories/93bf098e-c514-18c4-c559-3a21aae561c0" },
+  { id: "2db29989-cb30-296c-96cb-3a21aae0fe41", iso: "ch", label: "SUI (4-3p) COL", link: "https://www.fifa.com/#stories/2db29989-cb30-296c-96cb-3a21aae0fe41" },
+  { id: "31bb83b9-4205-70dc-efa5-3a21aadfe506", iso: "ar", label: "ARG 3-2 EGY", link: "https://www.fifa.com/#stories/31bb83b9-4205-70dc-efa5-3a21aadfe506" },
+  { id: "be47be8a-0604-002a-13a9-3a21aade7652", iso: "us", label: "USA 1-4 BEL", link: "https://www.fifa.com/#stories/be47be8a-0604-002a-13a9-3a21aade7652" },
 ];
 
 const titleIso: Array<[string, string]> = [
