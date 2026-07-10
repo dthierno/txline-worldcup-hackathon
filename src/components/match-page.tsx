@@ -2,9 +2,22 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Progress,
+  ProgressIndicator,
+  ProgressTrack,
+} from "@/components/ui/progress";
 
 import {
   buildOutcome,
@@ -637,6 +650,75 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   );
 }
 
+// Our answer window: TxLINE gives no duration for a possible-goal moment (it
+// ends whenever the resolving record arrives), so we impose a fixed window —
+// which also prevents answering after the outcome is known.
+const CALL_WINDOW_MS = 8000;
+
+function CallPromptDialog({
+  onAnswer,
+  onDismiss,
+  callKey,
+  team,
+}: {
+  callKey: string;
+  onAnswer: (pick: "goal" | "no_goal") => void;
+  onDismiss: (key: string) => void;
+  team?: string;
+}) {
+  const [remaining, setRemaining] = useState(CALL_WINDOW_MS);
+
+  useEffect(() => {
+    const start = Date.now();
+    const timer = setInterval(() => {
+      const left = Math.max(0, CALL_WINDOW_MS - (Date.now() - start));
+
+      setRemaining(left);
+
+      if (left <= 0) {
+        onDismiss(callKey);
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [callKey, onDismiss]);
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onDismiss(callKey);
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Goal call</DialogTitle>
+          <DialogDescription>
+            Close play{team ? ` for ${team}` : ""} - does it end in a goal?
+          </DialogDescription>
+        </DialogHeader>
+        <Progress value={(remaining / CALL_WINDOW_MS) * 100}>
+          <ProgressTrack>
+            <ProgressIndicator />
+          </ProgressTrack>
+        </Progress>
+        <p className="muted">
+          {Math.ceil(remaining / 1000)}s to answer - resolves early if the
+          play settles first.
+        </p>
+        <DialogFooter>
+          <Button onClick={() => onAnswer("goal")}>Goal</Button>
+          <Button onClick={() => onAnswer("no_goal")} variant="outline">
+            No goal
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function GoalCallsSection({
   calls,
   fixture,
@@ -650,6 +732,16 @@ export function GoalCallsSection({
   const [answers, setAnswers] = useState<Record<string, GoalCallAnswer>>(() =>
     loadGoalCalls(fixture.fixtureId),
   );
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const handleDismiss = useCallback((key: string) => {
+    setDismissed((previous) => {
+      const next = new Set(previous);
+
+      next.add(key);
+
+      return next;
+    });
+  }, []);
 
   if (calls.length === 0) {
     return null;
@@ -662,7 +754,12 @@ export function GoalCallsSection({
         ? fixture.awayTeam
         : undefined;
   const openCall = live
-    ? [...calls].reverse().find((call) => !call.resolved)
+    ? [...calls]
+        .reverse()
+        .find(
+          (call) =>
+            !call.resolved && !answers[call.key] && !dismissed.has(call.key),
+        )
     : undefined;
   const points = calls.reduce((total, call) => {
     const answer = answers[call.key];
@@ -690,22 +787,14 @@ export function GoalCallsSection({
   return (
     <section className="card" aria-labelledby="goal-calls-heading">
       <h2 id="goal-calls-heading">Goal calls</h2>
-      {openCall && mounted && !answers[openCall.key] ? (
-        <div className="call-prompt">
-          <p>
-            Close play{teamName(openCall.participant) ? ` for ${teamName(openCall.participant)}` : ""}
-            {" "}- does it end in a goal?
-          </p>
-          <div className="call-actions">
-            <Button onClick={() => answer(openCall.key, "goal")}>Goal</Button>
-            <Button
-              onClick={() => answer(openCall.key, "no_goal")}
-              variant="outline"
-            >
-              No goal
-            </Button>
-          </div>
-        </div>
+      {openCall && mounted ? (
+        <CallPromptDialog
+          key={openCall.key}
+          callKey={openCall.key}
+          onAnswer={(pick) => answer(openCall.key, pick)}
+          onDismiss={handleDismiss}
+          team={teamName(openCall.participant)}
+        />
       ) : null}
       <ul className="call-list">
         {[...calls].reverse().map((call) => {
