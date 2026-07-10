@@ -7,18 +7,18 @@ import { PredictWidget } from "@/components/predict-widget";
 // Round-of-16 teams, on the banner side matching their side of the bracket
 // (positioned by the .hero-predict .hero-float-* rules in globals.css).
 const FLAGS: [string, string][] = [
-  // Left bracket
-  ["py", "hero-float-1"], // Paraguay
+  // Left side
+  ["sn", "hero-float-1"], // Senegal
   ["fr", "hero-float-2"], // France
   ["ma", "hero-float-4"], // Morocco
   ["pt", "hero-float-5"], // Portugal
   ["es", "hero-float-6"], // Spain
-  ["us", "hero-float-7"], // USA
-  // Right bracket
+  ["de", "hero-float-7"], // Germany
+  // Right side
   ["br", "hero-float-9"], // Brazil
   ["no", "hero-float-10"], // Norway
   ["gb-eng", "hero-float-12"], // England
-  ["ar", "hero-float-13"], // Argentina
+  ["jp", "hero-float-13"], // Japan
   ["eg", "hero-float-14"], // Egypt
   ["ch", "hero-float-15"], // Switzerland
 ];
