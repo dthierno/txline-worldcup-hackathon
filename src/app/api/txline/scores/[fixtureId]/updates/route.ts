@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getTxlineConfig } from "@/lib/txline-config";
-import { fetchTxlineScoreUpdates } from "@/lib/txline-client";
+import { fetchTxlineScoreUpdates, withoutRaw } from "@/lib/txline-client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   try {
     return NextResponse.json({
-      data: await fetchTxlineScoreUpdates(id),
+      data: (await fetchTxlineScoreUpdates(id)).map(withoutRaw),
       mode: "txline",
       source: "TxLINE scores updates API",
     });

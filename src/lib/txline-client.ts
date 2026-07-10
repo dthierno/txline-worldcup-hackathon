@@ -1,5 +1,44 @@
 import { getTxlineConfig } from "./txline-config";
+import {
+  buildOddsMovementSeries,
+  extractLineups,
+  normalizeOddsSnapshot,
+  normalizeScoreSnapshot,
+  normalizeValidationSummary,
+  parseSsePayloads,
+  parseTxlinePayloads,
+  readNumber,
+  type NormalizedLineups,
+  type NormalizedTxlineOdds,
+  type NormalizedTxlineScore,
+  type NormalizedTxlineScoreUpdate,
+  type TxlineOddsSeriesPoint,
+  type TxlineValidationSummary,
+} from "./txline-normalize";
 import type { WorldCupFixture } from "./world-cup-fixtures";
+
+export {
+  buildOddsMovementSeries,
+  computePossessionSplit,
+  extractLineups,
+  findFirstGoal,
+  normalizeOddsSnapshot,
+  normalizeScoreSnapshot,
+  normalizeValidationSummary,
+  withoutRaw,
+} from "./txline-normalize";
+export type {
+  FirstGoal,
+  NormalizedLineups,
+  NormalizedTxlineOdds,
+  NormalizedTxlineOddsMarket,
+  NormalizedTxlineScore,
+  NormalizedTxlineScoreUpdate,
+  PossessionSplit,
+  TxlineOddsSeriesPoint,
+  TxlineScoreStat,
+  TxlineValidationSummary,
+} from "./txline-normalize";
 
 type TxlineFixture = {
   Competition?: string;
@@ -12,51 +51,11 @@ type TxlineFixture = {
   StartTime: number | string;
 };
 
-export type TxlineScoreStat = {
-  key?: number;
-  name?: string;
-  value?: number;
-  Key?: number;
-  Value?: number;
-};
-
-export type NormalizedTxlineScore = {
-  action?: string;
-  awayCorners: number;
-  awayGoals: number;
-  awayRedCards: number;
-  awayYellowCards: number;
-  gameState?: string;
-  homeCorners: number;
-  homeGoals: number;
-  homeRedCards: number;
-  homeYellowCards: number;
-  raw: unknown;
-  seq?: number;
-  ts?: number;
-};
-
-export type NormalizedTxlineScoreUpdate = NormalizedTxlineScore & {
-  id: string;
-};
-
-export type NormalizedTxlineOddsMarket = {
-  inRunning: boolean;
-  marketParameters: string | null;
-  marketPeriod: string | null;
-  priceNames: string[];
-  prices: number[];
-  probabilities: number[];
-  type: string;
-};
-
-export type NormalizedTxlineOdds = {
-  awayWinProbability: number | null;
-  drawProbability: number | null;
-  homeWinProbability: number | null;
-  marketNote: string;
-  markets: NormalizedTxlineOddsMarket[];
-  raw: unknown;
+export type TxlineOddsUpdatesSummary = {
+  count: number;
+  latestTs: number | null;
+  marketTypes: string[];
+  series: TxlineOddsSeriesPoint[];
 };
 
 export async function fetchTxlineFixtures(): Promise<WorldCupFixture[]> {
@@ -123,6 +122,54 @@ export async function fetchTxlineScoreUpdates(
   });
 }
 
+export async function fetchTxlineHistoricalScoreUpdates(
+  fixtureId: number,
+): Promise<NormalizedTxlineScoreUpdate[]> {
+  const response = await txlineFetch(`/scores/historical/${fixtureId}`, {
+    accept: "text/event-stream",
+    cache: "no-cache",
+  });
+  const text = await response.text();
+  const updates = parseTxlinePayloads(text);
+
+  return updates.map((raw, index) => {
+    const normalized = normalizeScoreSnapshot(raw);
+
+    return {
+      ...normalized,
+      id: `historical-${String(normalized.seq ?? index)}`,
+    };
+  });
+}
+
+// Lineups (with real player names) arrive as records on the score feeds: the
+// current updates feed pre-match and during play, the historical replay after.
+export async function fetchTxlineLineups(
+  fixtureId: number,
+): Promise<NormalizedLineups | null> {
+  const updatesResponse = await txlineFetch(`/scores/updates/${fixtureId}`, {
+    accept: "text/event-stream",
+    cache: "no-cache",
+  });
+  const fromUpdates = extractLineups(
+    parseSsePayloads(await updatesResponse.text()),
+  );
+
+  if (fromUpdates) {
+    return fromUpdates;
+  }
+
+  const historicalResponse = await txlineFetch(
+    `/scores/historical/${fixtureId}`,
+    {
+      accept: "text/event-stream",
+      cache: "no-cache",
+    },
+  );
+
+  return extractLineups(parseTxlinePayloads(await historicalResponse.text()));
+}
+
 export async function fetchTxlineOddsSnapshot(
   fixtureId: number,
 ): Promise<NormalizedTxlineOdds> {
@@ -132,78 +179,82 @@ export async function fetchTxlineOddsSnapshot(
   return normalizeOddsSnapshot(raw);
 }
 
-export function normalizeScoreSnapshot(raw: unknown): NormalizedTxlineScore {
-  const stats = extractStats(raw);
-  const statMap = new Map<number, number>();
-  const latestEntry = getLatestScoreEntry(raw);
+export async function fetchTxlineOddsUpdates(
+  fixtureId: number,
+): Promise<TxlineOddsUpdatesSummary> {
+  const response = await txlineFetch(`/odds/updates/${fixtureId}`);
+  const raw = await response.json();
+  const entries = Array.isArray(raw) ? raw : [];
+  const marketTypes = Array.from(
+    new Set(
+      entries
+        .map((entry) =>
+          entry && typeof entry === "object"
+            ? String((entry as Record<string, unknown>).SuperOddsType ?? "")
+            : "",
+        )
+        .filter(Boolean),
+    ),
+  );
+  const latestTs = entries.reduce<number | null>((latest, entry) => {
+    const ts =
+      entry && typeof entry === "object"
+        ? readNumber(entry as Record<string, unknown>, "Ts")
+        : undefined;
 
-  for (const stat of stats) {
-    const key = stat.key ?? stat.Key;
-    const value = stat.value ?? stat.Value;
-
-    if (typeof key === "number" && typeof value === "number") {
-      statMap.set(key, value);
-    }
-  }
+    return typeof ts === "number" && (latest === null || ts > latest)
+      ? ts
+      : latest;
+  }, null);
 
   return {
-    action: readString(latestEntry, "Action"),
-    awayCorners: statMap.get(8) ?? 0,
-    awayGoals: statMap.get(2) ?? 0,
-    awayRedCards: statMap.get(6) ?? 0,
-    awayYellowCards: statMap.get(4) ?? 0,
-    gameState: readString(latestEntry, "GameState"),
-    homeCorners: statMap.get(7) ?? 0,
-    homeGoals: statMap.get(1) ?? 0,
-    homeRedCards: statMap.get(5) ?? 0,
-    homeYellowCards: statMap.get(3) ?? 0,
-    raw,
-    seq: readNumber(latestEntry, "Seq"),
-    ts: readNumber(latestEntry, "Ts"),
+    count: entries.length,
+    latestTs,
+    marketTypes,
+    series: buildOddsMovementSeries(entries),
   };
 }
 
-export function normalizeOddsSnapshot(raw: unknown): NormalizedTxlineOdds {
-  const entries = Array.isArray(raw) ? raw : [];
-  const markets = entries
-    .filter((entry): entry is Record<string, unknown> =>
-      Boolean(entry && typeof entry === "object"),
-    )
-    .map((entry) => ({
-      inRunning: Boolean(entry.InRunning),
-      marketParameters:
-        typeof entry.MarketParameters === "string"
-          ? entry.MarketParameters
-          : null,
-      marketPeriod:
-        typeof entry.MarketPeriod === "string" ? entry.MarketPeriod : null,
-      priceNames: Array.isArray(entry.PriceNames)
-        ? entry.PriceNames.map(String)
-        : [],
-      prices: Array.isArray(entry.Prices)
-        ? entry.Prices.map((price) => Number(price))
-        : [],
-      probabilities: Array.isArray(entry.Pct)
-        ? entry.Pct.map((pct) => Number(pct))
-        : [],
-      type: typeof entry.SuperOddsType === "string" ? entry.SuperOddsType : "Market",
-    }));
-  const resultMarket = markets.find(
-    (market) => market.type === "1X2_PARTICIPANT_RESULT",
-  );
+export async function fetchTxlineScoreStatValidation({
+  fixtureId,
+  seq,
+  statKey,
+  statKey2,
+}: {
+  fixtureId: number;
+  seq: number;
+  statKey: number;
+  statKey2?: number;
+}): Promise<TxlineValidationSummary> {
+  const params = new URLSearchParams({
+    fixtureId: String(fixtureId),
+    seq: String(seq),
+    statKey: String(statKey),
+  });
 
-  return {
-    awayWinProbability: resultMarket?.probabilities[2] ?? null,
-    drawProbability: resultMarket?.probabilities[1] ?? null,
-    homeWinProbability: resultMarket?.probabilities[0] ?? null,
-    marketNote: resultMarket
-      ? `TxLINE 1X2: ${formatPct(resultMarket.probabilities[0])} / ${formatPct(
-          resultMarket.probabilities[1],
-        )} / ${formatPct(resultMarket.probabilities[2])}`
-      : `${markets.length} TxLINE odds markets available`,
-    markets,
-    raw,
-  };
+  if (typeof statKey2 === "number") {
+    params.set("statKey2", String(statKey2));
+  }
+
+  const response = await txlineFetch(`/scores/stat-validation?${params}`);
+  const raw = await response.json();
+
+  return normalizeValidationSummary(raw);
+}
+
+export async function fetchTxlineFixtureBatchValidation(): Promise<unknown> {
+  const response = await txlineFetch("/fixtures/batch-validation");
+
+  return response.json();
+}
+
+export async function openTxlineStream(
+  stream: "odds" | "scores",
+): Promise<Response> {
+  return txlineFetch(`/${stream}/stream`, {
+    accept: "text/event-stream",
+    cache: "no-cache",
+  });
 }
 
 async function txlineFetch(
@@ -231,85 +282,4 @@ async function txlineFetch(
   }
 
   return response;
-}
-
-function extractStats(raw: unknown): TxlineScoreStat[] {
-  if (Array.isArray(raw)) {
-    return raw.flatMap(extractStats);
-  }
-
-  if (!raw || typeof raw !== "object") {
-    return [];
-  }
-
-  const record = raw as Record<string, unknown>;
-
-  for (const key of ["stats", "Stats", "statistics", "Statistics"]) {
-    const value = record[key];
-    if (Array.isArray(value)) {
-      return value as TxlineScoreStat[];
-    }
-    if (value && typeof value === "object") {
-      return Object.entries(value as Record<string, unknown>).map(([statKey, statValue]) => ({
-        key: Number(statKey),
-        value: Number(statValue),
-      }));
-    }
-  }
-
-  return [];
-}
-
-function parseSsePayloads(text: string): unknown[] {
-  return text
-    .split(/\r?\n\r?\n/)
-    .map((block) =>
-      block
-        .split(/\r?\n/)
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.slice(5).trimStart())
-        .join("\n"),
-    )
-    .filter(Boolean)
-    .map((data) => {
-      try {
-        return JSON.parse(data);
-      } catch {
-        return data;
-      }
-    });
-}
-
-function getLatestScoreEntry(raw: unknown): Record<string, unknown> | undefined {
-  if (Array.isArray(raw)) {
-    return raw
-      .filter((entry): entry is Record<string, unknown> =>
-        Boolean(entry && typeof entry === "object"),
-      )
-      .sort((left, right) => (readNumber(right, "Seq") ?? 0) - (readNumber(left, "Seq") ?? 0))[0];
-  }
-
-  if (raw && typeof raw === "object") {
-    return raw as Record<string, unknown>;
-  }
-
-  return undefined;
-}
-
-function readNumber(record: Record<string, unknown> | undefined, key: string) {
-  const value = record?.[key];
-
-  return typeof value === "number" ? value : undefined;
-}
-
-function readString(record: Record<string, unknown> | undefined, key: string) {
-  const value = record?.[key];
-
-  return typeof value === "string" ? value : undefined;
-}
-
-function formatPct(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? `${value.toFixed(1)}%`
-    : "n/a";
 }

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getTxlineConfig } from "@/lib/txline-config";
-import { fetchTxlineOddsSnapshot, withoutRaw } from "@/lib/txline-client";
+import {
+  fetchTxlineHistoricalScoreUpdates,
+  withoutRaw,
+} from "@/lib/txline-client";
 
 export const dynamic = "force-dynamic";
 
@@ -22,22 +25,22 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (!config.configured) {
     return NextResponse.json({
-      data: null,
+      data: [],
       mode: "demo",
-      source: "Demo odds, no TxLINE credentials configured",
+      source: "Demo replay, no TxLINE credentials configured",
     });
   }
 
   try {
     return NextResponse.json({
-      data: withoutRaw(await fetchTxlineOddsSnapshot(id)),
+      data: (await fetchTxlineHistoricalScoreUpdates(id)).map(withoutRaw),
       mode: "txline",
-      source: "TxLINE odds snapshot API",
+      source: "TxLINE scores historical replay API",
     });
   } catch (error) {
     return NextResponse.json(
       {
-        data: null,
+        data: [],
         error: error instanceof Error ? error.message : "Unknown TxLINE error",
         mode: "fallback",
       },

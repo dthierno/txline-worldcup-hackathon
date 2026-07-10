@@ -1,227 +1,266 @@
-import type {
-  DemoEvent,
-  MatchSnapshot,
-  Player,
-  Prediction,
-  ScoreBreakdown,
-  TeamSide,
-  WinnerPick,
-} from "./types";
-import { featuredFixture } from "./world-cup-fixtures";
+// Fixture-generic prediction and settlement rules. Everything here is pure and
+// deterministic: the same prediction and the same TxLINE-derived outcome always
+// settle to the same points, so settlement can be recomputed and audited.
 
-export const defaultPrediction: Prediction = {
-  homeScore: 1,
-  awayScore: 2,
-  winner: "away",
-  totalGoals: "over",
-  totalCards: "over",
-  totalCorners: "over",
-  nextGoal: "home",
-  locked: true,
+export type WinnerPick = "home" | "draw" | "away";
+export type LinePick = "over" | "under";
+
+export type FirstScorerPick =
+  | { name: string; playerId: number }
+  | "none";
+
+export type MatchPrediction = {
+  awayGoals: number;
+  // Only present when a verified TxLINE player list existed at prediction time.
+  firstScorer?: FirstScorerPick | null;
+  fixtureId: number;
+  homeGoals: number;
+  savedAt: string;
+  totalCards: LinePick;
+  totalCorners: LinePick;
+  totalGoals: LinePick;
+  winner: WinnerPick;
 };
 
-export function clampScore(value: number): number {
+export type MatchOutcome = {
+  awayGoals: number;
+  finished: boolean;
+  // First goal of the match, when one has happened; scorerName is resolved
+  // from the TxLINE lineups when the playerId is known.
+  firstGoal?: { playerId?: number; scorerName?: string } | null;
+  homeGoals: number;
+  totalCards: number;
+  totalCorners: number;
+};
+
+export type MarketStatus = "won" | "lost" | "open" | "void";
+
+export type SettledMarket = {
+  market: string;
+  pick: string;
+  points: number;
+  result: string;
+  status: MarketStatus;
+};
+
+export type Settlement = {
+  final: boolean;
+  markets: SettledMarket[];
+  totalPoints: number;
+};
+
+export const PREDICTION_LINES = {
+  cards: 3.5,
+  corners: 8.5,
+  goals: 2.5,
+} as const;
+
+export const PREDICTION_POINTS = {
+  exactScore: 5,
+  firstScorer: 6,
+  line: 2,
+  winner: 3,
+} as const;
+
+export const MAX_PREDICTED_GOALS = 12;
+
+export function clampGoals(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
   }
 
-  return Math.max(0, Math.min(12, Math.trunc(value)));
+  return Math.max(0, Math.min(MAX_PREDICTED_GOALS, Math.trunc(value)));
 }
 
-export function getWinner(snapshot: MatchSnapshot): WinnerPick {
-  if (snapshot.homeScore > snapshot.awayScore) {
+export function defaultPrediction(fixtureId: number): MatchPrediction {
+  return {
+    awayGoals: 1,
+    fixtureId,
+    homeGoals: 1,
+    savedAt: "",
+    totalCards: "under",
+    totalCorners: "under",
+    totalGoals: "under",
+    winner: "draw",
+  };
+}
+
+export function outcomeWinner(outcome: MatchOutcome): WinnerPick {
+  if (outcome.homeGoals > outcome.awayGoals) {
     return "home";
   }
 
-  if (snapshot.awayScore > snapshot.homeScore) {
+  if (outcome.awayGoals > outcome.homeGoals) {
     return "away";
   }
 
   return "draw";
 }
 
-export function getTotalGoals(snapshot: MatchSnapshot): number {
-  return snapshot.homeScore + snapshot.awayScore;
-}
-
-export function calculateScoreBreakdown(
-  prediction: Prediction,
-  snapshot: MatchSnapshot,
-  events: DemoEvent[],
-): ScoreBreakdown {
-  if (snapshot.status === "pre") {
-    return {
-      exactScore: 0,
-      winner: 0,
-      totalGoals: 0,
-      totalCards: 0,
-      totalCorners: 0,
-      nextGoal: 0,
-      total: 0,
-    };
-  }
-
-  const exactScore =
-    prediction.homeScore === snapshot.homeScore &&
-    prediction.awayScore === snapshot.awayScore
-      ? 8
-      : 0;
-  const winner = prediction.winner === getWinner(snapshot) ? 3 : 0;
-  const totalGoals = didSettleLine(
-    prediction.totalGoals,
-    getTotalGoals(snapshot),
-    2.5,
-    snapshot.status,
-  )
-    ? 2
-    : 0;
-  const totalCorners = didSettleLine(
-    prediction.totalCorners,
-    snapshot.totalCorners ?? 0,
-    8.5,
-    snapshot.status,
-  )
-    ? 2
-    : 0;
-  const totalCards = didSettleLine(
-    prediction.totalCards,
-    snapshot.totalCards ?? 0,
-    3.5,
-    snapshot.status,
-  )
-    ? 2
-    : 0;
-  const nextGoal = didPickFirstGoal(prediction.nextGoal, events, snapshot.status)
-    ? 4
-    : 0;
-
-  return {
-    exactScore,
-    winner,
-    totalGoals,
-    totalCards,
-    totalCorners,
-    nextGoal,
-    total:
-      exactScore + winner + totalGoals + totalCorners + totalCards + nextGoal,
-  };
-}
-
-export function didSettleLine(
-  pick: Prediction["totalCorners"] | Prediction["totalCards"],
+// Over lines can settle as soon as the actual total passes the line; everything
+// else needs the final whistle.
+export function settleLinePick(
+  pick: LinePick,
   actual: number,
   line: number,
-  status: MatchSnapshot["status"],
-): boolean {
+  finished: boolean,
+): MarketStatus {
   if (pick === "over") {
-    return actual > line;
+    if (actual > line) {
+      return "won";
+    }
+
+    return finished ? "lost" : "open";
   }
 
-  return status === "finished" && actual < line;
-}
-
-export function didPickFirstGoal(
-  pick: Prediction["nextGoal"],
-  events: DemoEvent[],
-  status: MatchSnapshot["status"] = "live",
-): boolean {
-  const firstGoal = events.find((event) => event.type === "goal");
-
-  if (!firstGoal?.nextGoalScorer) {
-    return status === "finished" && pick === "none";
+  if (actual > line) {
+    return "lost";
   }
 
-  return pick === firstGoal.nextGoalScorer;
+  return finished ? "won" : "open";
 }
 
-export function formatWinnerPick(pick: WinnerPick): string {
-  const labels: Record<WinnerPick, string> = {
-    home: featuredFixture.homeTeam,
+export function settlePrediction(
+  prediction: MatchPrediction,
+  outcome: MatchOutcome,
+  teams: { awayTeam: string; homeTeam: string },
+): Settlement {
+  const winnerLabels: Record<WinnerPick, string> = {
+    away: teams.awayTeam,
     draw: "Draw",
-    away: featuredFixture.awayTeam,
+    home: teams.homeTeam,
   };
+  const actualScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
+  const totalGoals = outcome.homeGoals + outcome.awayGoals;
 
-  return labels[pick];
-}
+  const exactScoreStatus: MarketStatus = !outcome.finished
+    ? "open"
+    : prediction.homeGoals === outcome.homeGoals &&
+        prediction.awayGoals === outcome.awayGoals
+      ? "won"
+      : "lost";
+  const winnerStatus: MarketStatus = !outcome.finished
+    ? "open"
+    : prediction.winner === outcomeWinner(outcome)
+      ? "won"
+      : "lost";
 
-export function formatLiveRoundPick(pick: Prediction["nextGoal"]): string {
-  const labels: Record<Prediction["nextGoal"], string> = {
-    home: featuredFixture.homeTeam,
-    away: featuredFixture.awayTeam,
-    none: "No goal",
-  };
-
-  return labels[pick];
-}
-
-export function formatTotalGoalsPick(pick: Prediction["totalGoals"]): string {
-  return pick === "over" ? "Over 2.5" : "Under 2.5";
-}
-
-export function formatTotalCornersPick(
-  pick: Prediction["totalCorners"],
-): string {
-  return pick === "over" ? "Over 8.5" : "Under 8.5";
-}
-
-export function formatTotalCardsPick(pick: Prediction["totalCards"]): string {
-  return pick === "over" ? "Over 3.5" : "Under 3.5";
-}
-
-export function buildLeaderboard(
-  players: Player[],
-  thiernoBreakdown: ScoreBreakdown,
-) {
-  return players
-    .map((player) => {
-      const isUser = player.name === "Thierno";
-      const livePoints = isUser
-        ? thiernoBreakdown.total
-        : getRivalLivePoints(player.name);
-
-      return {
-        ...player,
-        livePoints,
-        score: player.baseScore + livePoints,
-        trend: isUser ? formatTrend(thiernoBreakdown.total) : player.trend,
-      };
-    })
-    .sort((left, right) => right.score - left.score);
-}
-
-export function applyPredictionUpdate(
-  prediction: Prediction,
-  key: "homeScore" | "awayScore",
-  value: number,
-): Prediction {
-  if (prediction.locked) {
-    return prediction;
-  }
+  const markets: SettledMarket[] = [
+    ...(prediction.firstScorer != null
+      ? [settleFirstScorer(prediction.firstScorer, outcome)]
+      : []),
+    settledMarket(
+      "Exact score",
+      `${prediction.homeGoals}-${prediction.awayGoals}`,
+      actualScore,
+      exactScoreStatus,
+      PREDICTION_POINTS.exactScore,
+    ),
+    settledMarket(
+      "Winner",
+      winnerLabels[prediction.winner],
+      outcome.finished ? winnerLabels[outcomeWinner(outcome)] : actualScore,
+      winnerStatus,
+      PREDICTION_POINTS.winner,
+    ),
+    settledMarket(
+      `Goals over/under ${PREDICTION_LINES.goals}`,
+      linePickLabel(prediction.totalGoals, PREDICTION_LINES.goals),
+      `${totalGoals} goal(s)`,
+      settleLinePick(
+        prediction.totalGoals,
+        totalGoals,
+        PREDICTION_LINES.goals,
+        outcome.finished,
+      ),
+      PREDICTION_POINTS.line,
+    ),
+    settledMarket(
+      `Corners over/under ${PREDICTION_LINES.corners}`,
+      linePickLabel(prediction.totalCorners, PREDICTION_LINES.corners),
+      `${outcome.totalCorners} corner(s)`,
+      settleLinePick(
+        prediction.totalCorners,
+        outcome.totalCorners,
+        PREDICTION_LINES.corners,
+        outcome.finished,
+      ),
+      PREDICTION_POINTS.line,
+    ),
+    settledMarket(
+      `Cards over/under ${PREDICTION_LINES.cards}`,
+      linePickLabel(prediction.totalCards, PREDICTION_LINES.cards),
+      `${outcome.totalCards} card(s)`,
+      settleLinePick(
+        prediction.totalCards,
+        outcome.totalCards,
+        PREDICTION_LINES.cards,
+        outcome.finished,
+      ),
+      PREDICTION_POINTS.line,
+    ),
+  ];
 
   return {
-    ...prediction,
-    [key]: clampScore(value),
+    final: outcome.finished,
+    markets,
+    totalPoints: markets.reduce((total, market) => total + market.points, 0),
   };
 }
 
-export function sideLabel(side: TeamSide): string {
-  return side === "home" ? featuredFixture.homeTeam : featuredFixture.awayTeam;
+export function linePickLabel(pick: LinePick, line: number): string {
+  return `${pick === "over" ? "Over" : "Under"} ${line}`;
 }
 
-function getRivalLivePoints(name: string): number {
-  const points: Record<string, number> = {
-    Amina: 3,
-    Sam: 1,
-    Noah: 0,
-  };
+function settleFirstScorer(
+  pick: FirstScorerPick,
+  outcome: MatchOutcome,
+): SettledMarket {
+  const firstGoal = outcome.firstGoal ?? null;
+  const pickLabel = pick === "none" ? "No goal scorer" : pick.name;
+  const result = firstGoal
+    ? firstGoal.scorerName ??
+      (typeof firstGoal.playerId === "number"
+        ? `Player ${firstGoal.playerId}`
+        : "Scorer unrecorded")
+    : outcome.finished
+      ? "No goal scored"
+      : "No goal yet";
 
-  return points[name] ?? 0;
-}
+  let status: MarketStatus;
 
-function formatTrend(points: number): string {
-  if (points === 0) {
-    return "Waiting on events";
+  if (pick === "none") {
+    status = firstGoal ? "lost" : outcome.finished ? "won" : "open";
+  } else if (!firstGoal) {
+    status = outcome.finished ? "lost" : "open";
+  } else if (typeof firstGoal.playerId !== "number") {
+    // A goal happened but TxLINE carried no player on it: void, never guess.
+    status = "void";
+  } else {
+    status = firstGoal.playerId === pick.playerId ? "won" : "lost";
   }
 
-  return `+${points} live`;
+  return settledMarket(
+    "First scorer",
+    pickLabel,
+    result,
+    status,
+    PREDICTION_POINTS.firstScorer,
+  );
+}
+
+function settledMarket(
+  market: string,
+  pick: string,
+  result: string,
+  status: MarketStatus,
+  pointsIfWon: number,
+): SettledMarket {
+  return {
+    market,
+    pick,
+    points: status === "won" ? pointsIfWon : 0,
+    result,
+    status,
+  };
 }

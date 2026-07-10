@@ -1,38 +1,26 @@
 import { NextResponse } from "next/server";
 
 import { getTxlineConfig } from "@/lib/txline-config";
-import { fetchTxlineOddsSnapshot, withoutRaw } from "@/lib/txline-client";
+import { fetchTxlineFixtureBatchValidation } from "@/lib/txline-client";
 
 export const dynamic = "force-dynamic";
 
-type RouteContext = {
-  params: Promise<{
-    fixtureId: string;
-  }>;
-};
-
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET() {
   const config = getTxlineConfig();
-  const { fixtureId } = await context.params;
-  const id = Number.parseInt(fixtureId, 10);
-
-  if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: "Invalid fixtureId" }, { status: 400 });
-  }
 
   if (!config.configured) {
     return NextResponse.json({
       data: null,
       mode: "demo",
-      source: "Demo odds, no TxLINE credentials configured",
+      source: "Demo replay, no TxLINE credentials configured",
     });
   }
 
   try {
     return NextResponse.json({
-      data: withoutRaw(await fetchTxlineOddsSnapshot(id)),
+      data: await fetchTxlineFixtureBatchValidation(),
       mode: "txline",
-      source: "TxLINE odds snapshot API",
+      source: "TxLINE fixture batch-validation API",
     });
   } catch (error) {
     return NextResponse.json(

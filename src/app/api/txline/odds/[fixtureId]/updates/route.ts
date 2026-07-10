@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getTxlineConfig } from "@/lib/txline-config";
-import { fetchTxlineOddsSnapshot, withoutRaw } from "@/lib/txline-client";
+import { fetchTxlineOddsUpdates } from "@/lib/txline-client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +30,9 @@ export async function GET(_request: Request, context: RouteContext) {
 
   try {
     return NextResponse.json({
-      data: withoutRaw(await fetchTxlineOddsSnapshot(id)),
+      data: await fetchTxlineOddsUpdates(id),
       mode: "txline",
-      source: "TxLINE odds snapshot API",
+      source: "TxLINE live odds updates API",
     });
   } catch (error) {
     return NextResponse.json(

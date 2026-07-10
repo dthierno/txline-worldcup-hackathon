@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getTxlineConfig } from "@/lib/txline-config";
-import { fetchTxlineOddsSnapshot, withoutRaw } from "@/lib/txline-client";
+import { fetchTxlineLineups } from "@/lib/txline-client";
 
 export const dynamic = "force-dynamic";
 
@@ -24,15 +24,15 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({
       data: null,
       mode: "demo",
-      source: "Demo odds, no TxLINE credentials configured",
+      source: "Demo lineups, no TxLINE credentials configured",
     });
   }
 
   try {
     return NextResponse.json({
-      data: withoutRaw(await fetchTxlineOddsSnapshot(id)),
+      data: await fetchTxlineLineups(id),
       mode: "txline",
-      source: "TxLINE odds snapshot API",
+      source: "TxLINE score feed lineups records",
     });
   } catch (error) {
     return NextResponse.json(

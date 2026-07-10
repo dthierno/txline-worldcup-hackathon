@@ -1,5 +1,5 @@
-import { FanForecastApp } from "@/components/fan-forecast-app";
+import { HomePage } from "@/components/home-page";
 
 export default function Home() {
-  return <FanForecastApp />;
+  return <HomePage />;
 }
