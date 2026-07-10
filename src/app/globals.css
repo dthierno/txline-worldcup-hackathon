@@ -1278,18 +1278,19 @@ dt {
 /* Uniform pill size + no bob (the old per-flag sizes and the rotating bob
    animation made the pills look different sizes). */
 .hero-predict .hero-float { animation: none; height: 32px; width: 32px; }
-/* Left cluster, top -> bottom (zigzag, pulled in toward the widget). */
-.hero-predict .hero-float-10 { bottom: auto; left: 27%; right: auto; top: 48%; } /* nl */
-.hero-predict .hero-float-1  { bottom: auto; left: 21%; right: auto; top: 58%; } /* fr */
-.hero-predict .hero-float-6  { bottom: auto; left: 27%; right: auto; top: 68%; } /* br */
-.hero-predict .hero-float-4  { bottom: auto; left: 21%; right: auto; top: 78%; } /* gb-eng */
-.hero-predict .hero-float-8  { bottom: auto; left: 27%; right: auto; top: 88%; } /* pt */
+/* Left cluster, top -> bottom. The 3-pill inner column (nl/br/pt) sits near the
+   widget; the 2-pill outer column (fr/gb-eng) is spaced further out. */
+.hero-predict .hero-float-10 { bottom: auto; left: 28%; right: auto; top: 48%; } /* nl */
+.hero-predict .hero-float-1  { bottom: auto; left: 19%; right: auto; top: 58%; } /* fr */
+.hero-predict .hero-float-6  { bottom: auto; left: 28%; right: auto; top: 68%; } /* br */
+.hero-predict .hero-float-4  { bottom: auto; left: 19%; right: auto; top: 78%; } /* gb-eng */
+.hero-predict .hero-float-8  { bottom: auto; left: 28%; right: auto; top: 88%; } /* pt */
 /* Right cluster, mirrored. */
-.hero-predict .hero-float-11 { bottom: auto; left: auto; right: 27%; top: 48%; } /* jp */
-.hero-predict .hero-float-2  { bottom: auto; left: auto; right: 21%; top: 58%; } /* es */
-.hero-predict .hero-float-7  { bottom: auto; left: auto; right: 27%; top: 68%; } /* de */
-.hero-predict .hero-float-5  { bottom: auto; left: auto; right: 21%; top: 78%; } /* no */
-.hero-predict .hero-float-9  { bottom: auto; left: auto; right: 27%; top: 88%; } /* ar */
+.hero-predict .hero-float-11 { bottom: auto; left: auto; right: 28%; top: 48%; } /* jp */
+.hero-predict .hero-float-2  { bottom: auto; left: auto; right: 19%; top: 58%; } /* es */
+.hero-predict .hero-float-7  { bottom: auto; left: auto; right: 28%; top: 68%; } /* de */
+.hero-predict .hero-float-5  { bottom: auto; left: auto; right: 19%; top: 78%; } /* no */
+.hero-predict .hero-float-9  { bottom: auto; left: auto; right: 28%; top: 88%; } /* ar */
 
 /* Flags framing the centered composition, one per corner */
 .hero-float-1 { bottom: auto; left: 12%; right: auto; top: 18%; }
