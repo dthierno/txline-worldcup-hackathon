@@ -977,38 +977,49 @@ dt {
 }
 
 .hero-float {
-  border-radius: 30%;
-  opacity: 0.9;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14), 0 6px 18px rgba(0, 0, 0, 0.5);
+  height: 38px;
+  object-fit: cover;
+  opacity: 0.95;
   position: absolute;
+  width: 38px;
 }
 
 .hero-float-1 {
   animation: hero-bob 5s ease-in-out infinite;
-  background: linear-gradient(135deg, #5fff94, #136aff);
-  height: 34px;
   left: 12%;
-  top: 46%;
-  transform: rotate(12deg);
-  width: 34px;
+  top: 44%;
 }
 
 .hero-float-2 {
   animation: hero-bob 6s ease-in-out 0.8s infinite;
-  background: linear-gradient(135deg, #d1ff78, #e9f420);
-  height: 26px;
-  right: 14%;
-  top: 38%;
-  transform: rotate(-10deg);
-  width: 26px;
+  right: 13%;
+  top: 36%;
 }
 
 .hero-float-3 {
   animation: hero-bob 7s ease-in-out 1.6s infinite;
-  background: linear-gradient(135deg, #3a3a40, #6b615e);
-  bottom: 12%;
-  height: 22px;
-  right: 24%;
-  width: 22px;
+  bottom: 14%;
+  height: 30px;
+  right: 22%;
+  width: 30px;
+}
+
+.hero-float-4 {
+  animation: hero-bob 6.5s ease-in-out 2.4s infinite;
+  height: 30px;
+  left: 20%;
+  top: 16%;
+  width: 30px;
+}
+
+.hero-float-5 {
+  animation: hero-bob 5.5s ease-in-out 3.2s infinite;
+  bottom: 16%;
+  height: 26px;
+  left: 24%;
+  width: 26px;
 }
 
 @keyframes hero-bob {

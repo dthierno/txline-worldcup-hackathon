@@ -119,9 +119,23 @@ export function Hero({ variant = "pat-4" }: { variant?: string }) {
           Guess results, compete with friends - every score verified by TxLINE.
         </p>
         <HeroCard />
-        <span className="hero-float hero-float-1" aria-hidden="true" />
-        <span className="hero-float hero-float-2" aria-hidden="true" />
-        <span className="hero-float hero-float-3" aria-hidden="true" />
+        {[
+          ["fr", "hero-float-1"],
+          ["es", "hero-float-2"],
+          ["ar", "hero-float-3"],
+          ["gb-eng", "hero-float-4"],
+          ["no", "hero-float-5"],
+        ].map(([iso, cls]) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt=""
+            aria-hidden="true"
+            className={`hero-float ${cls}`}
+            key={iso}
+            loading="lazy"
+            src={`https://flagcdn.com/w80/${iso}.png`}
+          />
+        ))}
       </div>
       </div>
   );
