@@ -191,6 +191,8 @@ export function HomePage() {
         {fixtureValidation?.source ?? fixtureValidation?.error ?? "Pending"}
       </p>
 
+      <StoriesRail />
+
       <GameList
         heading="Past games"
         emptyText="No past World Cup games found."
@@ -207,6 +209,59 @@ export function HomePage() {
   );
 }
 
+
+type Story = {
+  id: string;
+  link: string;
+  publishedAt: string | null;
+  title: string;
+};
+
+function StoriesRail() {
+  const [stories, setStories] = useState<Story[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchJson<Story[]>("/api/stories").then((result) => {
+      if (!cancelled && Array.isArray(result.data)) {
+        setStories(result.data);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (stories.length === 0) {
+    return null;
+  }
+
+  return (
+    <section aria-labelledby="stories-heading">
+      <h2 id="stories-heading">Stories</h2>
+      <div className="stories-rail">
+        {stories.map((story) => (
+          <a
+            className="story-card"
+            href={story.link}
+            key={story.id}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span className="story-source">FIFA</span>
+            <span className="story-title">{story.title}</span>
+          </a>
+        ))}
+      </div>
+      <p className="muted">
+        Headlines via Google News RSS; each card opens the original story on
+        FIFA.com.
+      </p>
+    </section>
+  );
+}
 
 function GameList({
   emptyText,
