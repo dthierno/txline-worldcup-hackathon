@@ -127,7 +127,7 @@ main {
 .league-card {
   align-items: stretch;
   background: #0f0f15;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.22);
   border-radius: 18px;
   cursor: pointer;
   display: flex;
@@ -202,7 +202,7 @@ main {
 }
 @media (hover: hover) and (pointer: fine) {
   .league-card:hover {
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.38);
   }
   .league-card:hover::after {
     opacity: 1;
