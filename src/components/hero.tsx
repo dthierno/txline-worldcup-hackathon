@@ -19,8 +19,10 @@ const FLAGS: [string, string][] = [
   ["jp", "hero-float-11"],
   ["be", "hero-float-12"],
   ["hr", "hero-float-13"],
+  ["co", "hero-float-16"],
   ["uy", "hero-float-14"],
   ["mx", "hero-float-15"],
+  ["ch", "hero-float-17"],
 ];
 
 // Widget panel matching each phase: 0 Predict (score), 1 Play (rows), 2 Prevail.
