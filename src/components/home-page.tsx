@@ -246,29 +246,65 @@ function StoriesRail() {
     return null;
   }
 
+  const entries = [...featuredStories, ...stories.map((story) => ({
+    id: story.id,
+    iso: isoFromTitle(story.title),
+    label: story.title,
+    link: story.link,
+  }))];
+
   return (
     <section aria-labelledby="stories-heading">
       <h2 id="stories-heading">Stories</h2>
       <div className="stories-rail">
-        {stories.map((story) => (
+        {entries.map((entry) => (
           <a
-            className="story-card"
-            href={story.link}
-            key={story.id}
+            className="story-circle"
+            href={entry.link}
+            key={entry.id}
             rel="noopener noreferrer"
             target="_blank"
           >
-            <span className="story-source">FIFA</span>
-            <span className="story-title">{story.title}</span>
+            <span className="story-ring">
+              {entry.iso ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt="" src={`https://flagcdn.com/w80/${entry.iso}.png`} />
+              ) : (
+                <span className="story-fallback">26</span>
+              )}
+            </span>
+            <span className="story-label">{entry.label}</span>
           </a>
         ))}
       </div>
       <p className="muted">
-        Headlines via Google News RSS; each card opens the original story on
-        FIFA.com.
+        Via Google News RSS; each circle opens the original story on FIFA.com.
       </p>
     </section>
   );
+}
+
+// Hand-picked story deep links (public URLs; linking out only).
+const featuredStories = [
+  {
+    id: "featured-fr-goals",
+    iso: "fr",
+    label: "France Goals",
+    link: "https://www.fifa.com/#stories/37c02e44-68dd-604e-fc30-3a21a4c80e4a",
+  },
+];
+
+const titleIso: Array<[string, string]> = [
+  ["france", "fr"], ["morocco", "ma"], ["spain", "es"], ["belgium", "be"],
+  ["england", "gb-eng"], ["norway", "no"], ["argentina", "ar"],
+  ["switzerland", "ch"], ["egypt", "eg"], ["colombia", "co"],
+  ["mexico", "mx"], ["canada", "ca"], ["brazil", "br"], ["portugal", "pt"],
+];
+
+function isoFromTitle(title: string): string | undefined {
+  const lower = title.toLowerCase();
+
+  return titleIso.find(([name]) => lower.includes(name))?.[1];
 }
 
 function GameList({
