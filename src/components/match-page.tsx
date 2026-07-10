@@ -51,18 +51,24 @@ import {
   type WinnerPick,
 } from "@/lib/prediction-engine";
 import {
+  GOAL_CALL_POINTS,
   isPredictionLocked,
+  loadGoalCalls,
   loadPrediction,
   loadSettlements,
+  saveGoalCall,
   savePrediction,
   saveSettlement,
+  type GoalCallAnswer,
 } from "@/lib/prediction-store";
 import {
   computePossessionSplit,
+  extractGoalCalls,
   extractGoals,
   extractSubstitutionEvents,
   normalizeScoreSnapshot,
   withoutRaw,
+  type GoalCallEvent,
   type GoalEvent,
   type NormalizedLineups,
   type SubstitutionEvent,
@@ -373,6 +379,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     ),
   );
   const substitutions = extractSubstitutionEvents(combinedUpdates);
+  const goalCalls = extractGoalCalls(combinedUpdates);
   const outcome = buildOutcome(
     displayScore,
     finished,
@@ -579,6 +586,13 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         outcome={outcome}
       />
 
+      <GoalCallsSection
+        key={`calls-${fixture.fixtureId}`}
+        calls={goalCalls}
+        fixture={fixture}
+        live={liveStreamEligible}
+      />
+
       <section className="card" aria-labelledby="odds-heading">
         <h2 id="odds-heading">Odds</h2>
         <p>{details.odds?.data?.marketNote ?? "No odds snapshot available."}</p>
@@ -620,6 +634,116 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         validation={details.validation}
       />
     </main>
+  );
+}
+
+function GoalCallsSection({
+  calls,
+  fixture,
+  live,
+}: {
+  calls: GoalCallEvent[];
+  fixture: WorldCupFixture;
+  live: boolean;
+}) {
+  const mounted = useIsMounted();
+  const [answers, setAnswers] = useState<Record<string, GoalCallAnswer>>(() =>
+    loadGoalCalls(fixture.fixtureId),
+  );
+
+  if (calls.length === 0) {
+    return null;
+  }
+
+  const teamName = (participant?: number) =>
+    participant === 1
+      ? fixture.homeTeam
+      : participant === 2
+        ? fixture.awayTeam
+        : undefined;
+  const openCall = live
+    ? [...calls].reverse().find((call) => !call.resolved)
+    : undefined;
+  const points = calls.reduce((total, call) => {
+    const answer = answers[call.key];
+
+    if (!call.resolved || !answer) {
+      return total;
+    }
+
+    const correct =
+      (answer.answer === "goal") === call.stood;
+
+    return total + (correct ? GOAL_CALL_POINTS : 0);
+  }, 0);
+
+  function answer(callKey: string, pick: "goal" | "no_goal") {
+    const record: GoalCallAnswer = {
+      answer: pick,
+      answeredAt: new Date().toISOString(),
+    };
+
+    saveGoalCall(fixture.fixtureId, callKey, record);
+    setAnswers((previous) => ({ ...previous, [callKey]: record }));
+  }
+
+  return (
+    <section className="card" aria-labelledby="goal-calls-heading">
+      <h2 id="goal-calls-heading">Goal calls</h2>
+      {openCall && mounted && !answers[openCall.key] ? (
+        <div className="call-prompt">
+          <p>
+            Close play{teamName(openCall.participant) ? ` for ${teamName(openCall.participant)}` : ""}
+            {" "}- does it end in a goal?
+          </p>
+          <div className="call-actions">
+            <Button onClick={() => answer(openCall.key, "goal")}>Goal</Button>
+            <Button
+              onClick={() => answer(openCall.key, "no_goal")}
+              variant="outline"
+            >
+              No goal
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      <ul className="call-list">
+        {[...calls].reverse().map((call) => {
+          const callAnswer = mounted ? answers[call.key] : undefined;
+          const correct =
+            call.resolved && callAnswer
+              ? (callAnswer.answer === "goal") === call.stood
+              : null;
+
+          return (
+            <li key={call.key}>
+              <span>
+                {formatMinute(call.clockSeconds) || "—"} Possible goal
+                {teamName(call.participant) ? ` (${teamName(call.participant)})` : ""}
+              </span>
+              <span className="call-outcome">
+                {!call.resolved
+                  ? "Open"
+                  : call.stood
+                    ? "⚽ Goal"
+                    : "No goal"}
+                {callAnswer
+                  ? correct === null
+                    ? ` · you said ${callAnswer.answer === "goal" ? "goal" : "no goal"}`
+                    : correct
+                      ? ` · ✓ +${GOAL_CALL_POINTS}`
+                      : " · ✗ 0"
+                  : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="muted">
+        Live micro-calls on TxLINE &quot;possible goal&quot; moments, settled
+        seconds later by the verified feed. {mounted && points > 0 ? `You earned ${points} point(s) here.` : ""}
+      </p>
+    </section>
   );
 }
 

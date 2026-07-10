@@ -1474,3 +1474,30 @@ dt {
 }
 
 .mc-odds b { color: var(--won); font-weight: 600; }
+
+/* Goal calls */
+
+.call-prompt {
+  background: #10321d;
+  border: 1px solid #1f6b3d;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+}
+
+.call-prompt p { margin: 0 0 10px; }
+
+.call-actions { display: flex; gap: 10px; }
+
+.call-list { list-style: none; margin: 0; padding: 0; }
+
+.call-list li {
+  border-bottom: 1px dashed var(--border);
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 2px;
+}
+
+.call-list li:last-child { border-bottom: none; }
+
+.call-outcome { color: var(--muted-foreground); }

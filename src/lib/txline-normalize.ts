@@ -124,6 +124,19 @@ export type SubstitutionEvent = {
   playerOutId?: number;
 };
 
+// A scout-raised "possible goal" moment: the basis for live goal calls.
+// Resolved either by an actual score advance (stood) or by the clearing
+// `possible { Goal: false }` record (didn't stand). Unresolved = still open
+// (live betting window).
+export type GoalCallEvent = {
+  clockSeconds?: number;
+  key: string;
+  participant?: number;
+  resolved: boolean;
+  seq: number;
+  stood: boolean;
+};
+
 export type TxlineValidationSummary = {
   eventStatRoot?: unknown;
   fixtureId?: number;
@@ -516,6 +529,69 @@ export function extractSubstitutionEvents(
     (event) =>
       event.playerInId !== undefined || event.playerOutId !== undefined,
   );
+}
+
+export function extractGoalCalls(
+  updates: Array<{
+    action?: string;
+    awayGoals: number;
+    clockSeconds?: number;
+    data?: Record<string, unknown>;
+    eventId?: number;
+    homeGoals: number;
+    participant?: number;
+    seq?: number;
+  }>,
+): GoalCallEvent[] {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const calls: GoalCallEvent[] = [];
+  const seen = new Set<string>();
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const update = sorted[index];
+
+    if (update.action !== "possible" || update.data?.Goal !== true) {
+      continue;
+    }
+
+    const key = String(update.eventId ?? `seq-${update.seq}`);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+
+    const totalAtRaise = update.homeGoals + update.awayGoals;
+    let resolved = false;
+    let stood = false;
+
+    for (const later of sorted.slice(index + 1)) {
+      if (later.homeGoals + later.awayGoals > totalAtRaise) {
+        resolved = true;
+        stood = true;
+        break;
+      }
+
+      if (later.action === "possible" && later.data?.Goal === false) {
+        resolved = true;
+        break;
+      }
+    }
+
+    calls.push({
+      clockSeconds: update.clockSeconds,
+      key,
+      participant: update.participant,
+      resolved,
+      seq: update.seq ?? 0,
+      stood,
+    });
+  }
+
+  return calls;
 }
 
 export function normalizeValidationSummary(raw: unknown): TxlineValidationSummary {

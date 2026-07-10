@@ -6,6 +6,14 @@ import type { WorldCupFixture } from "./world-cup-fixtures";
 
 const PREDICTIONS_KEY = "fan-forecast.predictions.v1";
 const SETTLEMENTS_KEY = "fan-forecast.settlements.v1";
+const GOAL_CALLS_KEY = "fan-forecast.goalcalls.v1";
+
+export const GOAL_CALL_POINTS = 2;
+
+export type GoalCallAnswer = {
+  answer: "goal" | "no_goal";
+  answeredAt: string;
+};
 
 export type StoredSettlement = {
   finalScore: string;
@@ -37,6 +45,30 @@ export function saveSettlement(settlement: StoredSettlement): void {
   writeJsonRecord(SETTLEMENTS_KEY, {
     ...loadSettlements(),
     [String(settlement.fixtureId)]: settlement,
+  });
+}
+
+// Live goal-call answers, keyed by fixture then by the raise event key.
+export function loadGoalCalls(
+  fixtureId: number,
+): Record<string, GoalCallAnswer> {
+  return (
+    readJsonRecord<Record<string, GoalCallAnswer>>(GOAL_CALLS_KEY)[
+      String(fixtureId)
+    ] ?? {}
+  );
+}
+
+export function saveGoalCall(
+  fixtureId: number,
+  callKey: string,
+  answer: GoalCallAnswer,
+): void {
+  const all = readJsonRecord<Record<string, GoalCallAnswer>>(GOAL_CALLS_KEY);
+
+  writeJsonRecord(GOAL_CALLS_KEY, {
+    ...all,
+    [String(fixtureId)]: { ...(all[String(fixtureId)] ?? {}), [callKey]: answer },
   });
 }
 

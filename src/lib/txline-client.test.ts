@@ -6,7 +6,7 @@ import {
   normalizeOddsSnapshot,
   normalizeScoreSnapshot,
 } from "./txline-client";
-import { extractGoals, extractSubstitutionEvents } from "./txline-normalize";
+import { extractGoalCalls, extractGoals, extractSubstitutionEvents } from "./txline-normalize";
 
 describe("txline client normalizers", () => {
   it("normalizes score arrays with object Stats maps", () => {
@@ -293,6 +293,24 @@ describe("txline client normalizers", () => {
       clockSeconds: 4879,
       playerId: 10115454,
     });
+  });
+
+  it("resolves goal calls by score advance or clearing record", () => {
+    const calls = extractGoalCalls([
+      // Raise that is cleared -> no goal
+      { action: "possible", awayGoals: 0, clockSeconds: 660, data: { Goal: true }, eventId: 147, homeGoals: 0, participant: 2, seq: 151 },
+      { action: "possible", awayGoals: 0, data: { Goal: false }, eventId: 148, homeGoals: 0, seq: 152 },
+      // Raise followed by a score advance -> goal stood
+      { action: "possible", awayGoals: 0, clockSeconds: 3560, data: { Goal: true }, eventId: 791, homeGoals: 0, participant: 1, seq: 791 },
+      { action: "goal", awayGoals: 0, homeGoals: 1, seq: 793 },
+      // Open raise with no resolution yet (live)
+      { action: "possible", awayGoals: 0, clockSeconds: 4000, data: { Goal: true }, eventId: 900, homeGoals: 1, participant: 2, seq: 900 },
+    ]);
+
+    expect(calls).toHaveLength(3);
+    expect(calls[0]).toMatchObject({ resolved: true, stood: false, participant: 2 });
+    expect(calls[1]).toMatchObject({ resolved: true, stood: true, participant: 1 });
+    expect(calls[2]).toMatchObject({ resolved: false, stood: false });
   });
 
   it("merges substitution sibling records and drops player-less events", () => {
