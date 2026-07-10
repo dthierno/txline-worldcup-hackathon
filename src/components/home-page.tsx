@@ -216,6 +216,7 @@ export function HomePage() {
     <main>
       <Hero />
 
+      {/* Hidden per request — kept for later.
       <h1>World Cup games</h1>
       <p>
         Past and upcoming World Cup fixtures. Click a game to view TxLINE details.
@@ -230,6 +231,7 @@ export function HomePage() {
       </p>
 
       <StoriesRail />
+      */}
 
       <MatchDayList
         finals={mounted ? finals : {}}
