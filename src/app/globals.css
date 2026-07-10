@@ -1264,6 +1264,9 @@ dt {
 /* Demo-only: country pills clustered in the lower gutters flanking the widget,
    all kept below the title line (nothing above or level with the title).
    Each side zigzags between an inner column (near the widget) and an outer one. */
+/* Uniform pill size + no bob (the old per-flag sizes and the rotating bob
+   animation made the pills look different sizes). */
+.hero-predict .hero-float { animation: none; height: 36px; width: 36px; }
 /* Left cluster, top -> bottom. */
 .hero-predict .hero-float-10 { bottom: auto; left: 22%; right: auto; top: 44%; } /* nl */
 .hero-predict .hero-float-1  { bottom: auto; left: 10%; right: auto; top: 55%; } /* fr */
