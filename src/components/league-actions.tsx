@@ -40,9 +40,10 @@ export function LeagueActions() {
             <HugeiconsIcon icon={AddTeamIcon} strokeWidth={1.8} />
           </span>
           <span className="league-card-body">
+            <span className="league-card-kicker">Private league</span>
             <span className="league-card-title">Create a league</span>
             <span className="league-card-desc">
-              Start a private league and invite your friends to predict.
+              Set one up and invite your friends to predict.
             </span>
           </span>
           <span className="league-card-arrow" aria-hidden="true">
@@ -97,9 +98,10 @@ export function LeagueActions() {
             <HugeiconsIcon icon={Ticket01Icon} strokeWidth={1.8} />
           </span>
           <span className="league-card-body">
+            <span className="league-card-kicker">Invite code</span>
             <span className="league-card-title">Join a league</span>
             <span className="league-card-desc">
-              Got an invite code? Jump into a friends&apos; league.
+              Got a code from a friend? Jump straight in.
             </span>
           </span>
           <span className="league-card-arrow" aria-hidden="true">
