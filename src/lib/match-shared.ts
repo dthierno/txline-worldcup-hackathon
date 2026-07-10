@@ -71,6 +71,11 @@ export type TxlineOddsUpdatesData = {
 export type TxlineValidationData = {
   fixtureId?: number;
   mainTreeProofCount: number;
+  markets?: Array<{
+    market: string;
+    proofNodes: number;
+    statKeys: number[];
+  }>;
   statKeys: number[];
   statProofCount: number;
   subTreeProofCount: number;
@@ -500,11 +505,13 @@ export function getDisplayUpdates(
   };
 
   const readableActions = new Set([
+    "additional_time",
     "corner",
     "goal",
     "injury",
     "kickoff",
     "penalty",
+    "possible",
     "red_card",
     "shot",
     "substitution",
@@ -576,6 +583,27 @@ export function getDisplayUpdates(
 
     if (action === "kickoff") {
       text = `${prefix}Kickoff.`;
+    }
+
+    // VAR / referee review flags: TxLINE marks what outcome is under review.
+    if (action === "possible") {
+      const underReview = ["Goal", "Penalty", "RedCard", "YellowCard", "Corner"]
+        .filter((key) => update.data?.[key] === true)
+        .map((key) => formatFeedLabel(key).toLowerCase());
+
+      if (underReview.length) {
+        text = `${prefix}Check in progress: possible ${underReview.join(", ")}${
+          teamName ? ` (${teamName})` : ""
+        }.`;
+      }
+    }
+
+    if (action === "additional_time") {
+      const minutes = update.data?.Minutes;
+
+      if (typeof minutes === "number" && minutes > 0) {
+        text = `${prefix}${minutes} minute(s) of additional time.`;
+      }
     }
 
     if (

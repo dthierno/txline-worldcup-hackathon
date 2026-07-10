@@ -54,13 +54,46 @@ export async function GET(request: Request, context: RouteContext) {
       });
     }
 
+    // Prove every settled market, not just goals: one validation call per
+    // TxLINE stat-key pair.
+    const pairs = [
+      { market: "Goals", statKey: 1, statKey2: 2 },
+      { market: "Yellow cards", statKey: 3, statKey2: 4 },
+      { market: "Red cards", statKey: 5, statKey2: 6 },
+      { market: "Corners", statKey: 7, statKey2: 8 },
+    ];
+    const results = await Promise.all(
+      pairs.map((pair) =>
+        fetchTxlineScoreStatValidation({
+          fixtureId: id,
+          seq: latestSeq,
+          statKey: pair.statKey,
+          statKey2: pair.statKey2,
+        })
+          .then((summary) => ({ market: pair.market, ...summary }))
+          .catch(() => null),
+      ),
+    );
+    const goals = results[0];
+
+    if (!goals) {
+      throw new Error("Stat validation unavailable");
+    }
+
     return NextResponse.json({
-      data: await fetchTxlineScoreStatValidation({
-        fixtureId: id,
-        seq: latestSeq,
-        statKey: 1,
-        statKey2: 2,
-      }),
+      data: {
+        ...goals,
+        markets: results
+          .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+          .map((entry) => ({
+            market: entry.market,
+            proofNodes:
+              entry.statProofCount +
+              entry.subTreeProofCount +
+              entry.mainTreeProofCount,
+            statKeys: entry.statKeys,
+          })),
+      },
       mode: "txline",
       source: "TxLINE score stat-validation API",
     });

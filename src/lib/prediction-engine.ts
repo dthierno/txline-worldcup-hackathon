@@ -14,6 +14,9 @@ export type MatchPrediction = {
   // Only present when a verified TxLINE player list existed at prediction time.
   firstScorer?: FirstScorerPick | null;
   fixtureId: number;
+  // TxLINE 1X2 decimal odds captured when the prediction was saved; the
+  // winner market pays out scaled by the picked outcome's odds.
+  oddsAtSave?: { away: number; draw: number; home: number } | null;
   homeGoals: number;
   savedAt: string;
   totalCards: LinePick;
@@ -133,6 +136,16 @@ export function settlePrediction(
   const actualScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
   const totalGoals = outcome.homeGoals + outcome.awayGoals;
 
+  // Odds-aware winner payout: base points scaled by the decimal odds locked
+  // at save time (bold picks pay more), capped to keep totals sane.
+  const winnerOdds = prediction.oddsAtSave?.[prediction.winner];
+  const winnerPointsIfWon = winnerOdds
+    ? Math.min(30, Math.max(
+        PREDICTION_POINTS.winner,
+        Math.round(PREDICTION_POINTS.winner * winnerOdds),
+      ))
+    : PREDICTION_POINTS.winner;
+
   const exactScoreStatus: MarketStatus = !outcome.finished
     ? "open"
     : prediction.homeGoals === outcome.homeGoals &&
@@ -158,10 +171,12 @@ export function settlePrediction(
     ),
     settledMarket(
       "Winner",
-      winnerLabels[prediction.winner],
+      `${winnerLabels[prediction.winner]}${
+        winnerOdds ? ` @ ${winnerOdds.toFixed(2)}` : ""
+      }`,
       outcome.finished ? winnerLabels[outcomeWinner(outcome)] : actualScore,
       winnerStatus,
-      PREDICTION_POINTS.winner,
+      winnerPointsIfWon,
     ),
     settledMarket(
       `Goals over/under ${PREDICTION_LINES.goals}`,

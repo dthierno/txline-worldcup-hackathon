@@ -29,9 +29,24 @@ export type NormalizedTxlineScore = {
   participant1IsHome: boolean;
   // Which participant (1|2) has the ball, from live possession-phase records.
   possession?: number;
+  // Per-half splits decoded from TxLINE's period stat banks (1000s = first
+  // half, 3000s = second half); present when any bank key is set.
+  halfStats?: {
+    first: TxlineHalfLine;
+    second: TxlineHalfLine;
+  };
   raw: unknown;
   seq?: number;
   ts?: number;
+};
+
+export type TxlineHalfLine = {
+  awayCorners: number;
+  awayGoals: number;
+  awayYellowCards: number;
+  homeCorners: number;
+  homeGoals: number;
+  homeYellowCards: number;
 };
 
 export type NormalizedTxlineScoreUpdate = NormalizedTxlineScore & {
@@ -149,10 +164,23 @@ export function normalizeScoreSnapshot(raw: unknown): NormalizedTxlineScore {
     }
   }
 
+  const halfLine = (bank: number): TxlineHalfLine => ({
+    awayCorners: statMap.get(bank + awayBase + 6) ?? 0,
+    awayGoals: statMap.get(bank + awayBase) ?? 0,
+    awayYellowCards: statMap.get(bank + awayBase + 2) ?? 0,
+    homeCorners: statMap.get(bank + homeBase + 6) ?? 0,
+    homeGoals: statMap.get(bank + homeBase) ?? 0,
+    homeYellowCards: statMap.get(bank + homeBase + 2) ?? 0,
+  });
+  const hasBanks = [...statMap.keys()].some((key) => key >= 1000);
+
   return {
     action: readString(latestEntry, "Action"),
     awayCorners: statMap.get(awayBase + 6) ?? 0,
     eventId: readNumber(latestEntry, "Id"),
+    ...(hasBanks
+      ? { halfStats: { first: halfLine(1000), second: halfLine(3000) } }
+      : {}),
     awayGoals: statMap.get(awayBase) ?? 0,
     awayRedCards: statMap.get(awayBase + 4) ?? 0,
     awayYellowCards: statMap.get(awayBase + 2) ?? 0,

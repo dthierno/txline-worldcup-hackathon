@@ -199,6 +199,46 @@ describe("settlePrediction", () => {
     ).toBe(false);
   });
 
+  it("scales winner payout by odds locked at save time", () => {
+    const settlement = settlePrediction(
+      makePrediction({ oddsAtSave: { away: 5.35, draw: 3.8, home: 1.7 } }),
+      makeOutcome(),
+      teams,
+    );
+    const winner = settlement.markets.find((m) => m.market === "Winner");
+
+    // away pick at 5.35 decimal odds: 3 x 5.35 = 16 points
+    expect(winner?.points).toBe(16);
+    expect(winner?.pick).toBe("Morocco @ 5.35");
+  });
+
+  it("caps and floors odds-scaled winner payouts", () => {
+    const capped = settlePrediction(
+      makePrediction({ oddsAtSave: { away: 40, draw: 3, home: 1.01 } }),
+      makeOutcome(),
+      teams,
+    );
+
+    expect(
+      capped.markets.find((m) => m.market === "Winner")?.points,
+    ).toBe(30);
+
+    const floored = settlePrediction(
+      makePrediction({
+        winner: "home",
+        homeGoals: 3,
+        awayGoals: 0,
+        oddsAtSave: { away: 40, draw: 3, home: 1.01 },
+      }),
+      makeOutcome({ homeGoals: 3, awayGoals: 0 }),
+      teams,
+    );
+
+    expect(
+      floored.markets.find((m) => m.market === "Winner")?.points,
+    ).toBe(3);
+  });
+
   it("is deterministic for the same inputs", () => {
     const first = settlePrediction(makePrediction(), makeOutcome(), teams);
     const second = settlePrediction(makePrediction(), makeOutcome(), teams);

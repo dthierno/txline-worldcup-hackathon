@@ -565,6 +565,17 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         fixture={fixture}
         lineups={details.lineups?.data ?? null}
         now={now}
+        odds1x2={
+          details.odds?.data?.homeWinProbability &&
+          details.odds.data.drawProbability &&
+          details.odds.data.awayWinProbability
+            ? {
+                away: 100 / details.odds.data.awayWinProbability,
+                draw: 100 / details.odds.data.drawProbability,
+                home: 100 / details.odds.data.homeWinProbability,
+              }
+            : null
+        }
         outcome={outcome}
       />
 
@@ -758,11 +769,13 @@ function PredictionSection({
   fixture,
   lineups,
   now,
+  odds1x2,
   outcome,
 }: {
   fixture: WorldCupFixture;
   lineups: NormalizedLineups | null;
   now: number | null;
+  odds1x2: { away: number; draw: number; home: number } | null;
   outcome: MatchOutcome | null;
 }) {
   // The section is keyed by fixtureId, so lazy initializers re-read
@@ -834,6 +847,15 @@ function PredictionSection({
             const prediction: MatchPrediction = {
               ...draft,
               fixtureId: fixture.fixtureId,
+              // Lock the current TxLINE 1X2 odds into the prediction; the
+              // winner market settles scaled by these.
+              oddsAtSave: odds1x2
+                ? {
+                    away: Number(odds1x2.away.toFixed(2)),
+                    draw: Number(odds1x2.draw.toFixed(2)),
+                    home: Number(odds1x2.home.toFixed(2)),
+                  }
+                : null,
               savedAt: new Date().toISOString(),
             };
 
@@ -1199,6 +1221,16 @@ function VerificationSection({
             . This app displays that proof material as returned by TxLINE; it
             does not submit an on-chain transaction.
           </p>
+          {proof.markets?.length ? (
+            <ul className="muted">
+              {proof.markets.map((market) => (
+                <li key={market.market}>
+                  ✓ {market.market}: Merkle proof returned (stat keys{" "}
+                  {market.statKeys.join(", ")}, {market.proofNodes} node(s))
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <details>
             <summary>Proof metadata</summary>
             <dl>

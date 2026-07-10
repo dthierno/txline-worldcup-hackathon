@@ -38,6 +38,31 @@ describe("txline client normalizers", () => {
     });
   });
 
+  it("decodes per-half stat banks when present", () => {
+    const normalized = normalizeScoreSnapshot([
+      {
+        Action: "game_finalised",
+        Seq: 99,
+        Stats: {
+          1: 0, 2: 3, 3: 4, 4: 4, 7: 11, 8: 1,
+          1001: 0, 1002: 0, 1003: 2, 1004: 4, 1007: 5, 1008: 0,
+          3001: 0, 3002: 3, 3003: 2, 3004: 0, 3007: 6, 3008: 1,
+        },
+      },
+    ]);
+
+    expect(normalized.halfStats?.first).toMatchObject({
+      awayGoals: 0, homeGoals: 0, homeCorners: 5, awayYellowCards: 4,
+    });
+    expect(normalized.halfStats?.second).toMatchObject({
+      awayGoals: 3, homeCorners: 6, awayCorners: 1,
+    });
+    // No banks -> no halfStats key
+    expect(
+      normalizeScoreSnapshot([{ Seq: 1, Stats: { 1: 0, 2: 1 } }]).halfStats,
+    ).toBeUndefined();
+  });
+
   it("extracts 1X2 odds probabilities", () => {
     expect(
       normalizeOddsSnapshot([
