@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Hero } from "@/components/hero";
+import { LeagueActions } from "@/components/league-actions";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -215,6 +216,8 @@ export function HomePage() {
   return (
     <main>
       <Hero />
+
+      <LeagueActions />
 
       {/* Hidden per request — kept for later.
       <h1>World Cup games</h1>

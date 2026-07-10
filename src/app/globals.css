@@ -109,6 +109,117 @@ main {
   padding: 0 24px 24px;
 }
 
+/* League entry cards (create / join) below the banner. */
+.league-actions {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  margin: 16px 0 8px;
+}
+@media (max-width: 640px) {
+  .league-actions {
+    grid-template-columns: 1fr;
+  }
+}
+.league-card {
+  align-items: center;
+  background: #14141a;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  gap: 16px;
+  padding: 18px 20px;
+  text-align: left;
+  transition:
+    transform 0.18s cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 0.18s ease,
+    background 0.18s ease;
+  width: 100%;
+}
+.league-card:active {
+  transform: scale(0.985);
+}
+.league-card:focus-visible {
+  border-color: var(--ring);
+  outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .league-card:hover {
+    background: #17171f;
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  .league-card:hover .league-card-arrow {
+    transform: translateX(3px);
+  }
+}
+.league-card-icon {
+  align-items: center;
+  border-radius: 14px;
+  display: flex;
+  flex-shrink: 0;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+.league-card-icon svg {
+  height: 24px;
+  width: 24px;
+}
+.league-card--create .league-card-icon {
+  background: rgba(74, 222, 128, 0.14);
+  color: #4ade80;
+}
+.league-card--join .league-card-icon {
+  background: rgba(96, 165, 250, 0.14);
+  color: #60a5fa;
+}
+.league-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.league-card-title {
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 600;
+}
+.league-card-desc {
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.league-card-arrow {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.league-card-arrow svg {
+  height: 20px;
+  width: 20px;
+}
+.league-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.league-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .league-card,
+  .league-card-arrow {
+    transition: none;
+  }
+  .league-card:active {
+    transform: none;
+  }
+}
+
 /* Top header (FotMob Predict layout: gradient-to-transparent, logo left,
    sign-in right, inner column capped at the content width). */
 .app-header {
