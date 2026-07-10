@@ -10,21 +10,17 @@ const FLAGS: [string, string][] = [
   // Left bracket
   ["py", "hero-float-1"], // Paraguay
   ["fr", "hero-float-2"], // France
-  ["ca", "hero-float-3"], // Canada
   ["ma", "hero-float-4"], // Morocco
   ["pt", "hero-float-5"], // Portugal
   ["es", "hero-float-6"], // Spain
   ["us", "hero-float-7"], // USA
-  ["be", "hero-float-8"], // Belgium
   // Right bracket
   ["br", "hero-float-9"], // Brazil
   ["no", "hero-float-10"], // Norway
-  ["mx", "hero-float-11"], // Mexico
   ["gb-eng", "hero-float-12"], // England
   ["ar", "hero-float-13"], // Argentina
   ["eg", "hero-float-14"], // Egypt
   ["ch", "hero-float-15"], // Switzerland
-  ["co", "hero-float-16"], // Colombia
 ];
 
 // Widget panel matching each phase: 0 Predict (score), 1 Play (rows), 2 Prevail.
