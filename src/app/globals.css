@@ -132,6 +132,17 @@ main {
   cursor: pointer;
   display: flex;
   isolation: isolate;
+  /* Punch the two ticket notches out of the card itself (border included) so
+     the outline follows the curve instead of running straight behind them. */
+  -webkit-mask-image:
+    radial-gradient(circle 11px at 78px 0, transparent 11px, #000 12px),
+    radial-gradient(circle 11px at 78px 100%, transparent 11px, #000 12px);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  mask-image:
+    radial-gradient(circle 11px at 78px 0, transparent 11px, #000 12px),
+    radial-gradient(circle 11px at 78px 100%, transparent 11px, #000 12px);
+  mask-repeat: no-repeat;
   min-height: 98px;
   overflow: hidden;
   padding: 0;
@@ -216,24 +227,6 @@ main {
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
   height: 30px;
   width: 30px;
-}
-/* Punch-out notches at each end of the perforation (reveal the page behind). */
-.league-card-icon::before,
-.league-card-icon::after {
-  background: #050505;
-  border-radius: 50%;
-  content: "";
-  height: 22px;
-  position: absolute;
-  right: -11px;
-  width: 22px;
-  z-index: 2;
-}
-.league-card-icon::before {
-  top: -11px;
-}
-.league-card-icon::after {
-  bottom: -11px;
 }
 .league-card-body {
   display: flex;
