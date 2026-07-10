@@ -1278,17 +1278,29 @@ dt {
 /* Uniform pill size + no bob (the old per-flag sizes and the rotating bob
    animation made the pills look different sizes). */
 .hero-predict .hero-float { animation: none; height: 32px; width: 32px; }
-/* Quarter-finalists, positioned by their side of the bracket. Left bracket:
-   France, Morocco, Spain, Belgium. Zigzag top -> bottom. */
-.hero-predict .hero-float-1 { bottom: auto; left: 24%; right: auto; top: 48%; } /* fr */
-.hero-predict .hero-float-2 { bottom: auto; left: 15%; right: auto; top: 61%; } /* ma */
-.hero-predict .hero-float-3 { bottom: auto; left: 24%; right: auto; top: 74%; } /* es */
-.hero-predict .hero-float-4 { bottom: auto; left: 15%; right: auto; top: 87%; } /* be */
-/* Right bracket: Norway, England, Argentina, Switzerland. Mirrored. */
-.hero-predict .hero-float-5 { bottom: auto; left: auto; right: 24%; top: 48%; } /* no */
-.hero-predict .hero-float-6 { bottom: auto; left: auto; right: 15%; top: 61%; } /* gb-eng */
-.hero-predict .hero-float-7 { bottom: auto; left: auto; right: 24%; top: 74%; } /* ar */
-.hero-predict .hero-float-8 { bottom: auto; left: auto; right: 15%; top: 87%; } /* ch */
+/* Round-of-16 teams, split by bracket side, 8 per side in a 3-2-3 column set. */
+/* Left bracket — inner column (near the widget). */
+.hero-predict .hero-float-1 { bottom: auto; left: 28%; right: auto; top: 48%; } /* py */
+.hero-predict .hero-float-2 { bottom: auto; left: 28%; right: auto; top: 68%; } /* fr */
+.hero-predict .hero-float-3 { bottom: auto; left: 28%; right: auto; top: 88%; } /* ca */
+/* Left bracket — middle column. */
+.hero-predict .hero-float-4 { bottom: auto; left: 19%; right: auto; top: 58%; } /* ma */
+.hero-predict .hero-float-5 { bottom: auto; left: 19%; right: auto; top: 78%; } /* pt */
+/* Left bracket — outer column. */
+.hero-predict .hero-float-6 { bottom: auto; left: 10%; right: auto; top: 48%; } /* es */
+.hero-predict .hero-float-7 { bottom: auto; left: 10%; right: auto; top: 68%; } /* us */
+.hero-predict .hero-float-8 { bottom: auto; left: 10%; right: auto; top: 88%; } /* be */
+/* Right bracket — inner column. */
+.hero-predict .hero-float-9  { bottom: auto; left: auto; right: 28%; top: 48%; } /* br */
+.hero-predict .hero-float-10 { bottom: auto; left: auto; right: 28%; top: 68%; } /* no */
+.hero-predict .hero-float-11 { bottom: auto; left: auto; right: 28%; top: 88%; } /* mx */
+/* Right bracket — middle column. */
+.hero-predict .hero-float-12 { bottom: auto; left: auto; right: 19%; top: 58%; } /* gb-eng */
+.hero-predict .hero-float-13 { bottom: auto; left: auto; right: 19%; top: 78%; } /* ar */
+/* Right bracket — outer column. */
+.hero-predict .hero-float-14 { bottom: auto; left: auto; right: 10%; top: 48%; } /* eg */
+.hero-predict .hero-float-15 { bottom: auto; left: auto; right: 10%; top: 68%; } /* ch */
+.hero-predict .hero-float-16 { bottom: auto; left: auto; right: 10%; top: 88%; } /* co */
 
 /* Flags framing the centered composition, one per corner */
 .hero-float-1 { bottom: auto; left: 12%; right: auto; top: 18%; }
