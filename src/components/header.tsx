@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-// Sticky top header (structure from FotMob's Predict header; PredPick wordmark
+// Sticky top header (structure from FotMob's Predict header; PredGame wordmark
 // and a generic account icon in place of their branded assets).
 export function Header() {
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <Link className="app-logo" href="/" aria-label="PredPick home">
-          Pred<span>Pick</span>
+        <Link className="app-logo" href="/" aria-label="PredGame home">
+          Pred<span>Game</span>
         </Link>
         <button className="app-signin" type="button" aria-label="Sign in">
           <svg

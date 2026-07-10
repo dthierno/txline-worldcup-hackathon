@@ -73,7 +73,7 @@ export function Hero({ variant = "pat-4" }: { variant?: string }) {
         <span /><span /><span /><span /><span /><span /><span />
       </div>
       <div className="hero">
-        <h1 className="sr-only">PredPick</h1>
+        <h1 className="sr-only">PredGame</h1>
         <div className="hero-copy">
           <p className="hero-title">
             {/* Predict starts highlighted (phase 0) for SSR; the effect above
