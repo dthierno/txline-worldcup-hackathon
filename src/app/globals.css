@@ -105,7 +105,7 @@ input {
 
 main {
   margin: 0 auto;
-  max-width: 980px;
+  max-width: 908px;
   padding: 24px;
 }
 
@@ -786,7 +786,7 @@ dt {
 
 .hero-fill {
   -webkit-background-clip: text;
-  animation: hero-rise 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.08s both,
+  animation: hero-rise 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.16s both,
     hero-sweep 0.9s ease 0.5s both;
   background-clip: text;
   background-image: linear-gradient(90deg, var(--won) 50%, #ffffff 50%);
@@ -1121,8 +1121,23 @@ dt {
 .pat-3::before { background:
   repeating-radial-gradient(circle at 8% 120%, #dc2626 0 28px, #ea580c 28px 56px, #a5b4fc 56px 84px, #2563eb 84px 112px, #7c3aed 112px 140px, transparent 140px 460px),
   repeating-radial-gradient(circle at 92% -20%, #16a34a 0 28px, #22d3ee 28px 56px, #2563eb 56px 84px, #7c3aed 84px 112px, #dc2626 112px 140px, transparent 140px 460px); }
+/* Animatable angle for the pat-4 sunburst. The 7 colours x 7deg = a 49deg
+   period, so sweeping the angle 0->49deg maps the pattern onto itself and the
+   loop is seamless (no jump on restart). */
+@property --hero-rays {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
 .pat-4::before { background:
-  repeating-conic-gradient(from 0deg at 50% 135%, #7f1d1d 0 7deg, #dc2626 7deg 14deg, #ea580c 14deg 21deg, #a5b4fc 21deg 28deg, #2563eb 28deg 35deg, #7c3aed 35deg 42deg, #16a34a 42deg 49deg); opacity:.85; }
+  repeating-conic-gradient(from var(--hero-rays) at 50% 135%, #7f1d1d 0 7deg, #dc2626 7deg 14deg, #ea580c 14deg 21deg, #a5b4fc 21deg 28deg, #2563eb 28deg 35deg, #7c3aed 35deg 42deg, #16a34a 42deg 49deg); opacity:.85;
+  animation: hero-rays-sweep 56s linear infinite; }
+@keyframes hero-rays-sweep {
+  to { --hero-rays: 49deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pat-4::before { animation: none; }
+}
 .pat-5::before { background:
   repeating-radial-gradient(ellipse 140% 70% at 50% -50%, #dc2626 0 24px, #ea580c 24px 48px, #a5b4fc 48px 72px, #2563eb 72px 96px, #7c3aed 96px 120px, #0b0b0e 120px 144px); }
 .pat-6::before { background:
@@ -1157,36 +1172,116 @@ dt {
 
 /* Hero two-zone composition */
 
+/* Two-zone split (à la FotMob Predict): text group pinned to the top, widget
+   pinned to the bottom, flexible space between — so the title reads as a
+   deliberate top zone rather than being "too high". */
 .hero-box .hero {
   align-items: center;
-  flex-direction: row;
-  gap: 32px;
+  flex-direction: column;
+  gap: 20px;
   justify-content: space-between;
-  padding: 44px 56px 0;
-  text-align: left;
+  min-height: 380px;
+  padding: 56px 56px 32px;
+  position: relative;
+  text-align: center;
 }
 
 .hero-copy {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 54%;
-  padding-bottom: 44px;
+  max-width: 100%;
+  padding-bottom: 0;
 }
 
-.hero-title { font-size: 44px; }
-
-.hero-cta { margin-top: 6px; }
-
-.hero-visual { align-self: flex-end; }
+.hero-visual { align-self: center; }
 
 .hero-visual .hero-card { margin-top: 0; }
 
-.hero-float-1 { left: 47%; top: 16%; }
-.hero-float-2 { right: 5%; top: 16%; }
-.hero-float-4 { left: 5%; top: 13%; }
-.hero-float-5 { bottom: 18%; left: 44%; }
+/* FotMob "Predict" widget reproduction (src/components/predict-widget.tsx):
+   two overlapping panels cross-fade while the outgoing one slides right. */
+.pw {
+  height: 282px;
+  position: relative;
+  width: 282px;
+}
+.pw > svg { display: block; }
+.pw-stage {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+/* Three overlapping panels. React (the Hero's `phase` clock) toggles the active
+   panel's opacity/transform via inline styles so it stays perfectly in sync
+   with the title highlight. Panel a is the default (phase 0) for SSR / no-JS. */
+.pw-panel {
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transform: translateX(24px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+  will-change: opacity, transform;
+}
+.pw-panel-a { opacity: 1; transform: translateX(0); }
+
+/* Play panel: homepage HeroCard "predict" design, sized to the widget's card
+   area (below the header, matching the other panels' inset). */
+.pw-play { inset: 0; position: absolute; }
+.pw-play-card {
+  background: #202020;
+  border-radius: 16px 16px 0 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: center;
+  left: 17px;
+  padding: 20px 18px;
+  position: absolute;
+  right: 17px;
+  top: 81px;
+}
+
+/* Predict hero sizing: taller card with the widget glued to the bottom edge. */
+.hero-predict .hero {
+  min-height: 502px;
+  padding: 80px 56px 0;
+}
+
+/* Title highlight — the active word's green is set inline by React; this just
+   provides the default colour and the smooth transition between words. */
+.hero-predict .hero-title .hero-word {
+  color: #ededed;
+  transition: color 0.55s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pw-panel,
+  .hero-predict .hero-title .hero-word { transition: none; }
+}
+
+/* Demo-only: country pills clustered in the lower gutters flanking the widget,
+   all kept below the title line (nothing above or level with the title).
+   Each side zigzags between an inner column (near the widget) and an outer one. */
+/* Left cluster, top -> bottom. */
+.hero-predict .hero-float-10 { bottom: auto; left: 22%; right: auto; top: 44%; } /* nl */
+.hero-predict .hero-float-1  { bottom: auto; left: 10%; right: auto; top: 55%; } /* fr */
+.hero-predict .hero-float-6  { bottom: auto; left: 22%; right: auto; top: 66%; } /* br */
+.hero-predict .hero-float-4  { bottom: auto; left: 10%; right: auto; top: 77%; } /* gb-eng */
+.hero-predict .hero-float-8  { bottom: auto; left: 22%; right: auto; top: 88%; } /* pt */
+/* Right cluster, mirrored. */
+.hero-predict .hero-float-11 { bottom: auto; left: auto; right: 22%; top: 44%; } /* jp */
+.hero-predict .hero-float-2  { bottom: auto; left: auto; right: 10%; top: 55%; } /* es */
+.hero-predict .hero-float-7  { bottom: auto; left: auto; right: 22%; top: 66%; } /* de */
+.hero-predict .hero-float-5  { bottom: auto; left: auto; right: 10%; top: 77%; } /* no */
+.hero-predict .hero-float-9  { bottom: auto; left: auto; right: 22%; top: 88%; } /* ar */
+
+/* Flags framing the centered composition, one per corner */
+.hero-float-1 { bottom: auto; left: 12%; right: auto; top: 18%; }
+.hero-float-2 { bottom: auto; left: auto; right: 12%; top: 16%; }
+.hero-float-4 { bottom: 16%; left: 14%; right: auto; top: auto; }
+.hero-float-5 { bottom: 18%; left: auto; right: 14%; top: auto; }
 
 @media (max-width: 900px) {
   .hero-box .hero {
@@ -1202,14 +1297,18 @@ dt {
   .hero-float-5 { left: 12%; }
 }
 
-.hero-title { font-size: 38px; white-space: nowrap; }
-.hero-float-4 { left: 34%; top: 11%; }
-.hero-float-1 { left: 52%; top: 24%; }
-.hero-float-5 { bottom: 13%; left: 42%; }
-
-.hero-float-4 { left: 37%; top: 30%; }
-
-.hero-float-4 { left: 55%; top: 44%; }
+/* Centered title on one line: Predict. Play. Prevail. */
+.hero-title {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 46px;
+  gap: 0.3em;
+  justify-content: center;
+  line-height: 1.04;
+  white-space: normal;
+}
+.hero-title .hero-word { display: inline-block; }
+.hero-float-4 { bottom: 16%; left: 14%; right: auto; top: auto; }
 
 /* Stories rail */
 
