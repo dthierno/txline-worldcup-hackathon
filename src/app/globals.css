@@ -1291,6 +1291,11 @@ dt {
 .hero-predict .hero-float-7  { bottom: auto; left: auto; right: 28%; top: 68%; } /* de */
 .hero-predict .hero-float-5  { bottom: auto; left: auto; right: 19%; top: 78%; } /* no */
 .hero-predict .hero-float-9  { bottom: auto; left: auto; right: 28%; top: 88%; } /* ar */
+/* Outer column, further from the widget (2 pills each side). */
+.hero-predict .hero-float-12 { bottom: auto; left: 10%; right: auto; top: 53%; } /* be */
+.hero-predict .hero-float-13 { bottom: auto; left: 10%; right: auto; top: 73%; } /* hr */
+.hero-predict .hero-float-14 { bottom: auto; left: auto; right: 10%; top: 53%; } /* uy */
+.hero-predict .hero-float-15 { bottom: auto; left: auto; right: 10%; top: 73%; } /* mx */
 
 /* Flags framing the centered composition, one per corner */
 .hero-float-1 { bottom: auto; left: 12%; right: auto; top: 18%; }
