@@ -4,25 +4,19 @@ import { useEffect, useRef } from "react";
 
 import { PredictWidget } from "@/components/predict-widget";
 
-// Country pills clustered in the lower gutters flanking the widget (positioned
-// by the .hero-predict .hero-float-* rules in globals.css).
+// Quarter-finalists, on the banner side matching their side of the bracket
+// (positioned by the .hero-predict .hero-float-* rules in globals.css).
 const FLAGS: [string, string][] = [
-  ["fr", "hero-float-1"],
-  ["es", "hero-float-2"],
-  ["gb-eng", "hero-float-4"],
-  ["no", "hero-float-5"],
-  ["br", "hero-float-6"],
-  ["de", "hero-float-7"],
-  ["pt", "hero-float-8"],
-  ["ar", "hero-float-9"],
-  ["nl", "hero-float-10"],
-  ["jp", "hero-float-11"],
-  ["be", "hero-float-12"],
-  ["hr", "hero-float-13"],
-  ["co", "hero-float-16"],
-  ["uy", "hero-float-14"],
-  ["mx", "hero-float-15"],
-  ["ch", "hero-float-17"],
+  // Left bracket
+  ["fr", "hero-float-1"], // France
+  ["ma", "hero-float-2"], // Morocco
+  ["es", "hero-float-3"], // Spain
+  ["be", "hero-float-4"], // Belgium
+  // Right bracket
+  ["no", "hero-float-5"], // Norway
+  ["gb-eng", "hero-float-6"], // England
+  ["ar", "hero-float-7"], // Argentina
+  ["ch", "hero-float-8"], // Switzerland
 ];
 
 // Widget panel matching each phase: 0 Predict (score), 1 Play (rows), 2 Prevail.

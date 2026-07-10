@@ -1278,27 +1278,17 @@ dt {
 /* Uniform pill size + no bob (the old per-flag sizes and the rotating bob
    animation made the pills look different sizes). */
 .hero-predict .hero-float { animation: none; height: 32px; width: 32px; }
-/* Left cluster, top -> bottom. The 3-pill inner column (nl/br/pt) sits near the
-   widget; the 2-pill outer column (fr/gb-eng) is spaced further out. */
-.hero-predict .hero-float-10 { bottom: auto; left: 28%; right: auto; top: 48%; } /* nl */
-.hero-predict .hero-float-1  { bottom: auto; left: 19%; right: auto; top: 58%; } /* fr */
-.hero-predict .hero-float-6  { bottom: auto; left: 28%; right: auto; top: 68%; } /* br */
-.hero-predict .hero-float-4  { bottom: auto; left: 19%; right: auto; top: 78%; } /* gb-eng */
-.hero-predict .hero-float-8  { bottom: auto; left: 28%; right: auto; top: 88%; } /* pt */
-/* Right cluster, mirrored. */
-.hero-predict .hero-float-11 { bottom: auto; left: auto; right: 28%; top: 48%; } /* jp */
-.hero-predict .hero-float-2  { bottom: auto; left: auto; right: 19%; top: 58%; } /* es */
-.hero-predict .hero-float-7  { bottom: auto; left: auto; right: 28%; top: 68%; } /* de */
-.hero-predict .hero-float-5  { bottom: auto; left: auto; right: 19%; top: 78%; } /* no */
-.hero-predict .hero-float-9  { bottom: auto; left: auto; right: 28%; top: 88%; } /* ar */
-/* Outer column, further from the widget (3 pills each side, aligned with the
-   inner column's rows). */
-.hero-predict .hero-float-12 { bottom: auto; left: 10%; right: auto; top: 48%; } /* be */
-.hero-predict .hero-float-13 { bottom: auto; left: 10%; right: auto; top: 68%; } /* hr */
-.hero-predict .hero-float-16 { bottom: auto; left: 10%; right: auto; top: 88%; } /* co */
-.hero-predict .hero-float-14 { bottom: auto; left: auto; right: 10%; top: 48%; } /* uy */
-.hero-predict .hero-float-15 { bottom: auto; left: auto; right: 10%; top: 68%; } /* mx */
-.hero-predict .hero-float-17 { bottom: auto; left: auto; right: 10%; top: 88%; } /* ch */
+/* Quarter-finalists, positioned by their side of the bracket. Left bracket:
+   France, Morocco, Spain, Belgium. Zigzag top -> bottom. */
+.hero-predict .hero-float-1 { bottom: auto; left: 24%; right: auto; top: 48%; } /* fr */
+.hero-predict .hero-float-2 { bottom: auto; left: 15%; right: auto; top: 61%; } /* ma */
+.hero-predict .hero-float-3 { bottom: auto; left: 24%; right: auto; top: 74%; } /* es */
+.hero-predict .hero-float-4 { bottom: auto; left: 15%; right: auto; top: 87%; } /* be */
+/* Right bracket: Norway, England, Argentina, Switzerland. Mirrored. */
+.hero-predict .hero-float-5 { bottom: auto; left: auto; right: 24%; top: 48%; } /* no */
+.hero-predict .hero-float-6 { bottom: auto; left: auto; right: 15%; top: 61%; } /* gb-eng */
+.hero-predict .hero-float-7 { bottom: auto; left: auto; right: 24%; top: 74%; } /* ar */
+.hero-predict .hero-float-8 { bottom: auto; left: auto; right: 15%; top: 87%; } /* ch */
 
 /* Flags framing the centered composition, one per corner */
 .hero-float-1 { bottom: auto; left: 12%; right: auto; top: 18%; }
