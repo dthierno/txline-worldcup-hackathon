@@ -1257,6 +1257,9 @@ dt {
   min-height: 502px;
   padding: 80px 56px 0;
 }
+.hero-predict .hero-copy .text-muted-foreground {
+  font-size: 18px;
+}
 
 /* Title highlight — the active word's green is set inline by React; this just
    provides the default colour and the smooth transition between words. */
