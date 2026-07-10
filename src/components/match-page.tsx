@@ -637,7 +637,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   );
 }
 
-function GoalCallsSection({
+export function GoalCallsSection({
   calls,
   fixture,
   live,
