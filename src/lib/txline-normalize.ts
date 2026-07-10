@@ -594,6 +594,156 @@ export function extractGoalCalls(
   return calls;
 }
 
+export type CornerCall = {
+  clockSeconds?: number;
+  key: string;
+  resolved: boolean;
+  seq: number;
+  voided: boolean;
+  winner?: number;
+};
+
+// "Who wins the next corner?" — a call opens at kickoff and after every
+// corner; each is resolved by the following corner event (winner = its
+// participant) or voided when the match ends without another corner.
+export function extractCornerCalls(
+  updates: Array<{
+    action?: string;
+    clockSeconds?: number;
+    eventId?: number;
+    participant?: number;
+    seq?: number;
+  }>,
+): CornerCall[] {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const started = sorted.some(
+    (update) => update.action === "kickoff" || (update.clockSeconds ?? 0) > 0,
+  );
+
+  if (!started) {
+    return [];
+  }
+
+  const finished = sorted.some((update) => update.action === "game_finalised");
+  const seenCorners = new Set<string>();
+  const corners: Array<{ clockSeconds?: number; participant?: number; seq: number }> = [];
+
+  for (const update of sorted) {
+    if (update.action !== "corner") {
+      continue;
+    }
+
+    const cornerKey = String(update.eventId ?? `seq-${update.seq}`);
+
+    if (seenCorners.has(cornerKey)) {
+      continue;
+    }
+
+    seenCorners.add(cornerKey);
+    corners.push({
+      clockSeconds: update.clockSeconds,
+      participant: update.participant,
+      seq: update.seq ?? 0,
+    });
+  }
+
+  const calls: CornerCall[] = corners.map((corner, index) => ({
+    clockSeconds: index === 0 ? 0 : corners[index - 1].clockSeconds,
+    key: `corner-${index + 1}`,
+    resolved: true,
+    seq: corner.seq,
+    voided: false,
+    winner: corner.participant,
+  }));
+
+  if (!finished) {
+    calls.push({
+      clockSeconds: corners[corners.length - 1]?.clockSeconds ?? 0,
+      key: `corner-${corners.length + 1}`,
+      resolved: false,
+      seq: (corners[corners.length - 1]?.seq ?? 0) + 1,
+      voided: false,
+    });
+  }
+
+  return calls;
+}
+
+export type AddedTimeCall = {
+  half: 1 | 2;
+  key: string;
+  minutes?: number;
+  resolved: boolean;
+  seq: number;
+  voided: boolean;
+};
+
+// Over/under 3.5 minutes of added time, opened near the end of each half and
+// settled exactly by the additional_time record.
+export function extractAddedTimeCalls(
+  updates: Array<{
+    action?: string;
+    clockSeconds?: number;
+    data?: Record<string, unknown>;
+    eventId?: number;
+    seq?: number;
+  }>,
+): AddedTimeCall[] {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const finished = sorted.some((update) => update.action === "game_finalised");
+  const maxClock = sorted.reduce(
+    (max, update) => Math.max(max, update.clockSeconds ?? 0),
+    0,
+  );
+  const seen = new Set<string>();
+  const events: Array<{ minutes: number; seq: number }> = [];
+
+  for (const update of sorted) {
+    if (update.action !== "additional_time") {
+      continue;
+    }
+
+    const key = String(update.eventId ?? `seq-${update.seq}`);
+    const minutes = update.data?.Minutes;
+
+    if (seen.has(key) || typeof minutes !== "number") {
+      continue;
+    }
+
+    seen.add(key);
+    events.push({ minutes, seq: update.seq ?? 0 });
+  }
+
+  const calls: AddedTimeCall[] = [];
+  const thresholds: Array<[1 | 2, number]> = [
+    [1, 40 * 60],
+    [2, 85 * 60],
+  ];
+
+  for (const [half, threshold] of thresholds) {
+    const event = events[half - 1];
+
+    if (!event && maxClock < threshold) {
+      continue;
+    }
+
+    calls.push({
+      half,
+      key: `addtime-${half}`,
+      minutes: event?.minutes,
+      resolved: Boolean(event),
+      seq: event?.seq ?? 900000 + half,
+      voided: !event && finished,
+    });
+  }
+
+  return calls;
+}
+
 export function normalizeValidationSummary(raw: unknown): TxlineValidationSummary {
   const record =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};

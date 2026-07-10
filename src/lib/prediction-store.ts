@@ -11,7 +11,9 @@ const GOAL_CALLS_KEY = "fan-forecast.goalcalls.v1";
 export const GOAL_CALL_POINTS = 2;
 
 export type GoalCallAnswer = {
-  answer: "goal" | "no_goal";
+  // Option index as a string ("0" | "1"); legacy values "goal"/"no_goal"
+  // are still understood by the reader.
+  answer: string;
   answeredAt: string;
 };
 

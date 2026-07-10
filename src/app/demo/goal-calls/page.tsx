@@ -5,9 +5,9 @@
 
 import { useEffect, useState } from "react";
 
-import { GoalCallsSection } from "@/components/match-page";
+import { GoalCallsSection, type LiveUiCall } from "@/components/match-page";
 import { Button } from "@/components/ui/button";
-import type { GoalCallEvent } from "@/lib/txline-normalize";
+
 
 const DEMO_FIXTURE = {
   awayTeam: "Morocco",
@@ -24,7 +24,7 @@ const PAUSE_BETWEEN_MS = 3000;
 
 export default function GoalCallsDemo() {
   const [runId, setRunId] = useState(0);
-  const [calls, setCalls] = useState<GoalCallEvent[]>([]);
+  const [calls, setCalls] = useState<LiveUiCall[]>([]);
   const [round, setRound] = useState(0);
 
   useEffect(() => {
@@ -39,16 +39,29 @@ export default function GoalCallsDemo() {
       setRound(n + 1);
 
       const key = `demo-${runId}-${n}`;
+      const kinds: Array<Pick<LiveUiCall, "options" | "question">> = [
+        {
+          options: ["Goal", "No goal"],
+          question: `Close play for ${n % 2 === 0 ? "France" : "Morocco"} - does it end in a goal?`,
+        },
+        { options: ["France", "Morocco"], question: "Who wins the next corner?" },
+        {
+          options: ["Over 3.5", "Under 3.5"],
+          question: "Added time (half 1): over or under 3.5 minutes?",
+        },
+      ];
+      const kind = kinds[n % kinds.length];
 
       setCalls((previous) => [
         ...previous,
         {
-          clockSeconds: 420 * (n + 1),
           key,
-          participant: n % 2 === 0 ? 1 : 2,
+          minute: `${7 * (n + 1)}'`,
+          options: kind.options as [string, string],
+          outcome: "Open",
+          question: kind.question,
           resolved: false,
           seq: n + 1,
-          stood: false,
         },
       ]);
 
@@ -58,11 +71,18 @@ export default function GoalCallsDemo() {
             return;
           }
 
-          const stood = Math.random() < 0.4;
+          const correctIndex = (Math.random() < 0.5 ? 0 : 1) as 0 | 1;
 
           setCalls((previous) =>
             previous.map((call) =>
-              call.key === key ? { ...call, resolved: true, stood } : call,
+              call.key === key
+                ? {
+                    ...call,
+                    correctIndex,
+                    outcome: call.options[correctIndex],
+                    resolved: true,
+                  }
+                : call,
             ),
           );
           timers.push(setTimeout(() => playRound(n + 1), PAUSE_BETWEEN_MS));
@@ -112,7 +132,7 @@ export default function GoalCallsDemo() {
       <GoalCallsSection
         key={runId}
         calls={calls}
-        fixture={DEMO_FIXTURE}
+        fixtureId={DEMO_FIXTURE.fixtureId}
         live
       />
     </main>

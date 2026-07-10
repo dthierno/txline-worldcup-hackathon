@@ -72,12 +72,13 @@ import {
 } from "@/lib/prediction-store";
 import {
   computePossessionSplit,
+  extractAddedTimeCalls,
+  extractCornerCalls,
   extractGoalCalls,
   extractGoals,
   extractSubstitutionEvents,
   normalizeScoreSnapshot,
   withoutRaw,
-  type GoalCallEvent,
   type GoalEvent,
   type NormalizedLineups,
   type SubstitutionEvent,
@@ -388,7 +389,59 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     ),
   );
   const substitutions = extractSubstitutionEvents(combinedUpdates);
-  const goalCalls = extractGoalCalls(combinedUpdates);
+  const callTeam = (participant?: number) =>
+    participant === 1
+      ? fixture.homeTeam
+      : participant === 2
+        ? fixture.awayTeam
+        : undefined;
+  const liveCalls: LiveUiCall[] = [
+    ...extractGoalCalls(combinedUpdates).map((call) => ({
+      correctIndex: call.resolved ? ((call.stood ? 0 : 1) as 0 | 1) : undefined,
+      key: call.key,
+      minute: formatMinute(call.clockSeconds) || "—",
+      options: ["Goal", "No goal"] as [string, string],
+      outcome: call.resolved ? (call.stood ? "⚽ Goal" : "No goal") : "Open",
+      question: `Close play${
+        callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
+      } - does it end in a goal?`,
+      resolved: call.resolved,
+      seq: call.seq,
+    })),
+    ...extractCornerCalls(combinedUpdates).map((call) => ({
+      correctIndex:
+        call.winner === 1 ? (0 as const) : call.winner === 2 ? (1 as const) : undefined,
+      key: call.key,
+      minute: formatMinute(call.clockSeconds) || "0'",
+      options: [fixture.homeTeam, fixture.awayTeam] as [string, string],
+      outcome: !call.resolved
+        ? "Open"
+        : call.voided
+          ? "No more corners"
+          : callTeam(call.winner) ?? "Unknown",
+      question: "Who wins the next corner?",
+      resolved: call.resolved,
+      seq: call.seq,
+      voided: call.voided,
+    })),
+    ...extractAddedTimeCalls(combinedUpdates).map((call) => ({
+      correctIndex: call.resolved
+        ? (((call.minutes ?? 0) > 3.5 ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      minute: call.half === 1 ? "45'" : "90'",
+      options: ["Over 3.5", "Under 3.5"] as [string, string],
+      outcome: !call.resolved
+        ? call.voided
+          ? "Not announced"
+          : "Open"
+        : `${call.minutes} min added`,
+      question: `Added time (half ${call.half}): over or under 3.5 minutes?`,
+      resolved: call.resolved,
+      seq: call.seq,
+      voided: call.voided,
+    })),
+  ].sort((left, right) => left.seq - right.seq);
   const outcome = buildOutcome(
     displayScore,
     finished,
@@ -597,8 +650,8 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
 
       <GoalCallsSection
         key={`calls-${fixture.fixtureId}`}
-        calls={goalCalls}
-        fixture={fixture}
+        calls={liveCalls}
+        fixtureId={fixture.fixtureId}
         live={liveStreamEligible}
       />
 
@@ -646,23 +699,41 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   );
 }
 
-// Our answer window: TxLINE gives no duration for a possible-goal moment (it
-// ends whenever the resolving record arrives), so we impose a fixed window —
+// Our answer window: TxLINE gives no duration for a live-call moment (it
+// ends whenever the resolving record arrives), so we impose a fixed window -
 // which also prevents answering after the outcome is known.
 const CALL_WINDOW_MS = 8000;
 
+export type LiveUiCall = {
+  correctIndex?: 0 | 1;
+  key: string;
+  minute: string;
+  options: [string, string];
+  outcome: string;
+  question: string;
+  resolved: boolean;
+  seq: number;
+  voided?: boolean;
+};
+
+function answerIndex(answer: string): number {
+  if (answer === "goal") return 0;
+  if (answer === "no_goal") return 1;
+
+  return Number(answer);
+}
+
 function CallPromptDialog({
+  call,
   onAnswer,
   onDismiss,
-  callKey,
-  team,
 }: {
-  callKey: string;
-  onAnswer: (pick: "goal" | "no_goal") => void;
+  call: LiveUiCall;
+  onAnswer: (index: 0 | 1) => void;
   onDismiss: (key: string) => void;
-  team?: string;
 }) {
   const [remaining, setRemaining] = useState(CALL_WINDOW_MS);
+  const callKey = call.key;
 
   useEffect(() => {
     const start = Date.now();
@@ -690,10 +761,8 @@ function CallPromptDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Goal call</DialogTitle>
-          <DialogDescription>
-            Close play{team ? ` for ${team}` : ""} - does it end in a goal?
-          </DialogDescription>
+          <DialogTitle>Live call</DialogTitle>
+          <DialogDescription>{call.question}</DialogDescription>
         </DialogHeader>
         <Progress value={(remaining / CALL_WINDOW_MS) * 100} />
         <p className="muted">
@@ -703,16 +772,16 @@ function CallPromptDialog({
         <DialogFooter className="gap-3 sm:justify-center">
           <Button
             className="h-12 flex-1 text-base font-semibold"
-            onClick={() => onAnswer("goal")}
+            onClick={() => onAnswer(0)}
           >
-            Goal
+            {call.options[0]}
           </Button>
           <Button
             className="h-12 flex-1 text-base font-semibold"
-            onClick={() => onAnswer("no_goal")}
+            onClick={() => onAnswer(1)}
             variant="outline"
           >
-            No goal
+            {call.options[1]}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -722,16 +791,16 @@ function CallPromptDialog({
 
 export function GoalCallsSection({
   calls,
-  fixture,
+  fixtureId,
   live,
 }: {
-  calls: GoalCallEvent[];
-  fixture: WorldCupFixture;
+  calls: LiveUiCall[];
+  fixtureId: number;
   live: boolean;
 }) {
   const mounted = useIsMounted();
   const [answers, setAnswers] = useState<Record<string, GoalCallAnswer>>(() =>
-    loadGoalCalls(fixture.fixtureId),
+    loadGoalCalls(fixtureId),
   );
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const handleDismiss = useCallback((key: string) => {
@@ -748,78 +817,68 @@ export function GoalCallsSection({
     return null;
   }
 
-  const teamName = (participant?: number) =>
-    participant === 1
-      ? fixture.homeTeam
-      : participant === 2
-        ? fixture.awayTeam
-        : undefined;
   const openCall = live
     ? [...calls]
         .reverse()
         .find(
           (call) =>
-            !call.resolved && !answers[call.key] && !dismissed.has(call.key),
+            !call.resolved &&
+            !call.voided &&
+            !answers[call.key] &&
+            !dismissed.has(call.key),
         )
     : undefined;
   const points = calls.reduce((total, call) => {
     const answer = answers[call.key];
 
-    if (!call.resolved || !answer) {
+    if (!call.resolved || call.voided || !answer || call.correctIndex === undefined) {
       return total;
     }
 
-    const correct =
-      (answer.answer === "goal") === call.stood;
-
-    return total + (correct ? GOAL_CALL_POINTS : 0);
+    return (
+      total + (answerIndex(answer.answer) === call.correctIndex ? GOAL_CALL_POINTS : 0)
+    );
   }, 0);
 
-  function answer(callKey: string, pick: "goal" | "no_goal") {
+  function answer(callKey: string, index: 0 | 1) {
     const record: GoalCallAnswer = {
-      answer: pick,
+      answer: String(index),
       answeredAt: new Date().toISOString(),
     };
 
-    saveGoalCall(fixture.fixtureId, callKey, record);
+    saveGoalCall(fixtureId, callKey, record);
     setAnswers((previous) => ({ ...previous, [callKey]: record }));
   }
 
   return (
     <section className="card" aria-labelledby="goal-calls-heading">
-      <h2 id="goal-calls-heading">Goal calls</h2>
+      <h2 id="goal-calls-heading">Live calls</h2>
       {openCall && mounted ? (
         <CallPromptDialog
           key={openCall.key}
-          callKey={openCall.key}
-          onAnswer={(pick) => answer(openCall.key, pick)}
+          call={openCall}
+          onAnswer={(index) => answer(openCall.key, index)}
           onDismiss={handleDismiss}
-          team={teamName(openCall.participant)}
         />
       ) : null}
       <ul className="call-list">
         {[...calls].reverse().map((call) => {
           const callAnswer = mounted ? answers[call.key] : undefined;
           const correct =
-            call.resolved && callAnswer
-              ? (callAnswer.answer === "goal") === call.stood
+            call.resolved && !call.voided && callAnswer && call.correctIndex !== undefined
+              ? answerIndex(callAnswer.answer) === call.correctIndex
               : null;
 
           return (
             <li key={call.key}>
               <span>
-                {formatMinute(call.clockSeconds) || "—"} Possible goal
-                {teamName(call.participant) ? ` (${teamName(call.participant)})` : ""}
+                {call.minute} {call.question}
               </span>
               <span className="call-outcome">
-                {!call.resolved
-                  ? "Open"
-                  : call.stood
-                    ? "⚽ Goal"
-                    : "No goal"}
+                {call.outcome}
                 {callAnswer
                   ? correct === null
-                    ? ` · you said ${callAnswer.answer === "goal" ? "goal" : "no goal"}`
+                    ? ` · you said ${call.options[answerIndex(callAnswer.answer)] ?? callAnswer.answer}`
                     : correct
                       ? ` · ✓ +${GOAL_CALL_POINTS}`
                       : " · ✗ 0"
@@ -830,8 +889,9 @@ export function GoalCallsSection({
         })}
       </ul>
       <p className="muted">
-        Live micro-calls on TxLINE &quot;possible goal&quot; moments, settled
-        seconds later by the verified feed. {mounted && points > 0 ? `You earned ${points} point(s) here.` : ""}
+        Live micro-calls on TxLINE moments (close plays, next corner, added
+        time), settled by the verified feed.{" "}
+        {mounted && points > 0 ? `You earned ${points} point(s) here.` : ""}
       </p>
     </section>
   );
