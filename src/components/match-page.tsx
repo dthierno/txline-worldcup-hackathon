@@ -13,11 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Progress,
-  ProgressIndicator,
-  ProgressTrack,
-} from "@/components/ui/progress";
+import { Progress } from "@/components/ui/progress";
 
 import {
   buildOutcome,
@@ -699,18 +695,23 @@ function CallPromptDialog({
             Close play{team ? ` for ${team}` : ""} - does it end in a goal?
           </DialogDescription>
         </DialogHeader>
-        <Progress value={(remaining / CALL_WINDOW_MS) * 100}>
-          <ProgressTrack>
-            <ProgressIndicator />
-          </ProgressTrack>
-        </Progress>
+        <Progress value={(remaining / CALL_WINDOW_MS) * 100} />
         <p className="muted">
           {Math.ceil(remaining / 1000)}s to answer - resolves early if the
           play settles first.
         </p>
-        <DialogFooter>
-          <Button onClick={() => onAnswer("goal")}>Goal</Button>
-          <Button onClick={() => onAnswer("no_goal")} variant="outline">
+        <DialogFooter className="gap-3 sm:justify-center">
+          <Button
+            className="h-12 flex-1 text-base font-semibold"
+            onClick={() => onAnswer("goal")}
+          >
+            Goal
+          </Button>
+          <Button
+            className="h-12 flex-1 text-base font-semibold"
+            onClick={() => onAnswer("no_goal")}
+            variant="outline"
+          >
             No goal
           </Button>
         </DialogFooter>
