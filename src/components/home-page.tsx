@@ -223,14 +223,22 @@ function StoriesRail() {
   useEffect(() => {
     let cancelled = false;
 
-    fetchJson<Story[]>("/api/stories").then((result) => {
-      if (!cancelled && Array.isArray(result.data)) {
-        setStories(result.data);
-      }
-    });
+    function load() {
+      fetchJson<Story[]>("/api/stories").then((result) => {
+        if (!cancelled && Array.isArray(result.data) && result.data.length) {
+          setStories(result.data);
+        }
+      });
+    }
+
+    load();
+
+    // Matches the server-side cache TTL, so an open tab stays current.
+    const timer = setInterval(load, 10 * 60 * 1000);
 
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, []);
 
