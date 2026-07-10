@@ -1244,7 +1244,15 @@ dt {
   top: 81px;
 }
 
-/* Predict hero sizing: taller card with the widget glued to the bottom edge. */
+/* Predict hero sizing: taller card with the widget glued to the bottom edge.
+   The card breaks out wider than the content column, centered on it, but is
+   capped at the viewport width so it never causes horizontal scroll. */
+.hero-predict {
+  left: 50%;
+  position: relative;
+  transform: translateX(-50%);
+  width: min(1040px, 100vw - 24px);
+}
 .hero-predict .hero {
   min-height: 502px;
   padding: 80px 56px 0;
