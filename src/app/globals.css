@@ -1136,3 +1136,10 @@ dt {
   repeating-radial-gradient(circle at 100% 0%, #16a34a 0 24px, #22d3ee 24px 48px, #7c3aed 48px 72px, #dc2626 72px 96px, transparent 96px 300px),
   repeating-radial-gradient(circle at 0% 100%, #7c3aed 0 24px, #2563eb 24px 48px, #ea580c 48px 72px, #16a34a 72px 96px, transparent 96px 300px),
   repeating-radial-gradient(circle at 100% 100%, #a5b4fc 0 24px, #dc2626 24px 48px, #16a34a 48px 72px, #2563eb 72px 96px, transparent 96px 300px); }
+
+/* Pattern layers must always cover the full hero box (overrides stale
+   geometry from earlier pattern experiments) */
+.hero-box[class*="pat-"]::before,
+.hero-box[class*="pat-"]::after {
+  bottom: 0; height: auto; left: 0; right: 0; top: 0; width: auto;
+}
