@@ -22,6 +22,21 @@ const ROUNDS = 8;
 const ANSWER_WINDOW_MS = 6000;
 const PAUSE_BETWEEN_MS = 3000;
 
+function clearDemoAnswers() {
+  try {
+    const raw = window.localStorage.getItem("fan-forecast.goalcalls.v1");
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    delete parsed[String(DEMO_FIXTURE.fixtureId)];
+    window.localStorage.setItem(
+      "fan-forecast.goalcalls.v1",
+      JSON.stringify(parsed),
+    );
+  } catch {
+    // best effort
+  }
+}
+
 export default function GoalCallsDemo() {
   const [runId, setRunId] = useState(0);
   const [calls, setCalls] = useState<LiveUiCall[]>([]);
@@ -30,6 +45,21 @@ export default function GoalCallsDemo() {
   useEffect(() => {
     let cancelled = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
+
+    // First mount: pick a random run id so call keys never collide with a
+    // previous visit's stored answers (which would auto-apply and suppress
+    // the popups). Also clears old demo answers as housekeeping.
+    if (runId === 0) {
+      clearDemoAnswers();
+      timers.push(
+        setTimeout(() => setRunId(1 + Math.floor(Math.random() * 1e9)), 0),
+      );
+
+      return () => {
+        cancelled = true;
+        timers.forEach(clearTimeout);
+      };
+    }
 
     function playRound(n: number) {
       if (cancelled || n >= ROUNDS) {
@@ -52,7 +82,11 @@ export default function GoalCallsDemo() {
       ];
       const kind = kinds[n % kinds.length];
 
-      setCalls((previous) => [
+      // StrictMode re-runs effects in dev; never raise the same key twice.
+      setCalls((previous) =>
+        previous.some((call) => call.key === key)
+          ? previous
+          : [
         ...previous,
         {
           key,
@@ -63,7 +97,8 @@ export default function GoalCallsDemo() {
           resolved: false,
           seq: n + 1,
         },
-      ]);
+      ],
+      );
 
       timers.push(
         setTimeout(() => {
@@ -99,19 +134,7 @@ export default function GoalCallsDemo() {
   }, [runId]);
 
   function reset() {
-    try {
-      const raw = window.localStorage.getItem("fan-forecast.goalcalls.v1");
-      const parsed = raw ? JSON.parse(raw) : {};
-
-      delete parsed[String(DEMO_FIXTURE.fixtureId)];
-      window.localStorage.setItem(
-        "fan-forecast.goalcalls.v1",
-        JSON.stringify(parsed),
-      );
-    } catch {
-      // best effort
-    }
-
+    clearDemoAnswers();
     setCalls([]);
     setRound(0);
     setRunId((id) => id + 1);
