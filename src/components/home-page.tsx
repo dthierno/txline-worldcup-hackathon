@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
+  CalendarAddIcon,
   ChampionIcon,
   FootballIcon,
+  StarIcon,
   TargetIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -35,11 +37,8 @@ import {
 } from "@/lib/match-shared";
 import type { MatchPrediction } from "@/lib/prediction-engine";
 import {
-  isPredictionLocked,
-  loadPrediction,
   loadPredictions,
   loadSettlements,
-  savePrediction,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -284,7 +283,6 @@ export function HomePage() {
             finals={mounted ? finals : {}}
             fixtures={[...pastGames, ...upcomingGames]}
             now={now}
-            odds={odds}
             predictions={mounted ? predictions : {}}
           />
         </TabsContent>
@@ -577,46 +575,19 @@ function teamForm(team: string): ("w" | "d" | "l")[] {
   return results;
 }
 
-// Bookmaker margin removed: normalise 1/decimal odds so the three add to 100%.
-function impliedPercents(odds: string[]): number[] {
-  const inverse = odds.map((value) => 1 / Number.parseFloat(value));
-  const total = inverse.reduce((sum, value) => sum + value, 0);
-
-  return inverse.map((value) => Math.round((value / total) * 100));
-}
-
 function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
   return (
     <span className="pc-form" aria-hidden="true">
       {results.map((result, index) => (
-        <span className={`pc-dot pc-${result}`} key={index}>
-          {result === "l" ? "×" : ""}
-        </span>
+        <span className={`pc-dot pc-${result}`} key={index} />
       ))}
     </span>
   );
 }
 
-type Outcome = "home" | "draw" | "away";
-
-// Deterministic "how many others picked this" count for the community badge.
-function communityCount(fixtureId: number): number {
-  const hash = (fixtureId * 2654435761) >>> 0;
-
-  return 200 + (hash % 1800);
-}
-
-function TeamSide({
-  fixtureId,
-  iso,
-  name,
-}: {
-  fixtureId: number;
-  iso?: string;
-  name: string;
-}) {
+function TeamSide({ iso, name }: { iso?: string; name: string }) {
   return (
-    <Link className="pc-team" href={`/match/${fixtureId}`}>
+    <span className="pc-team">
       {iso ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${iso}.png`} />
@@ -625,59 +596,36 @@ function TeamSide({
       )}
       <span className="pc-name">{name}</span>
       <FormStrip results={teamForm(name)} />
-    </Link>
+    </span>
   );
 }
 
 function PredictionCard({
   fixture,
   now,
-  odds,
-  picked,
-  settlement,
-  onPick,
 }: {
   fixture: WorldCupFixture;
   now: number | null;
-  odds?: string[];
-  picked?: Outcome;
-  settlement?: StoredSettlement;
-  onPick: (outcome: Outcome) => void;
 }) {
+  const [favourite, setFavourite] = useState(false);
   const live = now !== null && isPotentiallyLive(fixture, now);
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
   const glowAway = (awayIso && teamGlow[awayIso]) || "#3b3b44";
-  const percents = odds ? impliedPercents(odds) : null;
-
-  // Pickable only for upcoming, unsettled matches (kickoff not yet reached).
-  const editable =
-    !settlement && now !== null && !isPredictionLocked(fixture, now);
-
   const kickoff = new Date(fixture.kickoffUtc);
   const dayShort = new Intl.DateTimeFormat("en", {
     timeZone: "UTC",
     weekday: "short",
   }).format(kickoff);
 
-  const favorite: Outcome | null = percents
-    ? (["home", "draw", "away"] as const)[
-        percents.indexOf(Math.max(...percents))
-      ]
-    : null;
-
-  const outcomes: {
-    fill: string;
-    key: Outcome;
-    label: string;
-    odd?: string;
-    pct?: number;
-  }[] = [
-    { fill: glowHome, key: "home", label: fixture.homeTeam, odd: odds?.[0], pct: percents?.[0] },
-    { fill: "#64748b", key: "draw", label: "Draw", odd: odds?.[1], pct: percents?.[1] },
-    { fill: glowAway, key: "away", label: fixture.awayTeam, odd: odds?.[2], pct: percents?.[2] },
-  ];
+  // Google Calendar "add event" link for kickoff (a 2h slot).
+  const stamp = (date: Date) =>
+    date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const calendarUrl =
+    "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+    `&text=${encodeURIComponent(`${fixture.homeTeam} vs ${fixture.awayTeam}`)}` +
+    `&dates=${stamp(kickoff)}/${stamp(new Date(kickoff.getTime() + 7_200_000))}`;
 
   return (
     <div
@@ -692,7 +640,6 @@ function PredictionCard({
       <div className="pc-head">
         <span className="pc-head-ic" aria-hidden="true">
           <HugeiconsIcon className="pc-ball" icon={FootballIcon} strokeWidth={2} />
-          <HugeiconsIcon icon={ChampionIcon} strokeWidth={2} />
         </span>
         <span className="pc-comp">
           World Cup 2026
@@ -700,10 +647,30 @@ function PredictionCard({
             ? ` · ${stageLabel(fixture.stage)}`
             : ""}
         </span>
+        <span className="pc-head-actions">
+          <a
+            aria-label="Add to calendar"
+            className="pc-head-btn"
+            href={calendarUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
+          </a>
+          <button
+            aria-label="Favourite"
+            aria-pressed={favourite}
+            className={`pc-head-btn${favourite ? " is-fav" : ""}`}
+            onClick={() => setFavourite((value) => !value)}
+            type="button"
+          >
+            <HugeiconsIcon icon={StarIcon} strokeWidth={2} />
+          </button>
+        </span>
       </div>
-      <div className="pc-panel">
+      <Link className="pc-panel" href={`/match/${fixture.fixtureId}`}>
         <div className="pc-teams">
-          <TeamSide fixtureId={fixture.fixtureId} iso={homeIso} name={fixture.homeTeam} />
+          <TeamSide iso={homeIso} name={fixture.homeTeam} />
           <div className="pc-when">
             {live ? (
               <span className="pc-live">LIVE</span>
@@ -714,48 +681,9 @@ function PredictionCard({
               </>
             )}
           </div>
-          <TeamSide fixtureId={fixture.fixtureId} iso={awayIso} name={fixture.awayTeam} />
+          <TeamSide iso={awayIso} name={fixture.awayTeam} />
         </div>
-        <div className="pc-markets">
-          {outcomes.map((outcome) => (
-            <div className="pc-market" key={outcome.key}>
-              <button
-                className={`pc-pill${picked === outcome.key ? " is-picked" : ""}`}
-                disabled={!editable}
-                onClick={() => onPick(outcome.key)}
-                type="button"
-              >
-                {favorite === outcome.key ? (
-                  <span className="pc-pill-badge">
-                    <svg
-                      aria-hidden="true"
-                      fill="currentColor"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      width="10"
-                    >
-                      <path d="M12 2c.6 3.3 3.4 4.8 3.4 8.2a3.4 3.4 0 0 1-1 2.4c.1-.5.1-1.2-.4-2-.5.9-1.6 1.3-1.6 2.6a2.9 2.9 0 0 1-1.8-2.7c0-1 .5-1.7 1-2.4C9.4 8.8 8 10.3 8 12.6a4 4 0 1 0 8 0C16 8.6 13.5 5.6 12 2z" />
-                    </svg>
-                    {communityCount(fixture.fixtureId).toLocaleString("en-US")}
-                  </span>
-                ) : null}
-                <span className="pc-pill-label">{outcome.label}</span>
-              </button>
-              {outcome.pct != null ? (
-                <div className="pc-meter">
-                  <span className="pc-pct">{outcome.pct}%</span>
-                  <div className="pc-track">
-                    <div
-                      className="pc-fill"
-                      style={{ background: outcome.fill, width: `${outcome.pct}%` }}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
+      </Link>
     </div>
   );
 }
@@ -764,63 +692,19 @@ function PredictionsFeed({
   finals,
   fixtures,
   now,
-  odds,
   predictions,
 }: {
   finals: Record<string, StoredSettlement>;
   fixtures: WorldCupFixture[];
   now: number | null;
-  odds: Record<number, string[]>;
   predictions: Record<string, MatchPrediction>;
 }) {
   const [showPast, setShowPast] = useState(false);
-  // 1X2 outcome picks made this session, layered over the saved predictions so
-  // the highlight and the per-day count update immediately.
-  const [picks, setPicks] = useState<Record<string, Outcome>>({});
 
-  const winnerOf = (prediction: MatchPrediction): Outcome =>
-    prediction.winner ??
-    (prediction.homeGoals > prediction.awayGoals
-      ? "home"
-      : prediction.homeGoals < prediction.awayGoals
-        ? "away"
-        : "draw");
-
-  const pickedFor = (fixture: WorldCupFixture): Outcome | undefined => {
-    const session = picks[String(fixture.fixtureId)];
-
-    if (session) {
-      return session;
-    }
-
-    const saved = predictions[String(fixture.fixtureId)];
-
-    return saved ? winnerOf(saved) : undefined;
-  };
-
-  const handlePick = (fixture: WorldCupFixture, outcome: Outcome) => {
-    setPicks((prev) => ({ ...prev, [String(fixture.fixtureId)]: outcome }));
-
-    // Keep an existing exact score if it already implies this outcome; otherwise
-    // store a representative scoreline (1-0 / 1-1 / 0-1) so the prediction is
-    // valid and can be refined on the match page.
-    const existing = loadPrediction(fixture.fixtureId);
-    const keep = existing && winnerOf(existing) === outcome;
-    const homeGoals = keep ? existing.homeGoals : outcome === "away" ? 0 : 1;
-    const awayGoals = keep ? existing.awayGoals : outcome === "home" ? 0 : 1;
-
-    savePrediction({
-      totalCards: "under",
-      totalCorners: "under",
-      totalGoals: homeGoals + awayGoals >= 3 ? "over" : "under",
-      ...(existing ?? {}),
-      awayGoals,
-      fixtureId: fixture.fixtureId,
-      homeGoals,
-      savedAt: new Date().toISOString(),
-      winner: outcome,
-    });
-  };
+  // A day's "predicted" count reflects predictions already saved (e.g. from a
+  // match page) for that day's fixtures.
+  const isPredicted = (fixture: WorldCupFixture) =>
+    predictions[String(fixture.fixtureId)] !== undefined;
 
   const isLive = (fixture: WorldCupFixture) =>
     now !== null && isPotentiallyLive(fixture, now);
@@ -859,9 +743,7 @@ function PredictionsFeed({
     label: string;
     matches: WorldCupFixture[];
   }) => {
-    const predicted = group.matches.filter(
-      (match) => pickedFor(match) !== undefined,
-    ).length;
+    const predicted = group.matches.filter(isPredicted).length;
 
     return (
       <div className="pred-day-block" key={group.label}>
@@ -878,15 +760,7 @@ function PredictionsFeed({
         </div>
         <div className="pred-grid">
           {group.matches.map((fixture) => (
-            <PredictionCard
-              fixture={fixture}
-              key={fixture.fixtureId}
-              now={now}
-              odds={odds[fixture.fixtureId]}
-              onPick={(outcome) => handlePick(fixture, outcome)}
-              picked={pickedFor(fixture)}
-              settlement={finals[String(fixture.fixtureId)]}
-            />
+            <PredictionCard fixture={fixture} key={fixture.fixtureId} now={now} />
           ))}
         </div>
       </div>

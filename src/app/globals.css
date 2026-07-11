@@ -2064,7 +2064,7 @@ dt {
   /* Original chevron artwork behind the header + as the card frame, with the
      dark panel on top. */
   background: url("/card-header.png") top center / cover no-repeat, #0d0d13;
-  border-radius: 18px;
+  border-radius: 24px;
   display: block;
   overflow: hidden;
   padding: 4px;
@@ -2077,7 +2077,7 @@ dt {
   font-size: 12.5px;
   font-weight: 700;
   gap: 8px;
-  padding: 9px 12px 11px;
+  padding: 6px 12px 8px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 .pc-head-ic {
@@ -2100,15 +2100,73 @@ dt {
   color: #fff;
 }
 .pc-comp {
+  font-size: 13.5px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Star (favourite) + add-to-calendar buttons on the header right. */
+.pc-head-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 5px;
+  margin-left: auto;
+}
+.pc-head-btn {
+  align-items: center;
+  background: #000;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  height: 25px;
+  justify-content: center;
+  padding: 0;
+  text-decoration: none;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+  width: 25px;
+}
+.pc-head-btn svg {
+  height: 14px;
+  width: 14px;
+}
+.pc-head-btn:hover {
+  background: #1c1c22;
+}
+.pc-head-btn:active {
+  transform: scale(0.92);
+}
+.pc-head-btn.is-fav {
+  color: #fbbf24;
+}
 /* Inner dark panel holding the teams and the 1X2 markets. */
 .pc-panel {
-  background: #0d0d13;
-  border-radius: 15px;
+  /* Subtle per-team colour glows over the dark panel (home top-left, away
+     top-right), from the --glow vars set on the card. */
+  background:
+    radial-gradient(
+      95% 155% at 0% 0%,
+      color-mix(in srgb, var(--glow-home) 38%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      95% 155% at 100% 0%,
+      color-mix(in srgb, var(--glow-away) 38%, transparent),
+      transparent 68%
+    ),
+    #0d0d13;
+  border-radius: 20px;
+  display: block;
   padding: 16px 14px 14px;
+  text-decoration: none;
 }
 .pc-teams {
   align-items: start;
@@ -2186,12 +2244,7 @@ dt {
   background: #4b5563;
 }
 .pc-l {
-  background: transparent;
-  color: #f87171;
-  font-size: 10px;
-  font-weight: 700;
-  height: auto;
-  width: auto;
+  background: var(--lost);
 }
 /* 1X2 outcome pills with a share-of-picks meter. */
 .pc-markets {
