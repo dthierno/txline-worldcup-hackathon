@@ -80,6 +80,55 @@ function Pair({ id }: { id: string }) {
   );
 }
 
+// Concept 21 has bespoke, data-rich markup (barcode, fields, colour rail), so
+// it lives outside the shared <Pair> skeleton. Adapted from a Uiverse airline
+// ticket by Cobp.
+function LiveTicket({
+  kind,
+  code,
+  fields,
+}: {
+  kind: "create" | "join";
+  code: string;
+  fields: [string, string][];
+}) {
+  const create = kind === "create";
+  return (
+    <div className={`tkt-card tkt-card--${kind}`}>
+      <article className={`tkt tkt--${kind}`}>
+        <div className="tkt-barcode" aria-hidden="true" />
+        <div className="tkt-sep" aria-hidden="true" />
+        <div className="tkt-main">
+          <div className="tkt-head">
+            <div>
+              <p className="tkt-kicker">
+                {create ? "Private league" : "Invite code"}
+              </p>
+              <p className="tkt-title">
+                {create ? "Create a league" : "Join a league"}
+              </p>
+            </div>
+            <p className="tkt-code">{code}</p>
+          </div>
+          <div className="tkt-rule" />
+          <div className="tkt-data">
+            {fields.map(([t, s]) => (
+              <div key={t}>
+                <p className="tkt-t">{t}</p>
+                <p className="tkt-s">{s}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="tkt-icons" aria-hidden="true">
+          <HugeiconsIcon icon={create ? AddTeamIcon : Ticket01Icon} strokeWidth={1.8} />
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+        </div>
+      </article>
+    </div>
+  );
+}
+
 export default function LeagueActionsDemoPage() {
   return (
     <div className="lv-page">
@@ -106,6 +155,41 @@ export default function LeagueActionsDemoPage() {
           <Pair id={v.id} />
         </section>
       ))}
+
+      <section className="lv-sec">
+        <div className="lv-sec-head">
+          <span className="lv-num">21</span>
+          <div>
+            <h2 className="lv-name">Live Ticket</h2>
+            <p className="lv-concept">
+              Detailed pass — barcode, data grid, colour rail, floating tilt and
+              a light sweep (after a Uiverse concept by Cobp)
+            </p>
+          </div>
+        </div>
+        <div className="tkt-wrap">
+          <LiveTicket
+            kind="create"
+            code="PG-NEW"
+            fields={[
+              ["Host", "You"],
+              ["Format", "Knockout"],
+              ["Members", "0/20"],
+              ["Season", "2026"],
+            ]}
+          />
+          <LiveTicket
+            kind="join"
+            code="PG-4F2K"
+            fields={[
+              ["Host", "A friend"],
+              ["Format", "Knockout"],
+              ["Spots", "4 left"],
+              ["Season", "2026"],
+            ]}
+          />
+        </div>
+      </section>
     </div>
   );
 }
