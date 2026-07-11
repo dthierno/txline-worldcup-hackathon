@@ -1096,42 +1096,24 @@ function PredictionsFeed({
 }) {
   const [showPast, setShowPast] = useState(false);
 
-  // Fixture ids with a saved scoreline. Seeded from predictions already on the
-  // device and updated live as the fan types into a card's score boxes.
-  const [predictedIds, setPredictedIds] = useState<Set<string>>(
-    () => new Set(Object.keys(predictions)),
-  );
-
-  // Predictions load client-side (localStorage), so the prop is empty on the
-  // first render and populated once mounted — fold those ids in when they land.
-  useEffect(() => {
-    setPredictedIds((prev) => {
-      const next = new Set(prev);
-
-      for (const id of Object.keys(predictions)) {
-        next.add(id);
-      }
-
-      return next;
-    });
-  }, [predictions]);
+  // Fixture ids with a saved scoreline: the predictions prop (localStorage,
+  // lands after mount) is the base; live edits from a card's score boxes are
+  // overrides. Deriving during render avoids syncing props into state.
+  const [predictedOverrides, setPredictedOverrides] = useState<
+    Map<string, boolean>
+  >(new Map());
 
   const handlePredictedChange = (fixtureId: number, predicted: boolean) => {
-    setPredictedIds((prev) => {
-      const next = new Set(prev);
-
-      if (predicted) {
-        next.add(String(fixtureId));
-      } else {
-        next.delete(String(fixtureId));
-      }
-
-      return next;
-    });
+    setPredictedOverrides((prev) =>
+      new Map(prev).set(String(fixtureId), predicted),
+    );
   };
 
-  const isPredicted = (fixture: WorldCupFixture) =>
-    predictedIds.has(String(fixture.fixtureId));
+  const isPredicted = (fixture: WorldCupFixture) => {
+    const id = String(fixture.fixtureId);
+
+    return predictedOverrides.get(id) ?? id in predictions;
+  };
 
   const isLive = (fixture: WorldCupFixture) =>
     now !== null && isPotentiallyLive(fixture, now);
