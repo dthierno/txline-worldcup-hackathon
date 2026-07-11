@@ -1279,6 +1279,116 @@ export function buildOddsBoard(raw: unknown): OddsBoard {
   };
 }
 
+export type TxlineProvenStat = {
+  key: number;
+  value: number;
+};
+
+export type TxlineValidationV3Summary = {
+  fixtureId?: number;
+  mainTreeProofCount: number;
+  multiproofHashCount: number;
+  // The stat values the multiproof commits to - display these as the
+  // cryptographically proven numbers.
+  provenStats: TxlineProvenStat[];
+  subTreeProofCount: number;
+  ts?: number;
+  updateCount?: number;
+};
+
+// stat-validation-v3: one compressed Merkle multiproof covering up to 5 stat
+// keys, with the proven values included (statsToProve[].stat.{key,value}).
+export function normalizeValidationSummaryV3(
+  raw: unknown,
+): TxlineValidationV3Summary {
+  const record =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const summary = readRecord(record, "summary");
+  const updateStats = readRecord(summary, "updateStats");
+  const multiproof = readRecord(record, "multiproof");
+  const provenStats = (Array.isArray(record.statsToProve)
+    ? record.statsToProve
+    : []
+  )
+    .map((entry) => {
+      const stat = readRecord(
+        entry && typeof entry === "object"
+          ? (entry as Record<string, unknown>)
+          : undefined,
+        "stat",
+      );
+      const key = readNumber(stat, "key");
+      const value = readNumber(stat, "value");
+
+      return typeof key === "number" && typeof value === "number"
+        ? { key, value }
+        : null;
+    })
+    .filter((stat): stat is TxlineProvenStat => stat !== null);
+
+  return {
+    fixtureId: readNumber(summary, "fixtureId"),
+    mainTreeProofCount: Array.isArray(record.mainTreeProof)
+      ? record.mainTreeProof.length
+      : 0,
+    multiproofHashCount: Array.isArray(multiproof?.hashes)
+      ? multiproof.hashes.length
+      : 0,
+    provenStats,
+    subTreeProofCount: Array.isArray(record.subTreeProof)
+      ? record.subTreeProof.length
+      : 0,
+    ts: readNumber(record, "ts"),
+    updateCount: readNumber(updateStats, "updateCount"),
+  };
+}
+
+export type TxlineOddsValidationSummary = {
+  bookmaker?: string;
+  mainTreeProofCount: number;
+  marketType?: string;
+  messageId?: string;
+  // Decimal odds of the proven record.
+  prices: number[];
+  priceNames: string[];
+  subTreeProofCount: number;
+  ts?: number;
+  updateCount?: number;
+};
+
+// odds/validation: Merkle proof that a single odds record (by MessageId + Ts)
+// was published by the TxODDS oracle.
+export function normalizeOddsValidation(
+  raw: unknown,
+): TxlineOddsValidationSummary {
+  const record =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const odds = readRecord(record, "odds");
+  const summary = readRecord(record, "summary");
+  const updateStats = readRecord(summary, "updateStats");
+
+  return {
+    bookmaker: readString(odds, "Bookmaker"),
+    mainTreeProofCount: Array.isArray(record.mainTreeProof)
+      ? record.mainTreeProof.length
+      : 0,
+    marketType: readString(odds, "SuperOddsType"),
+    messageId: readString(odds, "MessageId"),
+    prices: (Array.isArray(odds?.Prices) ? odds.Prices : [])
+      .map(Number)
+      .filter(Number.isFinite)
+      .map((price) => price / 1000),
+    priceNames: Array.isArray(odds?.PriceNames)
+      ? odds.PriceNames.map(String)
+      : [],
+    subTreeProofCount: Array.isArray(record.subTreeProof)
+      ? record.subTreeProof.length
+      : 0,
+    ts: readNumber(odds, "Ts"),
+    updateCount: readNumber(updateStats, "updateCount"),
+  };
+}
+
 export function normalizeValidationSummary(raw: unknown): TxlineValidationSummary {
   const record =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};

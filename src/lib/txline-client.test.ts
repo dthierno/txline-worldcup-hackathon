@@ -17,6 +17,8 @@ import {
   extractPenaltyEvents,
   extractSubstitutionEvents,
   formatLiveMinute,
+  normalizeOddsValidation,
+  normalizeValidationSummaryV3,
 } from "./txline-normalize";
 
 describe("txline client normalizers", () => {
@@ -500,6 +502,65 @@ describe("txline client normalizers", () => {
       },
       { outcome: "scored", participant: 2, resolved: true },
     ]);
+  });
+
+  it("normalizes v3 multiproof validation with proven stat values", () => {
+    expect(
+      normalizeValidationSummaryV3({
+        eventStatRoot: [75, 120],
+        mainTreeProof: [{ hash: [1], isRightSibling: true }],
+        multiproof: { hashes: [{ hash: [2] }, { hash: [3] }] },
+        statsToProve: [
+          { stat: { key: 1, period: 100, value: 2 }, statProof: [] },
+          { stat: { key: 2, period: 100, value: 0 }, statProof: [] },
+        ],
+        subTreeProof: [{ hash: [4] }],
+        summary: {
+          fixtureId: 18209181,
+          updateStats: { updateCount: 1 },
+        },
+        ts: 1783634788478,
+      }),
+    ).toEqual({
+      fixtureId: 18209181,
+      mainTreeProofCount: 1,
+      multiproofHashCount: 2,
+      provenStats: [
+        { key: 1, value: 2 },
+        { key: 2, value: 0 },
+      ],
+      subTreeProofCount: 1,
+      ts: 1783634788478,
+      updateCount: 1,
+    });
+  });
+
+  it("normalizes an odds validation proof", () => {
+    expect(
+      normalizeOddsValidation({
+        mainTreeProof: [{ hash: [1] }, { hash: [2] }],
+        odds: {
+          Bookmaker: "TXLineStablePriceDemargined",
+          MessageId: "1837058724:00003:000125-10021-stab",
+          PriceNames: ["part1", "draw", "part2"],
+          Prices: [1660, 4120, 6530],
+          SuperOddsType: "1X2_PARTICIPANT_RESULT",
+          Ts: 1783633403469,
+        },
+        subTreeProof: [{ hash: [3] }],
+        summary: { updateStats: { updateCount: 1146 } },
+      }),
+    ).toEqual({
+      bookmaker: "TXLineStablePriceDemargined",
+      mainTreeProofCount: 2,
+      marketType: "1X2_PARTICIPANT_RESULT",
+      messageId: "1837058724:00003:000125-10021-stab",
+      prices: [1.66, 4.12, 6.53],
+      priceNames: ["part1", "draw", "part2"],
+      subTreeProofCount: 1,
+      ts: 1783633403469,
+      updateCount: 1146,
+    });
   });
 
   it("builds a full-period odds board with latest prices per line", () => {

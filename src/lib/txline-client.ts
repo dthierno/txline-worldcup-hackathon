@@ -4,8 +4,10 @@ import {
   buildOddsMovementSeries,
   extractLineups,
   normalizeOddsSnapshot,
+  normalizeOddsValidation,
   normalizeScoreSnapshot,
   normalizeValidationSummary,
+  normalizeValidationSummaryV3,
   parseSsePayloads,
   parseTxlinePayloads,
   readNumber,
@@ -15,7 +17,9 @@ import {
   type NormalizedTxlineScoreUpdate,
   type OddsBoard,
   type TxlineOddsSeriesPoint,
+  type TxlineOddsValidationSummary,
   type TxlineValidationSummary,
+  type TxlineValidationV3Summary,
 } from "./txline-normalize";
 import type { WorldCupFixture } from "./world-cup-fixtures";
 
@@ -255,6 +259,65 @@ export async function fetchTxlineScoreStatValidation({
   const raw = await response.json();
 
   return normalizeValidationSummary(raw);
+}
+
+// stat-validation-v3: compressed multiproof for up to 5 stat keys per call,
+// returning the proven values alongside the Merkle material.
+export async function fetchTxlineScoreStatValidationV3({
+  fixtureId,
+  seq,
+  statKeys,
+}: {
+  fixtureId: number;
+  seq: number;
+  statKeys: number[];
+}): Promise<TxlineValidationV3Summary> {
+  const params = new URLSearchParams({
+    fixtureId: String(fixtureId),
+    seq: String(seq),
+    statKeys: statKeys.join(","),
+  });
+  const response = await txlineFetch(`/scores/stat-validation-v3?${params}`);
+
+  return normalizeValidationSummaryV3(await response.json());
+}
+
+// Merkle proof for a single odds record: the fixture's closing full-match 1X2
+// line (latest pre-match record - the odds predictions settle against),
+// falling back to the latest in-play record before kickoff data exists.
+export async function fetchTxlineOddsValidationForFixture(
+  fixtureId: number,
+): Promise<TxlineOddsValidationSummary | null> {
+  const updatesResponse = await txlineFetch(`/odds/updates/${fixtureId}`);
+  const raw = await updatesResponse.json();
+  const entries = (Array.isArray(raw) ? raw : []).filter(
+    (entry): entry is Record<string, unknown> =>
+      Boolean(entry && typeof entry === "object"),
+  );
+  const priced = entries
+    .filter(
+      (entry) =>
+        entry.SuperOddsType === "1X2_PARTICIPANT_RESULT" &&
+        !entry.MarketPeriod &&
+        Array.isArray(entry.Prices) &&
+        entry.Prices.length >= 3 &&
+        typeof entry.MessageId === "string" &&
+        typeof entry.Ts === "number",
+    )
+    .sort((left, right) => (readNumber(right, "Ts") ?? 0) - (readNumber(left, "Ts") ?? 0));
+  const candidate = priced.find((entry) => !entry.InRunning) ?? priced[0];
+
+  if (!candidate) {
+    return null;
+  }
+
+  const params = new URLSearchParams({
+    messageId: String(candidate.MessageId),
+    ts: String(candidate.Ts),
+  });
+  const response = await txlineFetch(`/odds/validation?${params}`);
+
+  return normalizeOddsValidation(await response.json());
 }
 
 export async function fetchTxlineFixtureBatchValidation(): Promise<unknown> {

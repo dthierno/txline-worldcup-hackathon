@@ -79,10 +79,25 @@ export type TxlineValidationData = {
   markets?: Array<{
     market: string;
     proofNodes: number;
+    // Proven stat values (v3 multiproof mode only).
+    proven?: Array<{ key: number; value: number }>;
     statKeys: number[];
   }>;
+  proofMode?: string;
   statKeys: number[];
   statProofCount: number;
+  subTreeProofCount: number;
+  ts?: number;
+  updateCount?: number;
+};
+
+export type TxlineOddsValidationData = {
+  bookmaker?: string;
+  mainTreeProofCount: number;
+  marketType?: string;
+  messageId?: string;
+  prices: number[];
+  priceNames: string[];
   subTreeProofCount: number;
   ts?: number;
   updateCount?: number;
@@ -101,6 +116,7 @@ export type GameDetails = {
   lineups: ApiResult<NormalizedLineups> | null;
   odds: ApiResult<TxlineOddsData> | null;
   oddsUpdates: ApiResult<TxlineOddsUpdatesData> | null;
+  oddsValidation: ApiResult<TxlineOddsValidationData> | null;
   score: ApiResult<TxlineScoreData> | null;
   updates: ApiResult<TxlineUpdateData[]> | null;
   validation: ApiResult<TxlineValidationData> | null;

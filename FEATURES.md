@@ -85,10 +85,15 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
   full-time score markers, pre-match scene lines (kits, kickoff team,
   conditions, pitch, neutral venue — no minute prefix on those).
 
-### Verification (`/api/txline/scores/:id/validation`)
-- Requests Merkle proofs for ALL four stat pairs in parallel: goals (1,2),
-  yellows (3,4), reds (5,6), corners (7,8). Panel lists each market with ✓
-  and proof-node count. Never claims on-chain submission.
+### Verification (`/api/txline/scores/:id/validation`, `/api/txline/odds/:id/validation`)
+- **v3 multiproofs** (`stat-validation-v3`): two compressed multiproof calls
+  cover all four markets (statKeys 1–4 and 5–8) and return the **proven stat
+  values** — the panel shows "Goals: proven 2-0" etc. Falls back to legacy
+  per-pair `stat-validation` calls if v3 errors (`proofMode` says which ran).
+- **Odds validation** (`/api/odds/validation?messageId&ts`): Merkle proof for
+  a single odds record. Our route proves the fixture's **closing full-match
+  1X2 line** (latest pre-match record — what predictions settle against),
+  shown as its own ✓ row. Never claims on-chain submission.
 
 ### Odds
 - Snapshot 1X2 (full-match period preferred — TxLINE also quotes 1X2 per
@@ -185,11 +190,38 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
   `TXLineStablePriceDemargined`. **About half the 1X2 records are half=1 —
   always filter by MarketPeriod.**
 - Fixture snapshot stage can be a numeric group id — merge preserves seed
-  labels (`mergeFixtures`).
+  labels (`mergeFixtures`). **Past fixtures roll OFF the snapshot** (FRA-MAR
+  disappeared after ~2 days); deep links keep working via the seed list and
+  the historical replay endpoint.
 - Historical replay preferred over snapshot for finished games (snapshot can
   be stale, e.g. 0-1 vs real 0-3). Never display snapshot finals on home.
-- No public endpoints beyond the known set (probed: odds/historical, players,
-  ratings, participants, competitions, fixtures/updates, openapi → 404).
+
+### Official API surface (spec v1.5.6 — discovered 2026-07-11)
+
+**Swagger UI now lives at `{TXLINE_API_ORIGIN}/docs`** (spec:
+`/docs/docs.yaml`). Public docs: https://txline.txodds.com/documentation and
+https://github.com/txodds/tx-on-chain. Full endpoint list:
+- Auth: `POST /auth/guest/start` (guest JWT), `POST /api/token/activate`
+  (Solana subscribe tx → API token), `GET /api/guest/purchase/quote`.
+  **Guest JWTs expire after 30 days** — if TxLINE calls start returning 401
+  near the demo date, re-acquire via `auth/guest/start`. Free World Cup tier
+  = real-time odds sampled every 60s.
+- Fixtures: `snapshot`, `updates/{epochDay}/{hourOfDay}` (windowed),
+  `validation?fixtureId&timestamp` (Merkle proof of a fixture record; the ts
+  param is optional, defaults to now), `batch-validation`.
+- Odds: `snapshot/{id}`, `updates/{id}`,
+  `updates/{epochDay}/{hourOfDay}/{interval}` (5-min windows, optional
+  `?fixtureId=` filter), `stream`, **`validation?messageId&ts`** (proof for
+  one odds record — works, used by our odds-verification row).
+- Scores: `snapshot/{id}`, `updates/{id}`,
+  `updates/{epochDay}/{hourOfDay}/{interval}`, `historical/{id}`, `stream`,
+  `stat-validation` (legacy pair mode + **V2 mode**: `statKeys=1,2,7,8`
+  comma list, N-dimensional), **`stat-validation-v3`** (`statKeys` up to 5,
+  compressed multiproof; response: `statsToProve[].stat.{key,value,period}`,
+  `multiproof.hashes[]`, `subTreeProof`, `mainTreeProof` — proven values
+  included; period 100 = final).
+- Still absent: players/ratings/participants/competitions endpoints — **no
+  ratings in the API** remains true in v1.5.6.
 
 ## Ops gotchas (memory-backed)
 
@@ -220,7 +252,7 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
 ```bash
 cd fan-predictions-app
 npm run dev -- --port 3001
-npm run test -- --run   # 36 tests
+npm run test -- --run   # 38 tests
 npm run lint
 npm run build           # stop dev first!
 ```

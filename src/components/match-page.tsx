@@ -43,6 +43,7 @@ import {
   type StreamStatus,
   type TxlineOddsData,
   type TxlineOddsUpdatesData,
+  type TxlineOddsValidationData,
   type TxlineScoreData,
   type TxlineUpdateData,
   type TxlineValidationData,
@@ -108,6 +109,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     lineups: null,
     odds: null,
     oddsUpdates: null,
+    oddsValidation: null,
     score: null,
     updates: null,
     validation: null,
@@ -175,6 +177,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           lineups: null,
           odds: null,
           oddsUpdates: null,
+          oddsValidation: null,
           score: null,
           updates: null,
           validation: null,
@@ -190,6 +193,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         validation,
         lineups,
         fixtureValidation,
+        oddsValidation,
       ] = await Promise.all([
         fetchJson<TxlineScoreData>(`/api/txline/scores/${fixtureId}`),
         fetchJson<TxlineUpdateData[]>(
@@ -209,6 +213,9 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           `/api/txline/scores/${fixtureId}/lineups`,
         ),
         fetchJson<unknown>("/api/txline/fixtures/validation"),
+        fetchJson<TxlineOddsValidationData>(
+          `/api/txline/odds/${fixtureId}/validation`,
+        ),
       ]);
 
       if (!cancelled) {
@@ -218,6 +225,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           lineups,
           odds,
           oddsUpdates,
+          oddsValidation,
           score,
           updates,
           validation,
@@ -801,6 +809,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         fixtureValidation={details.fixtureValidation}
         historicalUpdates={details.historicalUpdates}
         oddsUpdates={details.oddsUpdates}
+        oddsValidation={details.oddsValidation}
         updates={details.updates}
         validation={details.validation}
       />
@@ -1803,6 +1812,7 @@ function VerificationSection({
   fixtureValidation,
   historicalUpdates,
   oddsUpdates,
+  oddsValidation,
   updates,
   validation,
 }: {
@@ -1812,10 +1822,14 @@ function VerificationSection({
   fixtureValidation: ApiResult<unknown> | null;
   historicalUpdates: ApiResult<TxlineUpdateData[]> | null;
   oddsUpdates: ApiResult<TxlineOddsUpdatesData> | null;
+  oddsValidation: ApiResult<TxlineOddsValidationData> | null;
   updates: ApiResult<TxlineUpdateData[]> | null;
   validation: ApiResult<TxlineValidationData> | null;
 }) {
   const proof = isValidationData(validation?.data) ? validation.data : null;
+  const oddsProof = oddsValidation?.data?.messageId
+    ? oddsValidation.data
+    : null;
 
   return (
     <section className="card" aria-labelledby="verification-heading">
@@ -1831,7 +1845,7 @@ function VerificationSection({
             </strong>
           </p>
           <p>
-            TxLINE returned Merkle validation material for the goal stat key(s){" "}
+            TxLINE returned Merkle validation material for stat key(s){" "}
             {proof.statKeys.join(", ")}
             {typeof proof.updateCount === "number"
               ? `, covering ${proof.updateCount} score update(s)`
@@ -1843,10 +1857,29 @@ function VerificationSection({
             <ul className="muted">
               {proof.markets.map((market) => (
                 <li key={market.market}>
-                  ✓ {market.market}: Merkle proof returned (stat keys{" "}
-                  {market.statKeys.join(", ")}, {market.proofNodes} node(s))
+                  ✓ {market.market}:{" "}
+                  {market.proven?.length === 2
+                    ? `proven ${market.proven[0].value}-${market.proven[1].value} — `
+                    : ""}
+                  Merkle {market.proven?.length ? "multiproof" : "proof"}{" "}
+                  returned (stat keys {market.statKeys.join(", ")},{" "}
+                  {market.proofNodes} node(s))
                 </li>
               ))}
+              {oddsProof ? (
+                <li>
+                  ✓ Odds (1X2):{" "}
+                  {oddsProof.prices.length >= 3
+                    ? `${oddsProof.prices
+                        .slice(0, 3)
+                        .map((price) => price.toFixed(2))
+                        .join(" / ")} — `
+                    : ""}
+                  latest record Merkle-proved (
+                  {oddsProof.subTreeProofCount + oddsProof.mainTreeProofCount}{" "}
+                  node(s))
+                </li>
+              ) : null}
             </ul>
           ) : null}
           <details>
