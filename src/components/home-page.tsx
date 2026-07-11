@@ -50,6 +50,14 @@ import {
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
 
+// Confirmed live score folded from the TxLINE updates feed.
+type LiveScore = {
+  awayGoals: number;
+  clockSeconds?: number;
+  homeGoals: number;
+  statusId?: number;
+};
+
 type BracketTeam = {
   code: string;
   iso?: string;
@@ -157,13 +165,13 @@ export function HomePage() {
     loadSettlements(),
   );
   const [odds, setOdds] = useState<Record<number, string[]>>({});
-  const [scores, setScores] = useState<Record<number, NormalizedTxlineScore>>(
-    {},
-  );
+  const [scores, setScores] = useState<Record<number, LiveScore>>({});
   const now = useNow();
 
-  // Live score snapshots from TxLINE for any in-play fixture; polled while the
-  // match is inside its live window so the score and clock stay current.
+  // Live scores from TxLINE for any in-play fixture, polled while the match is
+  // inside its live window. We read the *updates* feed (not the snapshot):
+  // the snapshot's aggregate keeps disallowed goals, whereas folding the event
+  // stream — skipping `action_discarded` records — yields the confirmed score.
   useEffect(() => {
     let cancelled = false;
 
@@ -173,15 +181,34 @@ export function HomePage() {
       );
 
       liveFixtures.forEach((fixture) => {
-        fetchJson<NormalizedTxlineScore>(
-          `/api/txline/scores/${fixture.fixtureId}`,
+        fetchJson<NormalizedTxlineScore[]>(
+          `/api/txline/scores/${fixture.fixtureId}/updates`,
         ).then((result) => {
-          if (!cancelled && result.data) {
-            setScores((prev) => ({
-              ...prev,
-              [fixture.fixtureId]: result.data as NormalizedTxlineScore,
-            }));
+          const updates = result.data;
+
+          if (cancelled || !Array.isArray(updates) || updates.length === 0) {
+            return;
           }
+
+          const latest = updates.reduce<LiveScore>(
+            (acc, update) => ({
+              // A disallowed goal arrives as `action_discarded`; ignore its
+              // inflated count and keep the last confirmed score.
+              awayGoals:
+                update.action === "action_discarded"
+                  ? acc.awayGoals
+                  : update.awayGoals,
+              clockSeconds: update.clockSeconds ?? acc.clockSeconds,
+              homeGoals:
+                update.action === "action_discarded"
+                  ? acc.homeGoals
+                  : update.homeGoals,
+              statusId: update.statusId ?? acc.statusId,
+            }),
+            { awayGoals: 0, homeGoals: 0 },
+          );
+
+          setScores((prev) => ({ ...prev, [fixture.fixtureId]: latest }));
         });
       });
     };
@@ -805,7 +832,7 @@ function PredictionCard({
   now: number | null;
   prediction?: MatchPrediction;
   onPredictedChange: (fixtureId: number, predicted: boolean) => void;
-  score?: NormalizedTxlineScore;
+  score?: LiveScore;
 }) {
   const [favourite, setFavourite] = useState(false);
   const [home, setHome] = useState(
@@ -1051,7 +1078,7 @@ function PredictionsFeed({
   fixtures: WorldCupFixture[];
   now: number | null;
   predictions: Record<string, MatchPrediction>;
-  scores: Record<number, NormalizedTxlineScore>;
+  scores: Record<number, LiveScore>;
 }) {
   const [showPast, setShowPast] = useState(false);
 
