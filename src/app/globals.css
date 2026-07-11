@@ -1906,6 +1906,11 @@ dt {
 .home-tabs [data-slot="tabs-content"] > section > h2:first-child {
   display: none;
 }
+/* The `button { font: inherit }` reset (unlayered) beats Tailwind's font
+   utilities, so set the tab label weight here. */
+[data-slot="tabs-trigger"] {
+  font-weight: 500;
+}
 
 /* Group-stage standings tables shown in the Knockout tab. Uses the same
    surface / border / accent tokens as the match cards so it reads as one set. */
