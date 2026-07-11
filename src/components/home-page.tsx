@@ -275,7 +275,13 @@ export function HomePage() {
           />
         </TabsContent>
         <TabsContent value="predictions">
-          <MyPredictionsSection fixtures={fixtures} />
+          <PredictionsFeed
+            finals={mounted ? finals : {}}
+            fixtures={[...pastGames, ...upcomingGames]}
+            now={now}
+            odds={odds}
+            predictions={mounted ? predictions : {}}
+          />
         </TabsContent>
         <TabsContent value="knockout">
           <h3 className="gt-section-title">Group stage</h3>
@@ -531,98 +537,249 @@ function MatchDayList({
 
 
 
-function MyPredictionsSection({ fixtures }: { fixtures: WorldCupFixture[] }) {
-  // Lazy initializers instead of an effect: this page unmounts whenever a
-  // match is opened, so returning home re-reads localStorage fresh.
-  const mounted = useIsMounted();
-  const [predictions] = useState<Record<string, MatchPrediction>>(() =>
-    loadPredictions(),
+// Round labels adapted from the fixture `stage` field to friendlier text.
+const STAGE_LABEL: Record<string, string> = {
+  "8th Finals": "Round of 16",
+  "Quarter-finals": "Quarter-final",
+  "Semi-finals": "Semi-final",
+  "3rd Place": "Third place",
+  Final: "Final",
+};
+
+function stageLabel(stage: string): string {
+  return STAGE_LABEL[stage] ?? stage;
+}
+
+// Deterministic five-match form strip so each team shows a stable win/draw/loss
+// history. Illustrative — the app has no real form feed.
+function teamForm(team: string): ("w" | "d" | "l")[] {
+  let hash = 2166136261;
+
+  for (let index = 0; index < team.length; index += 1) {
+    hash = (hash ^ team.charCodeAt(index)) >>> 0;
+    hash = (hash * 16777619) >>> 0;
+  }
+
+  const results: ("w" | "d" | "l")[] = [];
+
+  for (let index = 0; index < 5; index += 1) {
+    hash = (hash * 1103515245 + 12345) >>> 0;
+    const bucket = (hash >>> 8) % 10;
+
+    results.push(bucket < 5 ? "w" : bucket < 8 ? "d" : "l");
+  }
+
+  return results;
+}
+
+// Bookmaker margin removed: normalise 1/decimal odds so the three add to 100%.
+function impliedPercents(odds: string[]): number[] {
+  const inverse = odds.map((value) => 1 / Number.parseFloat(value));
+  const total = inverse.reduce((sum, value) => sum + value, 0);
+
+  return inverse.map((value) => Math.round((value / total) * 100));
+}
+
+function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
+  return (
+    <span className="pc-form" aria-hidden="true">
+      {results.map((result, index) => (
+        <span className={`pc-dot pc-${result}`} key={index}>
+          {result === "l" ? "×" : ""}
+        </span>
+      ))}
+    </span>
   );
-  const [settlements] = useState<Record<string, StoredSettlement>>(() =>
-    loadSettlements(),
+}
+
+function PredictionCard({
+  fixture,
+  now,
+  odds,
+  prediction,
+  settlement,
+}: {
+  fixture: WorldCupFixture;
+  now: number | null;
+  odds?: string[];
+  prediction?: MatchPrediction;
+  settlement?: StoredSettlement;
+}) {
+  const live = now !== null && isPotentiallyLive(fixture, now);
+  const homeIso = teamFlag(fixture.homeTeam);
+  const awayIso = teamFlag(fixture.awayTeam);
+
+  let home = "";
+  let away = "";
+  let boxState = "empty";
+
+  if (settlement) {
+    [home = "", away = ""] = settlement.finalScore.split("-").map((s) => s.trim());
+    boxState = settlement.totalPoints > 0 ? "hit" : "result";
+  } else if (prediction) {
+    home = String(prediction.homeGoals);
+    away = String(prediction.awayGoals);
+    boxState = "pick";
+  }
+
+  const percents = odds ? impliedPercents(odds) : null;
+
+  return (
+    <Link
+      className="pc-card"
+      href={`/match/${fixture.fixtureId}`}
+      style={
+        {
+          "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
+          "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
+        } as React.CSSProperties
+      }
+    >
+      <span className="pc-head">
+        <HugeiconsIcon className="pc-head-ic" icon={ChampionIcon} strokeWidth={2} />
+        {stageLabel(fixture.stage)} · {live ? "LIVE" : formatKickoffTime(fixture.kickoffUtc)}
+      </span>
+      <span className="pc-body">
+        <span className="pc-side">
+          {homeIso ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${homeIso}.png`} />
+          ) : (
+            <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
+          )}
+          <span className="pc-team">{fixture.homeTeam}</span>
+          <FormStrip results={teamForm(fixture.homeTeam)} />
+        </span>
+        <span className="pc-center">
+          <span className="pc-boxes">
+            <span className={`pc-box pc-box--${boxState}`}>{home}</span>
+            <span className={`pc-box pc-box--${boxState}`}>{away}</span>
+          </span>
+          {odds && percents ? (
+            <>
+              <span className="pc-odds">
+                <span>{odds[0]}</span>
+                <span>{odds[1]}</span>
+                <span>{odds[2]}</span>
+              </span>
+              <span className="pc-pct">
+                <span>{percents[0]}%</span>
+                <span>{percents[1]}%</span>
+                <span>{percents[2]}%</span>
+              </span>
+            </>
+          ) : null}
+        </span>
+        <span className="pc-side">
+          {awayIso ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${awayIso}.png`} />
+          ) : (
+            <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
+          )}
+          <span className="pc-team">{fixture.awayTeam}</span>
+          <FormStrip results={teamForm(fixture.awayTeam)} />
+        </span>
+      </span>
+    </Link>
   );
+}
 
-  const entries = Object.values(predictions)
-    .flatMap((prediction) => {
-      const fixture = fixtures.find(
-        (candidate) => candidate.fixtureId === prediction.fixtureId,
-      );
+function PredictionsFeed({
+  finals,
+  fixtures,
+  now,
+  odds,
+  predictions,
+}: {
+  finals: Record<string, StoredSettlement>;
+  fixtures: WorldCupFixture[];
+  now: number | null;
+  odds: Record<number, string[]>;
+  predictions: Record<string, MatchPrediction>;
+}) {
+  const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
 
-      return fixture
-        ? [
-            {
-              fixture,
-              prediction,
-              settlement: settlements[String(prediction.fixtureId)] as
-                | StoredSettlement
-                | undefined,
-            },
-          ]
-        : [];
-    })
-    .sort(
-      (left, right) =>
-        new Date(left.fixture.kickoffUtc).getTime() -
-        new Date(right.fixture.kickoffUtc).getTime(),
-    );
+  for (const fixture of fixtures) {
+    const label = dayLabel(fixture.kickoffUtc, now);
+    const group = groups[groups.length - 1];
 
-  const settledPoints = entries.reduce(
-    (total, entry) => total + (entry.settlement?.totalPoints ?? 0),
+    if (group?.label === label) {
+      group.matches.push(fixture);
+    } else {
+      groups.push({ label, matches: [fixture] });
+    }
+  }
+
+  const settledPoints = Object.values(finals).reduce(
+    (total, settlement) => total + (settlement.totalPoints ?? 0),
     0,
   );
 
-  if (!mounted || entries.length === 0) {
-    return (
-      <section aria-labelledby="my-predictions-heading">
-        <h2 id="my-predictions-heading">Your predictions</h2>
-        <p>
-          No predictions yet. Open an upcoming game to save one; it locks at
-          kickoff and settles from TxLINE score data.
-        </p>
-      </section>
-    );
-  }
-
   const leaderboard = [
-    { name: "You", points: settledPoints, simulated: false },
-    { name: "Amina", points: Math.round(settledPoints * 0.75), simulated: true },
-    { name: "Sam", points: Math.round(settledPoints * 0.5), simulated: true },
-    { name: "Noah", points: Math.round(settledPoints * 0.25), simulated: true },
+    { name: "You", points: settledPoints, you: true },
+    { name: "Amina", points: Math.round(settledPoints * 0.75), you: false },
+    { name: "Sam", points: Math.round(settledPoints * 0.5), you: false },
+    { name: "Noah", points: Math.round(settledPoints * 0.25), you: false },
   ].sort((left, right) => right.points - left.points);
 
   return (
-    <section aria-labelledby="my-predictions-heading">
-      <h2 id="my-predictions-heading">Your predictions</h2>
-      <ul className="game-list">
-        {entries.map(({ fixture, prediction, settlement }) => (
-          <li key={prediction.fixtureId}>
-            <Link className="game-link" href={`/match/${fixture.fixtureId}`}>
-              {fixture.homeTeam} vs {fixture.awayTeam}
-            </Link>{" "}
-            <span>
-              Picked {prediction.homeGoals}-{prediction.awayGoals}.{" "}
-              {settlement
-                ? `Settled: ${settlement.totalPoints} point(s), final score ${settlement.finalScore}.`
-                : "Not settled yet - open the match to settle from TxLINE data."}
+    <>
+      {groups.map((group) => {
+        const predicted = group.matches.filter(
+          (match) => predictions[String(match.fixtureId)],
+        ).length;
+
+        return (
+          <div className="pred-day-block" key={group.label}>
+            <div className="pred-day">
+              <HugeiconsIcon
+                className="pred-day-ic"
+                icon={ChampionIcon}
+                strokeWidth={2}
+              />
+              <span className="pred-day-name">{group.label}</span>
+              <span className="pred-day-count">
+                {predicted} / {group.matches.length}
+              </span>
+            </div>
+            <div className="pred-grid">
+              {group.matches.map((fixture) => (
+                <PredictionCard
+                  fixture={fixture}
+                  key={fixture.fixtureId}
+                  now={now}
+                  odds={odds[fixture.fixtureId]}
+                  prediction={predictions[String(fixture.fixtureId)]}
+                  settlement={finals[String(fixture.fixtureId)]}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      <h3 className="gt-section-title">Local league</h3>
+      <ol className="pred-board">
+        {leaderboard.map((player, index) => (
+          <li
+            className={`pred-row${player.you ? " pred-you" : ""}`}
+            key={player.name}
+          >
+            <span className="pred-rank">{index + 1}</span>
+            <span className="pred-player">
+              {player.name}
+              {player.you ? "" : " · sim"}
             </span>
-          </li>
-        ))}
-      </ul>
-      <h3>Local league</h3>
-      <ol>
-        {leaderboard.map((player) => (
-          <li key={player.name}>
-            {player.name}
-            {player.simulated ? " (simulated rival)" : ""}: {player.points}{" "}
-            point(s)
+            <span className="pred-points">{player.points} pts</span>
           </li>
         ))}
       </ol>
-      <p>
-        Prototype league stored on this device. Rival scores are simulated for
-        the demo; your points settle from TxLINE data only.
+      <p className="muted">
+        Prototype league stored on this device. Rival scores are simulated;
+        your points settle from TxLINE data only. Form strips are illustrative.
       </p>
-    </section>
+    </>
   );
 }
 
