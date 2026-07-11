@@ -107,6 +107,9 @@ main {
   margin: 0 auto;
   max-width: 1088px;
   padding: 0 24px 24px;
+  /* body is a flex column; without an explicit width main shrinks to its
+     content and no longer reaches max-width, misaligning it with the header. */
+  width: 100%;
 }
 
 /* League entry cards (create / join) below the banner. */
