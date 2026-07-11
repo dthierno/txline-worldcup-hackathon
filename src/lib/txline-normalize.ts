@@ -498,8 +498,27 @@ export function extractGoals(updates: GoalSourceUpdate[]): GoalEvent[] {
       });
     }
 
-    previousHome = Math.max(previousHome, update.homeGoals);
-    previousAway = Math.max(previousAway, update.awayGoals);
+    // A side's goal count dropping means the advance was disallowed (VAR /
+    // scout discard - observed live: Norway's 57' goal in NOR-ENG went 2-1
+    // then back to 1-1). Remove the phantom goal event.
+    if (update.homeGoals < previousHome) {
+      const index = goals.map((goal) => goal.scoringSide).lastIndexOf("home");
+
+      if (index !== -1) {
+        goals.splice(index, 1);
+      }
+    }
+
+    if (update.awayGoals < previousAway) {
+      const index = goals.map((goal) => goal.scoringSide).lastIndexOf("away");
+
+      if (index !== -1) {
+        goals.splice(index, 1);
+      }
+    }
+
+    previousHome = update.homeGoals;
+    previousAway = update.awayGoals;
   }
 
   return goals.map((goal, index) => {

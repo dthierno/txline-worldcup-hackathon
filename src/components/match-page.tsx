@@ -379,19 +379,28 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         replayUpdates.source ?? "TxLINE scores updates API"
       }`
     : details.score?.source ?? details.score?.error ?? "Pending";
-  // TxLINE can keep GameState at "scheduled" after kickoff; a running clock
-  // or confirmed kickoff on the live stream is the stronger signal.
+  // TxLINE can keep GameState at "scheduled" after kickoff; the scout
+  // StatusId / clock in the loaded feed (or on the live stream) is the
+  // stronger signal. StatusId >= 5 covers full time before game_finalised
+  // arrives (7 observed post-match on devnet).
   const streamIndicatesLive = streamUpdates.some(
     (update) => update.action === "kickoff" || (update.clockSeconds ?? 0) > 0,
   );
+  const matchClock = deriveMatchClock(combinedUpdates);
+  const feedStatusId = matchClock?.statusId ?? 0;
   const formattedState = formatGameState(displayScore?.gameState);
   const displayState =
     feedFinished ||
     (isPastFixture(fixture) && !liveStreamEligible && displayScore)
       ? "Finished"
-      : streamIndicatesLive && formattedState === "Not started"
-        ? "Live"
-        : formattedState;
+      : feedStatusId >= 5
+        ? "Full time"
+        : feedStatusId === 3
+          ? "Half-time"
+          : feedStatusId >= 2 ||
+              (streamIndicatesLive && formattedState === "Not started")
+            ? "Live"
+            : formattedState;
   const finished = displayState === "Finished";
   const goals = extractGoals(combinedUpdates);
   const firstGoal = goals[0] ?? null;
@@ -519,7 +528,6 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     },
     { away: 0, home: 0 },
   );
-  const matchClock = deriveMatchClock(combinedUpdates);
   const matchInfo = extractMatchInfo(combinedUpdates);
   const momentum = extractMomentum(combinedUpdates);
   // Current match second: the scout clock plus wall time elapsed since the
@@ -641,7 +649,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           <span className={`badge${liveStreamEligible ? " live" : ""}`}>
             {displayState}
           </span>
-          {clockLabel && liveStreamEligible ? (
+          {clockLabel && liveStreamEligible && clockLabel !== displayState ? (
             <span className="match-clock">{clockLabel}</span>
           ) : null}
         </p>

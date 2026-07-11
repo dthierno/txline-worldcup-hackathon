@@ -128,9 +128,11 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
   the authoritative end; `halftime_finalised` marks the break (both carry a
   `Score` object with H1/HT/H2/Total per participant).
 - **StatusId map**: 1 pre-match, 2 first half, 3 half-time, 4 second half,
-  5 full time (awaiting finalisation), 100 finalised. Nearly every record
-  carries `Clock {Running, Seconds}` (H2 starts at 2700s); `Kickoff.Team`
-  says who kicks off.
+  5+ full time (7 observed post-match on NOR-ENG; treat >= 5 as ended),
+  100 finalised. Nearly every record carries `Clock {Running, Seconds}`
+  (H2 starts at 2700s); `Kickoff.Team` says who kicks off. The match-page
+  badge uses StatusId (feed or stream) because GameState stays "scheduled"
+  throughout; settlement still waits for `game_finalised`.
 - One real event → multiple feed records sharing `Id` (normalized `eventId`):
   first sibling is often empty (no Participant/Data), confirmed ones carry
   payload. Always merge by eventId before counting or reading players.
@@ -138,6 +140,10 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
   - `action_discarded` shares its `Id` with the event it cancels — FRA-MAR
     contained a **disallowed Morocco goal**, a discarded corner and throw-in.
     Filter all records with a discarded eventId.
+  - **Disallowed goals can advance the stats before the discard** (NOR-ENG
+    live: Norway's 57' goal hit 2-1 on a `var_end` record, then regressed to
+    1-1 after the discard). `extractGoals` treats a per-side goal-count drop
+    as "remove the phantom goal event" — never track score with Math.max.
   - `action_amend` does NOT share the target's Id; it links by
     `Data.Action` + `Previous.Clock.Seconds` and carries Previous/New field
     sets (observed: shot OnTarget→OffTarget, free kick Attack→Danger). Patch
@@ -195,6 +201,8 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
   the historical replay endpoint.
 - Historical replay preferred over snapshot for finished games (snapshot can
   be stale, e.g. 0-1 vs real 0-3). Never display snapshot finals on home.
+  **The historical endpoint returns 0 records until `game_finalised`** — a
+  just-ended match still comes from `scores/updates`.
 
 ### Official API surface (spec v1.5.6 — discovered 2026-07-11)
 
@@ -252,7 +260,7 @@ https://github.com/txodds/tx-on-chain. Full endpoint list:
 ```bash
 cd fan-predictions-app
 npm run dev -- --port 3001
-npm run test -- --run   # 38 tests
+npm run test -- --run   # 39 tests
 npm run lint
 npm run build           # stop dev first!
 ```

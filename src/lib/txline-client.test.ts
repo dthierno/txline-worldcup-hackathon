@@ -347,6 +347,28 @@ describe("txline client normalizers", () => {
     ]);
   });
 
+  it("removes disallowed goals when the score regresses", () => {
+    // NOR-ENG live pattern: Norway's 57' goal advanced the stats to 2-1 on a
+    // VAR record, was discarded, and the stats regressed to 1-1.
+    const base = { participant1IsHome: true };
+    const goals = extractGoals([
+      { ...base, awayGoals: 0, homeGoals: 0, seq: 1 },
+      { ...base, action: "goal", awayGoals: 0, clockSeconds: 2104, data: { PlayerId: 7 }, homeGoals: 1, seq: 314 },
+      { ...base, action: "goal", awayGoals: 1, clockSeconds: 2770, data: { PlayerId: 8 }, homeGoals: 1, seq: 418 },
+      // Disallowed: advance then regression, no goal action survives.
+      { ...base, action: "var_end", awayGoals: 1, clockSeconds: 3406, homeGoals: 2, seq: 538 },
+      { ...base, action: "corner", awayGoals: 1, clockSeconds: 3429, homeGoals: 1, seq: 541 },
+      { ...base, action: "goal", awayGoals: 2, clockSeconds: 5555, data: { PlayerId: 8 }, homeGoals: 1, seq: 885 },
+    ]);
+
+    expect(goals.map((goal) => `${goal.homeGoals}-${goal.awayGoals}`)).toEqual([
+      "1-0",
+      "1-1",
+      "1-2",
+    ]);
+    expect(goals.map((goal) => goal.playerId)).toEqual([7, 8, 8]);
+  });
+
   it("drops discarded events and applies shot amends", () => {
     const corrected = applyScoutCorrections([
       // A corner later discarded by the scout (shared event Id).
