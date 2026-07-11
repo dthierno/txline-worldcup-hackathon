@@ -2156,53 +2156,73 @@ dt {
   padding: 30px 14px 28px;
   position: relative;
 }
-/* Per-team colour glows (home top-left, away top-right), on their own layer
-   so they can breathe slowly without ever repainting the gradient itself. */
-.pc-panel::before {
-  animation: pc-glow-breathe 9s ease-in-out infinite alternate;
-  background:
-    radial-gradient(
-      95% 155% at 0% 0%,
-      color-mix(in srgb, var(--glow-home) 40%, transparent),
-      transparent 68%
-    ),
-    radial-gradient(
-      95% 155% at 100% 0%,
-      color-mix(in srgb, var(--glow-away) 40%, transparent),
-      transparent 68%
-    );
+/* Per-team colour glows on their own layers (home = ::before top-left,
+   away = ::after top-right) so they can pulse and drift out of phase — only
+   opacity/transform animate, the gradient itself is never repainted. */
+.pc-panel::before,
+.pc-panel::after {
   content: "";
-  inset: -8%;
+  inset: -14%;
   position: absolute;
   will-change: opacity, transform;
   z-index: 0;
 }
-/* Keep the card content above the animated glow layer. */
+.pc-panel::before {
+  animation: pc-glow-home 7s ease-in-out infinite alternate;
+  background: radial-gradient(
+    88% 150% at 0% 0%,
+    color-mix(in srgb, var(--glow-home) 52%, transparent),
+    transparent 66%
+  );
+}
+.pc-panel::after {
+  animation: pc-glow-away 7s ease-in-out infinite alternate;
+  animation-delay: -3.5s;
+  background: radial-gradient(
+    88% 150% at 100% 0%,
+    color-mix(in srgb, var(--glow-away) 52%, transparent),
+    transparent 66%
+  );
+}
+/* Keep the card content above the animated glow layers. */
 .pc-teams {
   position: relative;
   z-index: 1;
 }
-@keyframes pc-glow-breathe {
+@keyframes pc-glow-home {
   from {
-    opacity: 0.72;
+    opacity: 0.45;
     transform: scale(1) translate3d(0, 0, 0);
   }
   to {
     opacity: 1;
-    transform: scale(1.05) translate3d(0, -1.5%, 0);
+    transform: scale(1.16) translate3d(5%, -4%, 0);
   }
 }
-/* Desync neighbouring cards a touch so the breathing feels alive, not synced. */
-.pred-day-block:nth-child(3n + 2) .pc-panel::before {
-  animation-delay: -3s;
+@keyframes pc-glow-away {
+  from {
+    opacity: 1;
+    transform: scale(1.16) translate3d(-5%, -4%, 0);
+  }
+  to {
+    opacity: 0.45;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
 }
-.pred-day-block:nth-child(3n + 3) .pc-panel::before {
-  animation-delay: -6s;
+/* Desync neighbouring cards so the whole feed doesn't pulse in unison. */
+.pred-day-block:nth-child(3n + 2) .pc-panel::before,
+.pred-day-block:nth-child(3n + 2) .pc-panel::after {
+  animation-duration: 8s;
+}
+.pred-day-block:nth-child(3n + 3) .pc-panel::before,
+.pred-day-block:nth-child(3n + 3) .pc-panel::after {
+  animation-duration: 6s;
 }
 @media (prefers-reduced-motion: reduce) {
-  .pc-panel::before {
+  .pc-panel::before,
+  .pc-panel::after {
     animation: none;
-    opacity: 0.9;
+    opacity: 0.85;
   }
 }
 .pc-panel-link {
