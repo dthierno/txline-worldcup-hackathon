@@ -1146,7 +1146,7 @@ dt {
 .hero-box {
   background: #0b0b0e;
   border: 1px solid #232a31;
-  border-radius: 40px;
+  border-radius: var(--radius-4xl);
   margin-top: 24px;
   overflow: hidden;
   position: relative;
