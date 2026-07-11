@@ -159,8 +159,8 @@ main {
 .league-card::after {
   content: "";
   inset: 0;
-  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 15%, transparent 48%);
-  mask-image: linear-gradient(90deg, #000 0, #000 15%, transparent 48%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 22%, transparent 66%);
+  mask-image: linear-gradient(90deg, #000 0, #000 22%, transparent 66%);
   opacity: 0.5;
   position: absolute;
   transition: opacity 0.22s ease;
