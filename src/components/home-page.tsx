@@ -361,12 +361,23 @@ function StoriesRail() {
   );
 }
 
+// Team name (substring, lower-cased) → ISO code for flagcdn images. Covers all
+// 48 nations at the 2026 World Cup (same set as the group tables).
 const titleIso: Array<[string, string]> = [
   ["france", "fr"], ["morocco", "ma"], ["spain", "es"], ["belgium", "be"],
   ["england", "gb-eng"], ["norway", "no"], ["argentina", "ar"],
   ["switzerland", "ch"], ["egypt", "eg"], ["colombia", "co"],
   ["mexico", "mx"], ["canada", "ca"], ["brazil", "br"], ["portugal", "pt"],
   ["paraguay", "py"], ["usa", "us"],
+  ["south africa", "za"], ["korea", "kr"], ["czech", "cz"], ["bosnia", "ba"],
+  ["qatar", "qa"], ["scotland", "gb-sct"], ["haiti", "ht"],
+  ["australia", "au"], ["türkiye", "tr"], ["turkey", "tr"], ["germany", "de"],
+  ["ivory", "ci"], ["ecuador", "ec"], ["cura", "cw"], ["netherlands", "nl"],
+  ["japan", "jp"], ["sweden", "se"], ["tunisia", "tn"], ["iran", "ir"],
+  ["zealand", "nz"], ["cape verde", "cv"], ["uruguay", "uy"], ["saudi", "sa"],
+  ["senegal", "sn"], ["iraq", "iq"], ["austria", "at"], ["algeria", "dz"],
+  ["jordan", "jo"], ["congo", "cd"], ["uzbekistan", "uz"], ["croatia", "hr"],
+  ["ghana", "gh"], ["panama", "pa"],
 ];
 
 function isoFromTitle(title: string): string | undefined {
@@ -381,12 +392,22 @@ function teamFlag(team: string): string | undefined {
   return titleIso.find(([name]) => lower.includes(name))?.[1];
 }
 
-// Soft accent per nation for the card corner glows.
+// Each nation's recognised primary (kit/flag) colour, used for the per-team
+// side glow on the prediction cards. One entry per 2026 World Cup team; any
+// team not listed falls back to a neutral grey.
 const teamGlow: Record<string, string> = {
-  ar: "#38bdf8", be: "#facc15", br: "#16a34a", ca: "#dc2626",
-  ch: "#dc2626", co: "#facc15", eg: "#dc2626", es: "#f59e0b",
-  fr: "#3b82f6", "gb-eng": "#e11d48", ma: "#dc2626", mx: "#16a34a",
-  no: "#ef4444", pt: "#dc2626", py: "#ef4444", us: "#3b82f6",
+  ar: "#38bdf8", at: "#dc2626", au: "#eab308", ba: "#2563eb",
+  be: "#facc15", br: "#16a34a", ca: "#dc2626", cd: "#ef4444",
+  ch: "#dc2626", ci: "#f97316", co: "#facc15", cv: "#2563eb",
+  cw: "#2563eb", cz: "#dc2626", de: "#d4d4d8", dz: "#16a34a",
+  ec: "#eab308", eg: "#dc2626", es: "#f59e0b", fr: "#3b82f6",
+  "gb-eng": "#e11d48", "gb-sct": "#1e40af", gh: "#dc2626", hr: "#dc2626",
+  ht: "#2563eb", iq: "#16a34a", ir: "#16a34a", jo: "#dc2626",
+  jp: "#2563eb", kr: "#ef4444", ma: "#dc2626", mx: "#16a34a",
+  nl: "#f97316", no: "#ef4444", nz: "#d4d4d8", pa: "#dc2626",
+  pt: "#dc2626", py: "#ef4444", qa: "#9f1239", sa: "#16a34a",
+  se: "#eab308", sn: "#16a34a", tn: "#dc2626", tr: "#dc2626",
+  us: "#3b82f6", uy: "#38bdf8", uz: "#2563eb", za: "#eab308",
 };
 
 function dayLabel(kickoffUtc: string, now: number | null): string {
