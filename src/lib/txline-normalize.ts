@@ -935,6 +935,9 @@ export function deriveMatchClock(
   return clock ? { ...clock, statusId } : null;
 }
 
+// StatusIds verified live on NOR-ENG (went to extra time): 6 = regulation
+// over / ET break, 7 = ET first half (kickoff again at 5400s). Higher ids
+// (ET2, penalties) unobserved so far - keep the >= 6 fallback until then.
 export function formatMatchPhase(statusId?: number): string | undefined {
   const phases: Record<number, string> = {
     1: "Pre-match",
@@ -942,16 +945,31 @@ export function formatMatchPhase(statusId?: number): string | undefined {
     3: "Half-time",
     4: "Second half",
     5: "Full time",
+    6: "Extra time",
+    7: "Extra time",
     100: "Full time",
   };
+
+  if (statusId !== undefined && statusId > 7 && statusId < 100) {
+    return "Extra time";
+  }
 
   return statusId !== undefined ? phases[statusId] : undefined;
 }
 
-// "37'" during regulation, "45+2'" / "90+4'" in added time of either half.
+// "37'" during regulation, "45+2'" / "90+4'" in added time, "105+1'" in ET.
 export function formatLiveMinute(seconds: number, statusId?: number): string {
   const minute = Math.max(1, Math.floor(seconds / 60) + 1);
-  const cap = statusId === 2 ? 45 : statusId === 4 ? 90 : undefined;
+  const cap =
+    statusId === 2
+      ? 45
+      : statusId === 4
+        ? 90
+        : statusId === 7
+          ? 105
+          : statusId !== undefined && statusId > 7 && statusId < 100
+            ? 120
+            : undefined;
 
   return cap !== undefined && minute > cap
     ? `${cap}+${minute - cap}'`

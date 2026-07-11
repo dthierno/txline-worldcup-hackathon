@@ -393,9 +393,13 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     feedFinished ||
     (isPastFixture(fixture) && !liveStreamEligible && displayScore)
       ? "Finished"
-      : feedStatusId >= 5
-        ? "Full time"
-        : feedStatusId === 3
+      : feedStatusId >= 6
+        ? // 6 = regulation over / ET break, 7 = ET first half (verified live
+          // on NOR-ENG); higher un-finalised ids are later ET phases.
+          "Extra time"
+        : feedStatusId === 5
+          ? "Full time"
+          : feedStatusId === 3
           ? "Half-time"
           : feedStatusId >= 2 ||
               (streamIndicatesLive && formattedState === "Not started")
@@ -543,7 +547,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     liveClockSeconds !== null && matchClock
       ? matchClock.statusId === 3
         ? "Half-time"
-        : (matchClock.statusId ?? 0) >= 5
+        : matchClock.statusId === 5
           ? "Full time"
           : (matchClock.statusId ?? 0) >= 2
             ? `${formatLiveMinute(liveClockSeconds, matchClock.statusId)}${
