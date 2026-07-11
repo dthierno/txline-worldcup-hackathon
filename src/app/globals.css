@@ -169,25 +169,25 @@ main {
 .league-card--create::after {
   background: repeating-linear-gradient(
     60deg,
-    #dc2626 0 16px,
-    #ea580c 16px 32px,
-    #a5b4fc 32px 48px,
-    #2563eb 48px 64px,
-    #7c3aed 64px 80px,
-    #16a34a 80px 96px,
-    #22d3ee 96px 112px
+    #dc2626 0 10px,
+    #ea580c 10px 20px,
+    #a5b4fc 20px 30px,
+    #2563eb 30px 40px,
+    #7c3aed 40px 50px,
+    #16a34a 50px 60px,
+    #22d3ee 60px 70px
   );
 }
 .league-card--join::after {
   background: repeating-linear-gradient(
     120deg,
-    #2563eb 0 16px,
-    #7c3aed 16px 32px,
-    #22d3ee 32px 48px,
-    #16a34a 48px 64px,
-    #a5b4fc 64px 80px,
-    #ea580c 80px 96px,
-    #dc2626 96px 112px
+    #2563eb 0 10px,
+    #7c3aed 10px 20px,
+    #22d3ee 20px 30px,
+    #16a34a 30px 40px,
+    #a5b4fc 40px 50px,
+    #ea580c 50px 60px,
+    #dc2626 60px 70px
   );
 }
 /* Fine printed-dot halftone over the mesh, for a ticket-stock texture. */
