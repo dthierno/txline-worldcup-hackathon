@@ -2267,3 +2267,38 @@ dt {
 .pc-input:focus {
   border-color: var(--won);
 }
+
+/* Collapsible "Past results" section in the Predictions tab. */
+.pred-past-toggle {
+  align-items: center;
+  background: #141419;
+  border: 1px solid #23232b;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 10px;
+  margin: 24px 0 4px;
+  padding: 12px 16px;
+  transition: border-color 0.18s ease;
+  width: 100%;
+}
+.pred-past-toggle:hover {
+  border-color: #3a3a44;
+}
+.pred-past-count {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 9px;
+}
+.pred-past-toggle svg {
+  color: var(--muted-foreground);
+  height: 18px;
+  margin-left: auto;
+  width: 18px;
+}

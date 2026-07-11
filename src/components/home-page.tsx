@@ -3,6 +3,8 @@
 import Link from "next/link";
 
 import {
+  ArrowDown01Icon,
+  ArrowUp01Icon,
   ChampionIcon,
   FootballIcon,
   TargetIcon,
@@ -733,6 +735,7 @@ function PredictionsFeed({
   odds: Record<number, string[]>;
   predictions: Record<string, MatchPrediction>;
 }) {
+  const [showPast, setShowPast] = useState(false);
   // Inline score edits made this session, layered over the saved predictions so
   // the display and the per-day count update immediately.
   const [edits, setEdits] = useState<Record<string, { home: string; away: string }>>(
@@ -781,18 +784,78 @@ function PredictionsFeed({
     }
   };
 
-  const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
+  const isLive = (fixture: WorldCupFixture) =>
+    now !== null && isPotentiallyLive(fixture, now);
 
-  for (const fixture of fixtures) {
-    const label = dayLabel(fixture.kickoffUtc, now);
-    const group = groups[groups.length - 1];
+  // Main = live + not-yet-kicked-off games (what the fan acts on now). Finished
+  // games drop into a collapsed "Past results" section, newest first.
+  const mainGames = fixtures.filter(
+    (fixture) => !isPastFixture(fixture) || isLive(fixture),
+  );
+  const pastGames = fixtures
+    .filter((fixture) => isPastFixture(fixture) && !isLive(fixture))
+    .sort(
+      (left, right) =>
+        new Date(right.kickoffUtc).getTime() -
+        new Date(left.kickoffUtc).getTime(),
+    );
 
-    if (group?.label === label) {
-      group.matches.push(fixture);
-    } else {
-      groups.push({ label, matches: [fixture] });
+  const toGroups = (list: WorldCupFixture[]) => {
+    const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
+
+    for (const fixture of list) {
+      const label = dayLabel(fixture.kickoffUtc, now);
+      const group = groups[groups.length - 1];
+
+      if (group?.label === label) {
+        group.matches.push(fixture);
+      } else {
+        groups.push({ label, matches: [fixture] });
+      }
     }
-  }
+
+    return groups;
+  };
+
+  const renderGroup = (group: {
+    label: string;
+    matches: WorldCupFixture[];
+  }) => {
+    const predicted = group.matches.filter((match) => {
+      const p = pickFor(match);
+
+      return p.home !== "" && p.away !== "";
+    }).length;
+
+    return (
+      <div className="pred-day-block" key={group.label}>
+        <div className="pred-day">
+          <HugeiconsIcon
+            className="pred-day-ic"
+            icon={ChampionIcon}
+            strokeWidth={2}
+          />
+          <span className="pred-day-name">{group.label}</span>
+          <span className="pred-day-count">
+            {predicted} / {group.matches.length}
+          </span>
+        </div>
+        <div className="pred-grid">
+          {group.matches.map((fixture) => (
+            <PredictionCard
+              fixture={fixture}
+              key={fixture.fixtureId}
+              now={now}
+              odds={odds[fixture.fixtureId]}
+              onPick={(home, away) => handlePick(fixture, home, away)}
+              pick={pickFor(fixture)}
+              settlement={finals[String(fixture.fixtureId)]}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const settledPoints = Object.values(finals).reduce(
     (total, settlement) => total + (settlement.totalPoints ?? 0),
@@ -808,42 +871,30 @@ function PredictionsFeed({
 
   return (
     <>
-      {groups.map((group) => {
-        const predicted = group.matches.filter((match) => {
-          const p = pickFor(match);
+      {mainGames.length > 0 ? (
+        toGroups(mainGames).map(renderGroup)
+      ) : (
+        <p className="muted">No upcoming matches right now.</p>
+      )}
 
-          return p.home !== "" && p.away !== "";
-        }).length;
-
-        return (
-          <div className="pred-day-block" key={group.label}>
-            <div className="pred-day">
-              <HugeiconsIcon
-                className="pred-day-ic"
-                icon={ChampionIcon}
-                strokeWidth={2}
-              />
-              <span className="pred-day-name">{group.label}</span>
-              <span className="pred-day-count">
-                {predicted} / {group.matches.length}
-              </span>
-            </div>
-            <div className="pred-grid">
-              {group.matches.map((fixture) => (
-                <PredictionCard
-                  fixture={fixture}
-                  key={fixture.fixtureId}
-                  now={now}
-                  odds={odds[fixture.fixtureId]}
-                  onPick={(home, away) => handlePick(fixture, home, away)}
-                  pick={pickFor(fixture)}
-                  settlement={finals[String(fixture.fixtureId)]}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      {pastGames.length > 0 ? (
+        <div className="pred-past">
+          <button
+            aria-expanded={showPast}
+            className="pred-past-toggle"
+            onClick={() => setShowPast((value) => !value)}
+            type="button"
+          >
+            <span>Past results</span>
+            <span className="pred-past-count">{pastGames.length}</span>
+            <HugeiconsIcon
+              icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
+              strokeWidth={2}
+            />
+          </button>
+          {showPast ? toGroups(pastGames).map(renderGroup) : null}
+        </div>
+      ) : null}
 
       <h3 className="gt-section-title">Local league</h3>
       <ol className="pred-board">
