@@ -397,11 +397,11 @@ function teamFlag(team: string): string | undefined {
 // team not listed falls back to a neutral grey.
 const teamGlow: Record<string, string> = {
   ar: "#38bdf8", at: "#dc2626", au: "#eab308", ba: "#2563eb",
-  be: "#facc15", br: "#16a34a", ca: "#dc2626", cd: "#ef4444",
+  be: "#ef4444", br: "#facc15", ca: "#dc2626", cd: "#ef4444",
   ch: "#dc2626", ci: "#f97316", co: "#facc15", cv: "#2563eb",
   cw: "#2563eb", cz: "#dc2626", de: "#d4d4d8", dz: "#16a34a",
-  ec: "#eab308", eg: "#dc2626", es: "#f59e0b", fr: "#3b82f6",
-  "gb-eng": "#e11d48", "gb-sct": "#1e40af", gh: "#dc2626", hr: "#dc2626",
+  ec: "#eab308", eg: "#dc2626", es: "#dc2626", fr: "#3b82f6",
+  "gb-eng": "#e5e7eb", "gb-sct": "#1e40af", gh: "#dc2626", hr: "#dc2626",
   ht: "#2563eb", iq: "#16a34a", ir: "#16a34a", jo: "#dc2626",
   jp: "#2563eb", kr: "#ef4444", ma: "#dc2626", mx: "#16a34a",
   nl: "#f97316", no: "#ef4444", nz: "#d4d4d8", pa: "#dc2626",
