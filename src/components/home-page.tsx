@@ -727,17 +727,16 @@ function PredictionCard({
               >
                 {favorite === outcome.key ? (
                   <span className="pc-pill-badge">
-                    {communityCount(fixture.fixtureId).toLocaleString("en-US")}
                     <svg
                       aria-hidden="true"
                       fill="currentColor"
-                      height="9"
-                      viewBox="0 0 16 16"
-                      width="9"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      width="10"
                     >
-                      <circle cx="8" cy="5" r="3" />
-                      <path d="M2 14c0-3 2.7-4.5 6-4.5S14 11 14 14z" />
+                      <path d="M12 2c.6 3.3 3.4 4.8 3.4 8.2a3.4 3.4 0 0 1-1 2.4c.1-.5.1-1.2-.4-2-.5.9-1.6 1.3-1.6 2.6a2.9 2.9 0 0 1-1.8-2.7c0-1 .5-1.7 1-2.4C9.4 8.8 8 10.3 8 12.6a4 4 0 1 0 8 0C16 8.6 13.5 5.6 12 2z" />
                     </svg>
+                    {communityCount(fixture.fixtureId).toLocaleString("en-US")}
                   </span>
                 ) : null}
                 <span className="pc-pill-label">{outcome.label}</span>

@@ -2212,8 +2212,8 @@ dt {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 8px 6px;
+  gap: 2px;
+  padding: 7px 6px;
   position: relative;
   transition:
     transform 0.16s cubic-bezier(0.23, 1, 0.32, 1),
@@ -2230,7 +2230,7 @@ dt {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--won) 22%, transparent);
 }
 .pc-pill-label {
-  color: #6b7280;
+  color: #52525b;
   font-size: 12px;
   font-weight: 600;
   max-width: 100%;
@@ -2239,24 +2239,27 @@ dt {
   white-space: nowrap;
 }
 .pc-pill-odd {
-  color: #171717;
-  font-size: 17px;
-  font-weight: 800;
+  color: #18181b;
+  font-size: 13px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .pc-pill-badge {
   align-items: center;
-  background: var(--won);
+  background: #fb923c;
   border-radius: 999px;
-  color: #06240f;
+  color: #3a1c00;
   display: inline-flex;
   font-size: 10px;
   font-weight: 700;
-  gap: 3px;
-  padding: 1px 6px;
+  gap: 2px;
+  padding: 1px 6px 1px 4px;
   position: absolute;
   right: -6px;
   top: -9px;
+}
+.pc-pill-badge svg {
+  color: #7c2d12;
 }
 .pc-meter {
   display: flex;
