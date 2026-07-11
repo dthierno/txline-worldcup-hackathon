@@ -190,20 +190,6 @@ main {
     #dc2626 60px 70px
   );
 }
-/* Fine printed-dot halftone over the mesh, for a ticket-stock texture. */
-.league-card::before {
-  background-image: radial-gradient(
-    rgba(255, 255, 255, 0.11) 1px,
-    transparent 1.5px
-  );
-  background-size: 11px 11px;
-  content: "";
-  inset: 0;
-  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 54%);
-  mask-image: linear-gradient(90deg, #000 0, #000 20%, transparent 54%);
-  position: absolute;
-  z-index: -1;
-}
 .league-card:active {
   transform: scale(0.985);
 }
