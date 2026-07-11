@@ -333,21 +333,21 @@ describe("Home", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders a bare list of past and upcoming World Cup games first", () => {
+  it("renders the tabbed home with matches and knockout views", async () => {
+    const user = userEvent.setup();
+
     render(<Home />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "World Cup games" }),
+      screen.getByRole("heading", { level: 1, name: "PredGame" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Matches" }),
-    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Matches/i }));
     expect(
       screen.getByRole("link", { name: /Canada vs Morocco/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Knockout" }),
-    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Knockout/i }));
     expect(screen.getByText("CHAMPION")).toBeInTheDocument();
     expect(screen.getByText("FINAL")).toBeInTheDocument();
     expect(screen.getByText("BRONZE-FINAL")).toBeInTheDocument();
@@ -359,9 +359,12 @@ describe("Home", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("links each game to its own match page", () => {
+  it("links each game to its own match page", async () => {
+    const user = userEvent.setup();
+
     render(<Home />);
 
+    await user.click(screen.getByRole("tab", { name: /Matches/i }));
     expect(
       screen.getByRole("link", { name: /Canada vs Morocco/i }),
     ).toHaveAttribute("href", "/match/18185036");

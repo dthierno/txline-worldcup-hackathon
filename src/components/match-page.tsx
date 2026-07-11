@@ -452,6 +452,27 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
       seq: call.seq,
       voided: call.voided,
     })),
+    ...extractPenaltyEvents(combinedUpdates).map((call) => ({
+      correctIndex: call.outcome
+        ? ((call.outcome === "scored" ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      minute: formatMinute(call.clockSeconds) || "—",
+      options: ["Scored", "Missed"] as [string, string],
+      outcome: call.outcome
+        ? call.outcome === "scored"
+          ? "⚽ Scored"
+          : "Missed"
+        : call.voided
+          ? "Not taken"
+          : "Open",
+      question: `Penalty${
+        callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
+      }! Scored or missed?`,
+      resolved: call.resolved,
+      seq: call.seq,
+      voided: call.voided,
+    })),
   ].sort((left, right) => left.seq - right.seq);
   const outcome = buildOutcome(
     displayScore,
@@ -475,6 +496,47 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   const freeKicks = countTeamEvents(combinedUpdates, "free_kick");
   const shots = countTeamEvents(combinedUpdates, "shot");
   const shotsOnTarget = countShotsOnTarget(combinedUpdates);
+  const throwIns = countTeamEvents(combinedUpdates, "throw_in");
+  const goalKicks = countTeamEvents(combinedUpdates, "goal_kick");
+  const penalties = extractPenaltyEvents(combinedUpdates);
+  const penaltyCounts = penalties.reduce(
+    (counts, penalty) => {
+      const isHome = participant1IsHome
+        ? penalty.participant === 1
+        : penalty.participant === 2;
+
+      counts[isHome ? "home" : "away"] += 1;
+
+      return counts;
+    },
+    { away: 0, home: 0 },
+  );
+  const matchClock = deriveMatchClock(combinedUpdates);
+  const matchInfo = extractMatchInfo(combinedUpdates);
+  const momentum = extractMomentum(combinedUpdates);
+  // Current match second: the scout clock plus wall time elapsed since the
+  // record that reported it (only while the clock runs).
+  const liveClockSeconds =
+    matchClock && !finished
+      ? matchClock.seconds +
+        (matchClock.running && matchClock.ts && now
+          ? Math.max(0, (now - matchClock.ts) / 1000)
+          : 0)
+      : null;
+  const clockLabel =
+    liveClockSeconds !== null && matchClock
+      ? matchClock.statusId === 3
+        ? "Half-time"
+        : (matchClock.statusId ?? 0) >= 5
+          ? "Full time"
+          : (matchClock.statusId ?? 0) >= 2
+            ? `${formatLiveMinute(liveClockSeconds, matchClock.statusId)}${
+                formatMatchPhase(matchClock.statusId)
+                  ? ` · ${formatMatchPhase(matchClock.statusId)}`
+                  : ""
+              }`
+            : null
+      : null;
   const statRows: Array<{ away: number; home: number; label: string }> = [
     ...(shots.home + shots.away > 0
       ? [
@@ -512,6 +574,25 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
             home: freeKicks.away,
             label: "Fouls conceded",
           },
+        ]
+      : []),
+    ...(penaltyCounts.home + penaltyCounts.away > 0
+      ? [
+          {
+            away: penaltyCounts.away,
+            home: penaltyCounts.home,
+            label: "Penalties awarded",
+          },
+        ]
+      : []),
+    ...(throwIns.home + throwIns.away > 0
+      ? [
+          { away: throwIns.away, home: throwIns.home, label: "Throw-ins" },
+        ]
+      : []),
+    ...(goalKicks.home + goalKicks.away > 0
+      ? [
+          { away: goalKicks.away, home: goalKicks.home, label: "Goal kicks" },
         ]
       : []),
   ];
@@ -552,6 +633,9 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           <span className={`badge${liveStreamEligible ? " live" : ""}`}>
             {displayState}
           </span>
+          {clockLabel && liveStreamEligible ? (
+            <span className="match-clock">{clockLabel}</span>
+          ) : null}
         </p>
         <p className="match-meta">
           Kickoff {formatDate(fixture.kickoffUtc)} UTC - Fixture #
@@ -634,6 +718,10 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         ) : null}
       </section>
 
+      <MomentumSection fixture={fixture} momentum={momentum} />
+
+      <MatchInfoSection fixture={fixture} info={matchInfo} />
+
       <LineupsSection
         goals={goals}
         lineups={details.lineups}
@@ -682,6 +770,16 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
             .
           </p>
         ) : null}
+        <OddsBoardView
+          board={
+            finished
+              ? details.oddsUpdates?.data?.closingBoard ??
+                details.oddsUpdates?.data?.board
+              : details.oddsUpdates?.data?.board
+          }
+          finished={finished}
+          fixture={fixture}
+        />
         <OddsMovement oddsUpdates={details.oddsUpdates} />
       </section>
 
@@ -908,6 +1006,238 @@ export function GoalCallsSection({
   );
 }
 
+// Attack momentum per 5-minute interval, home pressure rising above the
+// midline and away pressure hanging below it (FotMob-style, original render).
+function MomentumSection({
+  fixture,
+  momentum,
+}: {
+  fixture: WorldCupFixture;
+  momentum: MomentumBucket[];
+}) {
+  if (momentum.length < 2) {
+    return null;
+  }
+
+  const peak = Math.max(
+    1,
+    ...momentum.map((bucket) =>
+      Math.max(bucket.homePressure, bucket.awayPressure),
+    ),
+  );
+
+  return (
+    <section className="card" aria-labelledby="momentum-heading">
+      <h2 id="momentum-heading">Momentum</h2>
+      <div
+        className="momentum-chart"
+        role="img"
+        aria-label={`Attack momentum in 5-minute periods: ${fixture.homeTeam} above the line, ${fixture.awayTeam} below`}
+      >
+        {momentum.map((bucket) => (
+          <div
+            className="momentum-col"
+            key={bucket.startMinute}
+            title={`${bucket.startMinute}-${bucket.startMinute + 5}' · ${fixture.homeTeam} ${bucket.homePressure}, ${fixture.awayTeam} ${bucket.awayPressure}`}
+          >
+            <div className="momentum-half top">
+              <div
+                className="momentum-bar home"
+                style={{ height: `${(bucket.homePressure / peak) * 100}%` }}
+              />
+            </div>
+            <div className="momentum-half bottom">
+              <div
+                className="momentum-bar away"
+                style={{ height: `${(bucket.awayPressure / peak) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="momentum-legend muted">
+        <span className="momentum-dot home" /> {fixture.homeTeam}
+        <span className="momentum-dot away" /> {fixture.awayTeam} — attack
+        pressure from TxLINE possession phases, shots and corners, per 5
+        minutes.
+      </p>
+    </section>
+  );
+}
+
+// Named CSS colors cover the jersey values TxLINE scouts report ("red",
+// "aqua"); anything unparseable still reads fine as text.
+function MatchInfoSection({
+  fixture,
+  info,
+}: {
+  fixture: WorldCupFixture;
+  info: ReturnType<typeof extractMatchInfo>;
+}) {
+  if (!info) {
+    return null;
+  }
+
+  const rows: Array<{ label: string; swatch?: string; value: string }> = [];
+
+  if (info.venueType) {
+    rows.push({
+      label: "Venue",
+      value:
+        info.venueType === "neutral"
+          ? "Neutral ground"
+          : info.venueType.charAt(0).toUpperCase() + info.venueType.slice(1),
+    });
+  }
+
+  if (info.weather) {
+    rows.push({ label: "Conditions", value: info.weather });
+  }
+
+  if (info.pitch) {
+    rows.push({ label: "Pitch", value: info.pitch });
+  }
+
+  if (info.homeJersey) {
+    rows.push({
+      label: `${fixture.homeTeam} kit`,
+      swatch: info.homeJersey,
+      value: info.homeJersey,
+    });
+  }
+
+  if (info.awayJersey) {
+    rows.push({
+      label: `${fixture.awayTeam} kit`,
+      swatch: info.awayJersey,
+      value: info.awayJersey,
+    });
+  }
+
+  if (info.kickoffSide) {
+    rows.push({
+      label: "Kickoff",
+      value: info.kickoffSide === "home" ? fixture.homeTeam : fixture.awayTeam,
+    });
+  }
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return (
+    <section className="card" aria-labelledby="match-info-heading">
+      <h2 id="match-info-heading">Match info</h2>
+      <dl className="match-info-grid">
+        {rows.map((row) => (
+          <div className="match-info-row" key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>
+              {row.swatch ? (
+                <span
+                  aria-hidden="true"
+                  className="kit-swatch"
+                  style={{ background: row.swatch }}
+                />
+              ) : null}
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="muted">Scene reports from the TxLINE scout feed.</p>
+    </section>
+  );
+}
+
+// Current prices across TxLINE's three market families (decimal odds). For
+// finished matches the caller passes the pre-match closing board, since final
+// in-play prices are just the settled result.
+function OddsBoardView({
+  board,
+  finished,
+  fixture,
+}: {
+  board?: OddsBoard;
+  finished: boolean;
+  fixture: WorldCupFixture;
+}) {
+  if (!board || (!board.result && !board.overUnder.length && !board.asianHandicap.length)) {
+    return null;
+  }
+
+  const decimal = (value: number) => value.toFixed(2);
+  // TxLINE quotes every quarter-line; show only the classic .5 lines (no
+  // push/void outcomes), capped to keep the board readable.
+  const mainLines = (lines: OddsBoard["overUnder"]) =>
+    lines
+      .filter((entry) => (entry.line * 2) % 1 === 0 && entry.line % 1 !== 0)
+      .slice(0, 6);
+
+  const overUnder = mainLines(board.overUnder);
+  const handicap = mainLines(board.asianHandicap);
+
+  return (
+    <div className="odds-board">
+      <p className="muted">
+        {finished
+          ? "Closing prices (last pre-match quotes)."
+          : "Latest quoted prices."}
+      </p>
+      {board.result ? (
+        <div className="odds-market">
+          <p className="stat-title">Match result</p>
+          <div className="odds-line">
+            <span className="odds-cell">
+              <em>{fixture.homeTeam}</em> {decimal(board.result.home)}
+            </span>
+            <span className="odds-cell">
+              <em>Draw</em> {decimal(board.result.draw)}
+            </span>
+            <span className="odds-cell">
+              <em>{fixture.awayTeam}</em> {decimal(board.result.away)}
+            </span>
+          </div>
+        </div>
+      ) : null}
+      {overUnder.length ? (
+        <div className="odds-market">
+          <p className="stat-title">Total goals over/under</p>
+          {overUnder.map((entry) => (
+            <div className="odds-line" key={entry.line}>
+              <span className="odds-cell muted">{entry.line}</span>
+              <span className="odds-cell">
+                <em>Over</em> {decimal(entry.prices[0])}
+              </span>
+              <span className="odds-cell">
+                <em>Under</em> {decimal(entry.prices[1])}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {handicap.length ? (
+        <div className="odds-market">
+          <p className="stat-title">Asian handicap ({fixture.homeTeam})</p>
+          {handicap.map((entry) => (
+            <div className="odds-line" key={entry.line}>
+              <span className="odds-cell muted">
+                {entry.line > 0 ? `+${entry.line}` : entry.line}
+              </span>
+              <span className="odds-cell">
+                <em>{fixture.homeTeam}</em> {decimal(entry.prices[0])}
+              </span>
+              <span className="odds-cell">
+                <em>{fixture.awayTeam}</em> {decimal(entry.prices[1])}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function LineupsSection({
   goals,
   lineups,
@@ -943,6 +1273,9 @@ function LineupsSection({
 
   const renderPlayer = (player: NormalizedLineups["teams"][number]["players"][number]) => (
     <li key={`${player.playerId}-${player.name}`}>
+      {player.position ? (
+        <span className="pos-badge">{player.position}</span>
+      ) : null}
       {player.number ? `#${player.number} ` : ""}
       {player.name}
       {typeof player.playerId === "number" && goalCounts.has(player.playerId)

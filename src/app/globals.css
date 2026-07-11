@@ -2643,3 +2643,165 @@ dt {
   margin-left: auto;
   width: 18px;
 }
+
+/* Live match clock chip in the match header. */
+.match-clock {
+  color: var(--brand);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin-left: 10px;
+}
+
+/* Momentum chart: home pressure above the midline, away below. */
+.momentum-chart {
+  align-items: stretch;
+  border-radius: 10px;
+  display: flex;
+  gap: 3px;
+  height: 120px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding: 6px;
+  position: relative;
+  background: color-mix(in srgb, var(--muted-foreground) 6%, transparent);
+}
+.momentum-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 14px;
+}
+.momentum-half {
+  display: flex;
+  flex: 1;
+  position: relative;
+}
+.momentum-half.top {
+  align-items: flex-end;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+}
+.momentum-half.bottom {
+  align-items: flex-start;
+}
+.momentum-bar {
+  border-radius: 3px;
+  min-height: 2px;
+  width: 100%;
+}
+.momentum-bar.home {
+  background: var(--brand);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.momentum-bar.away {
+  background: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.momentum-legend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.momentum-dot {
+  border-radius: 50%;
+  display: inline-block;
+  height: 9px;
+  width: 9px;
+}
+.momentum-dot.home { background: var(--brand); }
+.momentum-dot.away {
+  background: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
+}
+
+/* Match info card. */
+.match-info-grid {
+  display: grid;
+  gap: 8px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  margin: 12px 0 10px;
+}
+.match-info-row {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted-foreground) 18%, transparent);
+  padding-bottom: 6px;
+}
+.match-info-row dt {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.match-info-row dd {
+  align-items: center;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 7px;
+  margin: 0;
+  text-transform: capitalize;
+}
+.kit-swatch {
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+  border-radius: 50%;
+  display: inline-block;
+  height: 12px;
+  width: 12px;
+}
+
+/* Odds board: current prices per market family. */
+.odds-board {
+  display: grid;
+  gap: 18px;
+  margin: 14px 0;
+}
+.odds-market .stat-title { margin-bottom: 6px; }
+.odds-line {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+}
+.odds-cell {
+  background: color-mix(in srgb, var(--muted-foreground) 8%, transparent);
+  border-radius: 8px;
+  flex: 1;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 6px 10px;
+  text-align: center;
+}
+.odds-cell em {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  margin-right: 6px;
+}
+.odds-cell.muted {
+  background: none;
+  color: var(--muted-foreground);
+  flex: 0 0 44px;
+  font-weight: 600;
+  padding-left: 0;
+  text-align: left;
+}
+
+/* Lineup position badges. */
+.pos-badge {
+  background: color-mix(in srgb, var(--muted-foreground) 12%, transparent);
+  border-radius: 5px;
+  color: var(--muted-foreground);
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  margin-right: 7px;
+  min-width: 30px;
+  padding: 1px 4px;
+  text-align: center;
+}

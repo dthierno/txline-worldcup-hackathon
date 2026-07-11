@@ -1,5 +1,6 @@
 import { getTxlineConfig } from "./txline-config";
 import {
+  buildOddsBoard,
   buildOddsMovementSeries,
   extractLineups,
   normalizeOddsSnapshot,
@@ -12,6 +13,7 @@ import {
   type NormalizedTxlineOdds,
   type NormalizedTxlineScore,
   type NormalizedTxlineScoreUpdate,
+  type OddsBoard,
   type TxlineOddsSeriesPoint,
   type TxlineValidationSummary,
 } from "./txline-normalize";
@@ -52,6 +54,10 @@ type TxlineFixture = {
 };
 
 export type TxlineOddsUpdatesSummary = {
+  board: OddsBoard;
+  // Latest pre-match prices (closing line): the meaningful board once a match
+  // has started or finished, when `board` holds extreme in-play prices.
+  closingBoard: OddsBoard;
   count: number;
   latestTs: number | null;
   marketTypes: string[];
@@ -208,6 +214,15 @@ export async function fetchTxlineOddsUpdates(
   }, null);
 
   return {
+    board: buildOddsBoard(entries),
+    closingBoard: buildOddsBoard(
+      entries.filter(
+        (entry) =>
+          entry &&
+          typeof entry === "object" &&
+          !(entry as Record<string, unknown>).InRunning,
+      ),
+    ),
     count: entries.length,
     latestTs,
     marketTypes,

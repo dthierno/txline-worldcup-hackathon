@@ -66,6 +66,7 @@ export type TxlineOddsSeriesPoint = {
 
 export type TxlineOddsUpdatesData = {
   board?: OddsBoard;
+  closingBoard?: OddsBoard;
   count: number;
   latestTs: number | null;
   marketTypes: string[];
@@ -481,6 +482,18 @@ export function getDisplayUpdates(
   // The PlayerId may sit on a sibling record of the same event, so index it by
   // event Id first, then resolve names through the lineups directory.
   const eventPlayerIds = new Map<string, number>();
+  // Injury outcomes also land on a later sibling of the same event.
+  const injuryOutcomes = new Map<number, string>();
+
+  for (const update of updates) {
+    if (
+      update.action === "injury" &&
+      update.eventId !== undefined &&
+      typeof update.data?.Outcome === "string"
+    ) {
+      injuryOutcomes.set(update.eventId, update.data.Outcome);
+    }
+  }
 
   for (const update of sortedUpdates) {
     if (
@@ -676,21 +689,33 @@ export function getDisplayUpdates(
 
     if (action === "injury") {
       const injuredPlayer = resolvePlayerName(update);
-      const outcome = String(update.data?.Outcome ?? "");
+      const outcome = String(
+        (update.eventId !== undefined
+          ? injuryOutcomes.get(update.eventId)
+          : undefined) ??
+          update.data?.Outcome ??
+          "",
+      );
       const status =
         outcome === "NotReturning"
           ? " - cannot continue"
           : outcome === "OnPitch"
             ? " - continues after treatment"
             : "";
+      // One line per injury event: siblings share the event Id and would
+      // otherwise emit a bare line plus an outcome line.
+      const injuryKey = `injury-${update.eventId ?? update.seq}`;
 
-      text = `${prefix}Injury${
-        injuredPlayer
-          ? `: ${injuredPlayer}`
-          : teamName
-            ? ` stoppage for ${teamName}`
-            : " stoppage"
-      }${status}.`;
+      if (!seen.has(injuryKey)) {
+        seen.add(injuryKey);
+        text = `${prefix}Injury${
+          injuredPlayer
+            ? `: ${injuredPlayer}`
+            : teamName
+              ? ` stoppage for ${teamName}`
+              : " stoppage"
+        }${status}.`;
+      }
     }
 
     if (action === "halftime_finalised") {

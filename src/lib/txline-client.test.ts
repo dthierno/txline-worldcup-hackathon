@@ -6,7 +6,18 @@ import {
   normalizeOddsSnapshot,
   normalizeScoreSnapshot,
 } from "./txline-client";
-import { extractGoalCalls, extractGoals, extractSubstitutionEvents } from "./txline-normalize";
+import {
+  applyScoutCorrections,
+  buildOddsBoard,
+  deriveMatchClock,
+  extractGoalCalls,
+  extractGoals,
+  extractMatchInfo,
+  extractMomentum,
+  extractPenaltyEvents,
+  extractSubstitutionEvents,
+  formatLiveMinute,
+} from "./txline-normalize";
 
 describe("txline client normalizers", () => {
   it("normalizes score arrays with object Stats maps", () => {
@@ -332,5 +343,210 @@ describe("txline client normalizers", () => {
     ).toEqual([
       { clockSeconds: 3715, playerInId: 111, playerOutId: 222 },
     ]);
+  });
+
+  it("drops discarded events and applies shot amends", () => {
+    const corrected = applyScoutCorrections([
+      // A corner later discarded by the scout (shared event Id).
+      {
+        action: "corner",
+        clockSeconds: 100,
+        eventId: 470,
+        participant: 1,
+        seq: 10,
+      },
+      { action: "action_discarded", eventId: 470, seq: 11 },
+      // A shot re-graded from OnTarget to OffTarget via action_amend.
+      { action: "shot", clockSeconds: 215, eventId: 63, seq: 12 },
+      {
+        action: "shot",
+        clockSeconds: 215,
+        data: { Outcome: "OnTarget" },
+        eventId: 63,
+        participant: 1,
+        seq: 13,
+      },
+      {
+        action: "action_amend",
+        data: {
+          Action: "shot",
+          New: { Clock: { Running: true, Seconds: 215 }, Outcome: "OffTarget" },
+          Previous: {
+            Clock: { Running: true, Seconds: 215 },
+            Outcome: "OnTarget",
+          },
+        },
+        eventId: 108,
+        seq: 14,
+      },
+    ]);
+
+    expect(corrected.some((update) => update.action === "corner")).toBe(false);
+    expect(
+      corrected.find((update) => update.seq === 13)?.data?.Outcome,
+    ).toBe("OffTarget");
+    // The empty sibling record is untouched.
+    expect(corrected.find((update) => update.seq === 12)?.data).toBeUndefined();
+  });
+
+  it("derives the latest match clock and phase", () => {
+    expect(
+      deriveMatchClock([
+        { clockRunning: false, clockSeconds: 0, seq: 19, statusId: 2, ts: 1 },
+        { clockRunning: true, clockSeconds: 2705, seq: 560, statusId: 4, ts: 9 },
+      ]),
+    ).toEqual({ running: true, seconds: 2705, statusId: 4, ts: 9 });
+    expect(formatLiveMinute(2705, 4)).toBe("46'");
+    expect(formatLiveMinute(47 * 60, 2)).toBe("45+3'");
+    expect(formatLiveMinute(92 * 60, 4)).toBe("90+3'");
+  });
+
+  it("extracts scene-setting match info", () => {
+    expect(
+      extractMatchInfo([
+        {
+          action: "weather",
+          data: { Conditions: ["Sunny", "Day"] },
+          participant1IsHome: true,
+          seq: 1,
+        },
+        {
+          action: "pitch",
+          data: { Conditions: ["Good"] },
+          participant1IsHome: true,
+          seq: 2,
+        },
+        {
+          action: "venue",
+          data: { Type: "neutral" },
+          participant1IsHome: true,
+          seq: 3,
+        },
+        {
+          action: "jersey",
+          data: { Color: "aqua" },
+          participant: 1,
+          participant1IsHome: true,
+          seq: 4,
+        },
+        {
+          action: "kickoff_team",
+          participant: 2,
+          participant1IsHome: true,
+          seq: 5,
+        },
+      ]),
+    ).toEqual({
+      awayJersey: undefined,
+      homeJersey: "aqua",
+      kickoffSide: "away",
+      pitch: "Good",
+      venueType: "neutral",
+      weather: "Sunny, Day",
+    });
+  });
+
+  it("buckets attack momentum per side and dedupes chance siblings", () => {
+    const buckets = extractMomentum([
+      {
+        action: "danger_possession",
+        clockSeconds: 30,
+        participant: 1,
+        participant1IsHome: true,
+        seq: 1,
+      },
+      {
+        action: "high_danger_possession",
+        clockSeconds: 90,
+        participant: 2,
+        seq: 2,
+      },
+      // Two sibling records of the same shot: counted once.
+      { action: "shot", clockSeconds: 120, eventId: 9, participant: 1, seq: 3 },
+      { action: "shot", clockSeconds: 120, eventId: 9, participant: 1, seq: 4 },
+      { action: "safe_possession", clockSeconds: 150, participant: 1, seq: 5 },
+      { action: "attack_possession", clockSeconds: 400, participant: 2, seq: 6 },
+    ]);
+
+    expect(buckets).toEqual([
+      { awayPressure: 3, homePressure: 5, startMinute: 0 },
+      { awayPressure: 1, homePressure: 0, startMinute: 5 },
+    ]);
+  });
+
+  it("settles penalties by outcome record or score advance", () => {
+    const base = { awayGoals: 0, homeGoals: 0, participant1IsHome: true };
+    const events = extractPenaltyEvents([
+      { ...base, action: "penalty", clockSeconds: 1472, eventId: 296, participant: 1, seq: 313 },
+      { ...base, action: "var_end", data: { Outcome: "Stands" }, seq: 320 },
+      {
+        ...base,
+        action: "penalty_outcome",
+        data: { Outcome: "Missed" },
+        seq: 322,
+      },
+      { ...base, action: "penalty", clockSeconds: 5000, eventId: 800, participant: 2, seq: 900 },
+      { ...base, action: "goal", awayGoals: 1, seq: 905 },
+      { ...base, action: "game_finalised", awayGoals: 1, seq: 999 },
+    ]);
+
+    expect(events).toMatchObject([
+      {
+        outcome: "missed",
+        participant: 1,
+        resolved: true,
+        varOutcome: "Stands",
+        voided: false,
+      },
+      { outcome: "scored", participant: 2, resolved: true },
+    ]);
+  });
+
+  it("builds a full-period odds board with latest prices per line", () => {
+    expect(
+      buildOddsBoard([
+        {
+          Prices: [2195, 2583, 6360],
+          SuperOddsType: "1X2_PARTICIPANT_RESULT",
+          Ts: 5,
+        },
+        // Half-time market: excluded.
+        {
+          MarketPeriod: "half=1",
+          Prices: [1500, 3000, 8000],
+          SuperOddsType: "1X2_PARTICIPANT_RESULT",
+          Ts: 9,
+        },
+        // Suspended (empty prices): skipped.
+        {
+          MarketParameters: "line=2.5",
+          Prices: [],
+          SuperOddsType: "OVERUNDER_PARTICIPANT_GOALS",
+          Ts: 9,
+        },
+        {
+          MarketParameters: "line=2.5",
+          Prices: [1900, 1900],
+          SuperOddsType: "OVERUNDER_PARTICIPANT_GOALS",
+          Ts: 3,
+        },
+        {
+          MarketParameters: "line=2.5",
+          Prices: [2100, 1700],
+          SuperOddsType: "OVERUNDER_PARTICIPANT_GOALS",
+          Ts: 4,
+        },
+        {
+          MarketParameters: "line=-0.5",
+          Prices: [1800, 2000],
+          SuperOddsType: "ASIANHANDICAP_PARTICIPANT_GOALS",
+          Ts: 4,
+        },
+      ]),
+    ).toEqual({
+      asianHandicap: [{ line: -0.5, prices: [1.8, 2], ts: 4 }],
+      overUnder: [{ line: 2.5, prices: [2.1, 1.7], ts: 4 }],
+      result: { away: 6.36, draw: 2.583, home: 2.195, ts: 5 },
+    });
   });
 });
