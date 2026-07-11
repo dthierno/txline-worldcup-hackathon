@@ -2274,12 +2274,13 @@ dt {
   padding: 0 2px;
 }
 .pc-pct {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 600;
+  /* Exact values from the reference component's computed styles. */
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 10.5px;
+  font-weight: 400;
 }
 .pc-track {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   height: 4px;
   overflow: hidden;
