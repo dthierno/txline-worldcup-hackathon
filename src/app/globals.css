@@ -2168,20 +2168,20 @@ dt {
   z-index: 0;
 }
 .pc-panel::before {
-  animation: pc-glow-home 6s ease-in-out infinite alternate;
+  animation: pc-glow-home 13s ease-in-out infinite alternate;
   background: radial-gradient(
-    70% 120% at 0% 0%,
-    color-mix(in srgb, var(--glow-home) 78%, transparent),
-    transparent 62%
+    72% 122% at 0% 0%,
+    color-mix(in srgb, var(--glow-home) 62%, transparent),
+    transparent 64%
   );
 }
 .pc-panel::after {
-  animation: pc-glow-away 6s ease-in-out infinite alternate;
-  animation-delay: -3s;
+  animation: pc-glow-away 13s ease-in-out infinite alternate;
+  animation-delay: -6.5s;
   background: radial-gradient(
-    70% 120% at 100% 0%,
-    color-mix(in srgb, var(--glow-away) 78%, transparent),
-    transparent 62%
+    72% 122% at 100% 0%,
+    color-mix(in srgb, var(--glow-away) 62%, transparent),
+    transparent 64%
   );
 }
 /* Keep the card content above the animated glow layers. */
@@ -2191,32 +2191,32 @@ dt {
 }
 @keyframes pc-glow-home {
   from {
-    opacity: 0.55;
-    transform: scale(1) translate3d(-12%, 8%, 0);
+    opacity: 0.65;
+    transform: scale(1) translate3d(-5%, 3%, 0);
   }
   to {
     opacity: 1;
-    transform: scale(1.35) translate3d(22%, -12%, 0);
+    transform: scale(1.12) translate3d(8%, -5%, 0);
   }
 }
 @keyframes pc-glow-away {
   from {
     opacity: 1;
-    transform: scale(1.35) translate3d(-22%, -12%, 0);
+    transform: scale(1.12) translate3d(-8%, -5%, 0);
   }
   to {
-    opacity: 0.55;
-    transform: scale(1) translate3d(12%, 8%, 0);
+    opacity: 0.65;
+    transform: scale(1) translate3d(5%, 3%, 0);
   }
 }
 /* Desync neighbouring cards so the whole feed doesn't pulse in unison. */
 .pred-day-block:nth-child(3n + 2) .pc-panel::before,
 .pred-day-block:nth-child(3n + 2) .pc-panel::after {
-  animation-duration: 7.5s;
+  animation-duration: 15s;
 }
 .pred-day-block:nth-child(3n + 3) .pc-panel::before,
 .pred-day-block:nth-child(3n + 3) .pc-panel::after {
-  animation-duration: 5s;
+  animation-duration: 11s;
 }
 @media (prefers-reduced-motion: reduce) {
   .pc-panel::before,
