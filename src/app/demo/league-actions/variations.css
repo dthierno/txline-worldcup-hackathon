@@ -1,0 +1,650 @@
+/* Design explorations for the Create / Join league component.
+   Ten complete concepts. Markup is identical across all of them — every
+   concept is achieved purely through the `.lv-<id>` wrapper class. */
+
+.lv-page {
+  margin: 0 auto;
+  max-width: 1088px;
+  padding: 40px 24px 96px;
+}
+.lv-page-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 8px;
+  padding-bottom: 24px;
+}
+.lv-page-head h1 {
+  color: #fff;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.lv-page-head p {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 15px;
+  margin: 8px 0 0;
+  max-width: 60ch;
+}
+.lv-sec {
+  margin-top: 44px;
+}
+.lv-sec-head {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.lv-num {
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.lv-name {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 650;
+  margin: 0;
+}
+.lv-concept {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13.5px;
+  margin: 2px 0 0;
+}
+
+/* ---------- shared card skeleton ---------- */
+.lv {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 720px) {
+  .lv {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-card {
+  align-items: center;
+  background: #111119;
+  border-radius: 18px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  gap: 16px;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 18px 20px;
+  position: relative;
+  text-align: left;
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+  width: 100%;
+}
+.lv-card:active {
+  transform: scale(0.985);
+}
+.lv-icon {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  display: flex;
+  flex-shrink: 0;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+.lv-icon svg {
+  height: 26px;
+  width: 26px;
+}
+.lv-card--create .lv-icon {
+  color: #4ade80;
+}
+.lv-card--join .lv-icon {
+  color: #60a5fa;
+}
+.lv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.lv-kicker {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.lv-card--create .lv-kicker {
+  color: #4ade80;
+}
+.lv-card--join .lv-kicker {
+  color: #60a5fa;
+}
+.lv-title {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.lv-desc {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.lv-arrow {
+  align-self: center;
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.lv-arrow svg {
+  height: 20px;
+  width: 20px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lv-card:hover .lv-arrow {
+    transform: translateX(3px);
+  }
+}
+
+/* ======================================================================
+   01 · MATCH TICKET — perforated stub, World Cup colour strips
+   ====================================================================== */
+.lv-ticket .lv-card {
+  align-items: stretch;
+  background: #0f0f15;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  min-height: 96px;
+  padding: 0;
+  -webkit-mask-image:
+    radial-gradient(circle 11px at 79px 0, transparent 11px, #000 12px),
+    radial-gradient(circle 11px at 79px 100%, transparent 11px, #000 12px);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  mask-image:
+    radial-gradient(circle 11px at 79px 0, transparent 11px, #000 12px),
+    radial-gradient(circle 11px at 79px 100%, transparent 11px, #000 12px);
+  mask-repeat: no-repeat;
+}
+.lv-ticket .lv-icon {
+  align-self: stretch;
+  background: none;
+  border-radius: 0;
+  border-right: 2px dashed rgba(255, 255, 255, 0.16);
+  color: #fff;
+  height: auto;
+  width: 79px;
+}
+.lv-ticket .lv-card--create .lv-icon,
+.lv-ticket .lv-card--join .lv-icon {
+  color: #fff;
+}
+.lv-ticket .lv-icon svg {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+  height: 28px;
+  width: 28px;
+}
+.lv-ticket .lv-body {
+  justify-content: center;
+  padding: 16px 16px 16px 20px;
+}
+.lv-ticket .lv-arrow {
+  margin-right: 18px;
+}
+.lv-ticket .lv-card::after {
+  content: "";
+  inset: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 22%, transparent 66%);
+  mask-image: linear-gradient(90deg, #000 0, #000 22%, transparent 66%);
+  opacity: 0.36;
+  position: absolute;
+  z-index: -1;
+}
+.lv-ticket .lv-card--create::after {
+  background: repeating-linear-gradient(
+    60deg, #dc2626 0 10px, #ea580c 10px 20px, #a5b4fc 20px 30px,
+    #2563eb 30px 40px, #7c3aed 40px 50px, #16a34a 50px 60px, #22d3ee 60px 70px
+  );
+}
+.lv-ticket .lv-card--join::after {
+  background: repeating-linear-gradient(
+    120deg, #2563eb 0 10px, #7c3aed 10px 20px, #22d3ee 20px 30px,
+    #16a34a 30px 40px, #a5b4fc 40px 50px, #ea580c 50px 60px, #dc2626 60px 70px
+  );
+}
+
+/* ======================================================================
+   02 · STADIUM SCOREBOARD — LED dot-matrix, monospace readout
+   ====================================================================== */
+.lv-scoreboard .lv-card {
+  background: #080b08;
+  border: 1px solid #1e3a1e;
+  box-shadow: 0 0 26px rgba(74, 222, 128, 0.07), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.lv-scoreboard .lv-card--join {
+  border-color: #16303f;
+  box-shadow: 0 0 26px rgba(56, 189, 248, 0.07), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.lv-scoreboard .lv-card::before {
+  background-image: radial-gradient(rgba(74, 222, 128, 0.16) 1px, transparent 1.4px);
+  background-size: 8px 8px;
+  content: "";
+  inset: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000, transparent 72%);
+  mask-image: linear-gradient(90deg, #000, transparent 72%);
+  position: absolute;
+  z-index: -1;
+}
+.lv-scoreboard .lv-card--join::before {
+  background-image: radial-gradient(rgba(56, 189, 248, 0.16) 1px, transparent 1.4px);
+}
+.lv-scoreboard .lv-icon {
+  background: #0f1a0f;
+  border: 1px solid #245024;
+  border-radius: 8px;
+  box-shadow: inset 0 0 12px rgba(74, 222, 128, 0.25);
+  color: #4ade80;
+}
+.lv-scoreboard .lv-card--join .lv-icon {
+  background: #0c1720;
+  border-color: #1e4a66;
+  box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+}
+.lv-scoreboard .lv-kicker {
+  color: #4ade80;
+  font-family: var(--font-mono);
+}
+.lv-scoreboard .lv-card--join .lv-kicker {
+  color: #38bdf8;
+}
+.lv-scoreboard .lv-title {
+  color: #eafff0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 9px rgba(74, 222, 128, 0.4);
+  text-transform: uppercase;
+}
+.lv-scoreboard .lv-card--join .lv-title {
+  color: #eaf7ff;
+  text-shadow: 0 0 9px rgba(56, 189, 248, 0.4);
+}
+.lv-scoreboard .lv-desc {
+  color: #5f8f5f;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.lv-scoreboard .lv-card--join .lv-desc {
+  color: #4f7f9a;
+}
+.lv-scoreboard .lv-arrow {
+  color: #4ade80;
+}
+.lv-scoreboard .lv-card--join .lv-arrow {
+  color: #38bdf8;
+}
+
+/* ======================================================================
+   03 · ON THE PITCH — mowed turf stripes, white line markings
+   ====================================================================== */
+.lv-pitch .lv-card {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 24px, rgba(0, 0, 0, 0.06) 24px 48px),
+    linear-gradient(160deg, #1d9548, #10743a);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  gap: 20px;
+}
+.lv-pitch .lv-card--join {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 24px, rgba(0, 0, 0, 0.06) 24px 48px),
+    linear-gradient(160deg, #12894a, #0a6a3a);
+}
+.lv-pitch .lv-icon {
+  background: none;
+  color: #fff;
+  height: 62px;
+  position: relative;
+  width: 62px;
+}
+.lv-pitch .lv-icon::before {
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  border-radius: 50%;
+  content: "";
+  height: 62px;
+  position: absolute;
+  width: 62px;
+}
+.lv-pitch .lv-card::after {
+  border-left: 2px solid rgba(255, 255, 255, 0.5);
+  bottom: 0;
+  content: "";
+  left: 74px;
+  position: absolute;
+  top: 0;
+  z-index: -1;
+}
+.lv-pitch .lv-kicker {
+  color: rgba(255, 255, 255, 0.85);
+}
+.lv-pitch .lv-title {
+  color: #fff;
+}
+.lv-pitch .lv-desc {
+  color: rgba(255, 255, 255, 0.75);
+}
+.lv-pitch .lv-arrow {
+  color: #fff;
+}
+
+/* ======================================================================
+   04 · FROSTED GLASS — translucent panels over a colour wash
+   ====================================================================== */
+.lv-glass {
+  background:
+    radial-gradient(55% 80% at 12% 18%, #7c3aed, transparent 60%),
+    radial-gradient(50% 70% at 88% 26%, #2563eb, transparent 60%),
+    radial-gradient(60% 85% at 72% 96%, #dc2626, transparent 60%),
+    radial-gradient(52% 66% at 26% 88%, #16a34a, transparent 60%),
+    #0b0b12;
+  border-radius: 24px;
+  padding: 22px;
+}
+.lv-glass .lv-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.lv-glass .lv-icon {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+.lv-glass .lv-kicker {
+  color: rgba(255, 255, 255, 0.9);
+}
+.lv-glass .lv-title {
+  color: #fff;
+}
+.lv-glass .lv-desc {
+  color: rgba(255, 255, 255, 0.78);
+}
+.lv-glass .lv-arrow {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ======================================================================
+   05 · NEO-BRUTALIST — hard borders, offset shadow, flat colour
+   ====================================================================== */
+.lv-brutalist .lv-card {
+  border: 3px solid #0a0a0a;
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 #0a0a0a;
+  color: #0a0a0a;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.lv-brutalist .lv-card--create {
+  background: #c6f24e;
+}
+.lv-brutalist .lv-card--join {
+  background: #7cc6ff;
+}
+.lv-brutalist .lv-card:active {
+  box-shadow: 2px 2px 0 #0a0a0a;
+  transform: translate(3px, 3px);
+}
+.lv-brutalist .lv-icon {
+  background: #0a0a0a;
+  border-radius: 10px;
+  color: #fff;
+}
+.lv-brutalist .lv-card--create .lv-icon,
+.lv-brutalist .lv-card--join .lv-icon {
+  color: #fff;
+}
+.lv-brutalist .lv-kicker {
+  color: #0a0a0a;
+  font-weight: 700;
+}
+.lv-brutalist .lv-title {
+  color: #0a0a0a;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.lv-brutalist .lv-desc {
+  color: rgba(10, 10, 10, 0.72);
+  font-weight: 500;
+}
+.lv-brutalist .lv-arrow {
+  color: #0a0a0a;
+}
+
+/* ======================================================================
+   06 · AURORA — soft flowing mesh gradient
+   ====================================================================== */
+.lv-aurora .lv-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.lv-aurora .lv-card--create {
+  background:
+    radial-gradient(80% 130% at 0% 0%, #16a34a, transparent 55%),
+    radial-gradient(90% 140% at 32% 100%, #2563eb, transparent 55%),
+    radial-gradient(75% 120% at 100% 18%, #7c3aed, transparent 55%),
+    #0d1220;
+}
+.lv-aurora .lv-card--join {
+  background:
+    radial-gradient(80% 130% at 0% 100%, #2563eb, transparent 55%),
+    radial-gradient(90% 140% at 40% 0%, #7c3aed, transparent 55%),
+    radial-gradient(75% 120% at 100% 82%, #22d3ee, transparent 55%),
+    #0d1220;
+}
+.lv-aurora .lv-card::before {
+  background: linear-gradient(90deg, transparent 30%, rgba(6, 8, 16, 0.42));
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+.lv-aurora .lv-icon {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  color: #fff;
+}
+.lv-aurora .lv-kicker {
+  color: rgba(255, 255, 255, 0.9);
+}
+.lv-aurora .lv-desc {
+  color: rgba(255, 255, 255, 0.78);
+}
+.lv-aurora .lv-arrow {
+  color: #fff;
+}
+
+/* ======================================================================
+   07 · GOLD FINAL — charcoal and gold, VIP finishing
+   ====================================================================== */
+.lv-gold .lv-card {
+  background: linear-gradient(160deg, #1b1712, #110f0a);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  box-shadow: inset 0 1px 0 rgba(245, 214, 123, 0.16);
+}
+.lv-gold .lv-card::before {
+  background: radial-gradient(70% 130% at 12% 0%, rgba(212, 175, 55, 0.18), transparent 55%);
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+.lv-gold .lv-icon {
+  background: linear-gradient(160deg, #f5d67b, #c99b32);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.35);
+  color: #2a2110;
+}
+.lv-gold .lv-card--create .lv-icon,
+.lv-gold .lv-card--join .lv-icon {
+  color: #2a2110;
+}
+.lv-gold .lv-kicker {
+  color: #d4af37;
+  letter-spacing: 0.2em;
+}
+.lv-gold .lv-title {
+  color: #f8f0d8;
+}
+.lv-gold .lv-desc {
+  color: rgba(243, 234, 210, 0.6);
+}
+.lv-gold .lv-arrow {
+  color: #d4af37;
+}
+
+/* ======================================================================
+   08 · CONFETTI — celebration scatter, playful
+   ====================================================================== */
+.lv-confetti .lv-card {
+  background: #12121b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.lv-confetti .lv-card::before {
+  content: "";
+  inset: 0;
+  background-image:
+    radial-gradient(circle 3px at 10% 24%, #dc2626 96%, transparent),
+    radial-gradient(circle 2.5px at 20% 66%, #22d3ee 96%, transparent),
+    radial-gradient(circle 2px at 30% 32%, #4ade80 96%, transparent),
+    radial-gradient(circle 3px at 40% 78%, #7c3aed 96%, transparent),
+    radial-gradient(circle 2px at 15% 84%, #ea580c 96%, transparent),
+    radial-gradient(circle 2.5px at 48% 22%, #2563eb 96%, transparent),
+    radial-gradient(circle 2px at 7% 50%, #f5d67b 96%, transparent),
+    radial-gradient(circle 2.5px at 26% 12%, #ec4899 96%, transparent),
+    radial-gradient(circle 2px at 36% 54%, #f5d67b 96%, transparent),
+    radial-gradient(circle 3px at 52% 60%, #16a34a 96%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000, transparent 78%);
+  mask-image: linear-gradient(90deg, #000, transparent 78%);
+  position: absolute;
+  z-index: -1;
+}
+.lv-confetti .lv-icon {
+  border-radius: 14px;
+}
+.lv-confetti .lv-card--create .lv-icon {
+  background: rgba(74, 222, 128, 0.16);
+}
+.lv-confetti .lv-card--join .lv-icon {
+  background: rgba(96, 165, 250, 0.16);
+}
+
+/* ======================================================================
+   09 · EDITORIAL — light, minimal, generous whitespace
+   ====================================================================== */
+.lv-editorial .lv-card {
+  background: #f4f2ec;
+  border: 1px solid #e3ddd1;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  color: #16130f;
+  padding: 20px 22px 20px 26px;
+}
+.lv-editorial .lv-card::before {
+  bottom: 0;
+  content: "";
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 4px;
+  z-index: -1;
+}
+.lv-editorial .lv-card--create::before {
+  background: #16a34a;
+}
+.lv-editorial .lv-card--join::before {
+  background: #2563eb;
+}
+.lv-editorial .lv-icon {
+  background: #16130f;
+  border-radius: 10px;
+  height: 44px;
+  width: 44px;
+}
+.lv-editorial .lv-card--create .lv-icon,
+.lv-editorial .lv-card--join .lv-icon {
+  color: #f4f2ec;
+}
+.lv-editorial .lv-card--create .lv-kicker {
+  color: #157a37;
+}
+.lv-editorial .lv-card--join .lv-kicker {
+  color: #1d54c4;
+}
+.lv-editorial .lv-title {
+  color: #16130f;
+  font-weight: 700;
+}
+.lv-editorial .lv-desc {
+  color: #6b665a;
+}
+.lv-editorial .lv-arrow {
+  color: #16130f;
+}
+
+/* ======================================================================
+   10 · TEAM KIT — jersey stripes and squad number
+   ====================================================================== */
+.lv-jersey .lv-card {
+  align-items: stretch;
+  background: #101015;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 0;
+  min-height: 92px;
+  padding: 0;
+}
+.lv-jersey .lv-icon {
+  align-self: stretch;
+  border-radius: 0;
+  color: #fff;
+  height: auto;
+  position: relative;
+  width: 92px;
+}
+.lv-jersey .lv-card--create .lv-icon {
+  background: repeating-linear-gradient(90deg, #16a34a 0 12px, #0f7a34 12px 24px);
+}
+.lv-jersey .lv-card--join .lv-icon {
+  background: repeating-linear-gradient(90deg, #2563eb 0 12px, #1c47ad 12px 24px);
+}
+.lv-jersey .lv-icon svg {
+  display: none;
+}
+.lv-jersey .lv-icon::before {
+  color: #fff;
+  content: "10";
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 800;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.lv-jersey .lv-card--join .lv-icon::before {
+  content: "07";
+}
+.lv-jersey .lv-body {
+  justify-content: center;
+  padding: 16px 18px;
+}
+.lv-jersey .lv-arrow {
+  margin-right: 18px;
+}
+
+/* Respect reduced motion across every concept. */
+@media (prefers-reduced-motion: reduce) {
+  .lv-card,
+  .lv-arrow {
+    transition: none;
+  }
+  .lv-card:active {
+    transform: none;
+  }
+}
