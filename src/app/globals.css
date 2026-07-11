@@ -197,9 +197,9 @@ main {
   .league-card:hover::after {
     opacity: 0.5;
   }
-  .league-card:hover .league-card-arrow {
-    color: rgba(255, 255, 255, 0.75);
-    transform: translateX(3px);
+  .league-card:hover .league-card-add {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.08);
   }
 }
 /* Ticket stub: the icon, split off by a dashed perforation. */
@@ -250,18 +250,27 @@ main {
   font-size: 13px;
   line-height: 1.4;
 }
-.league-card-arrow {
+/* Circular "+" affordance in place of the old chevron. */
+.league-card-add {
+  align-items: center;
   align-self: center;
-  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
   flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
   margin: 0 18px 0 auto;
   transition:
-    color 0.18s ease,
+    background 0.18s ease,
     transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+  width: 34px;
 }
-.league-card-arrow svg {
-  height: 20px;
-  width: 20px;
+.league-card-add svg {
+  height: 18px;
+  width: 18px;
 }
 .league-form {
   display: flex;
@@ -275,7 +284,7 @@ main {
 }
 @media (prefers-reduced-motion: reduce) {
   .league-card,
-  .league-card-arrow {
+  .league-card-add {
     transition: none;
   }
   .league-card:active {

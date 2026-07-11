@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  AddTeamIcon,
-  ArrowRight01Icon,
-  Ticket01Icon,
-} from "@hugeicons/core-free-icons";
+import { AddTeamIcon, Ticket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
 
@@ -45,8 +41,16 @@ export function LeagueActions() {
               Set one up and invite your friends to predict.
             </span>
           </span>
-          <span className="league-card-arrow" aria-hidden="true">
-            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+          <span className="league-card-add" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </span>
         </DialogTrigger>
         <DialogContent>
@@ -102,8 +106,16 @@ export function LeagueActions() {
               Got a code from a friend? Jump straight in.
             </span>
           </span>
-          <span className="league-card-arrow" aria-hidden="true">
-            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+          <span className="league-card-add" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </span>
         </DialogTrigger>
         <DialogContent>
