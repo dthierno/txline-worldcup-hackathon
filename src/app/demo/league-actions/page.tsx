@@ -23,6 +23,16 @@ const VARIATIONS = [
   { id: "confetti", name: "Confetti", concept: "Celebration scatter, playful" },
   { id: "editorial", name: "Editorial", concept: "Light, minimal, generous whitespace" },
   { id: "jersey", name: "Team Kit", concept: "Jersey stripes and squad number" },
+  { id: "boarding", name: "Boarding Pass", concept: "Fielded travel doc with a barcode stub" },
+  { id: "terminal", name: "Terminal", concept: "CLI window, monospace, blinking cursor" },
+  { id: "holo", name: "Trading Card", concept: "Holographic foil sheen and inner frame" },
+  { id: "blueprint", name: "Blueprint", concept: "Cyan schematic grid on navy" },
+  { id: "neon", name: "Neon Sign", concept: "Glowing tube outline" },
+  { id: "news", name: "Newspaper", concept: "Newsprint texture, serif headline" },
+  { id: "neumorph", name: "Neumorphism", concept: "Soft extruded panels" },
+  { id: "vapor", name: "Vaporwave", concept: "Retro sunset gradient and neon grid horizon" },
+  { id: "sticker", name: "Sticker", concept: "Glossy die-cut sticker, slight tilt" },
+  { id: "comic", name: "Comic", concept: "Pop-art halftone and bold ink outline" },
 ];
 
 function Pair({ id }: { id: string }) {

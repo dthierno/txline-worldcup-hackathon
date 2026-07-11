@@ -638,6 +638,544 @@
   margin-right: 18px;
 }
 
+/* ======================================================================
+   11 · BOARDING PASS — fielded travel doc with a barcode stub
+   ====================================================================== */
+.lv-boarding .lv-card {
+  background: #edeef2;
+  border: 1px solid #d6d9e0;
+  border-radius: 14px;
+  color: #14161a;
+  padding-right: 84px;
+}
+.lv-boarding .lv-arrow {
+  display: none;
+}
+.lv-boarding .lv-icon {
+  border-radius: 10px;
+  color: #fff;
+}
+.lv-boarding .lv-card--create .lv-icon {
+  background: #16a34a;
+}
+.lv-boarding .lv-card--join .lv-icon {
+  background: #2563eb;
+}
+.lv-boarding .lv-kicker {
+  font-family: var(--font-mono);
+}
+.lv-boarding .lv-card--create .lv-kicker {
+  color: #157a37;
+}
+.lv-boarding .lv-card--join .lv-kicker {
+  color: #1d54c4;
+}
+.lv-boarding .lv-title {
+  color: #14161a;
+  font-weight: 700;
+}
+.lv-boarding .lv-desc {
+  color: #6a6e78;
+}
+.lv-boarding .lv-card::before {
+  border-left: 2px dashed #c4c8d0;
+  bottom: 10px;
+  content: "";
+  position: absolute;
+  right: 74px;
+  top: 10px;
+}
+.lv-boarding .lv-card::after {
+  background: repeating-linear-gradient(
+    90deg, #16181c 0 2px, transparent 2px 4px, #16181c 4px 5px, transparent 5px 8px
+  );
+  bottom: 16px;
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 16px;
+  width: 46px;
+}
+
+/* ======================================================================
+   12 · TERMINAL — CLI window, monospace, blinking cursor
+   ====================================================================== */
+.lv-terminal .lv-card {
+  background: #0c0f14;
+  border: 1px solid #232a33;
+  border-radius: 12px;
+  padding-top: 40px;
+}
+.lv-terminal .lv-card::before {
+  background: #141922;
+  border-bottom: 1px solid #232a33;
+  content: "";
+  height: 27px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: -1;
+}
+.lv-terminal .lv-card::after {
+  background:
+    radial-gradient(circle 4px at 4px 4px, #ff5f56 98%, transparent),
+    radial-gradient(circle 4px at 20px 4px, #ffbd2e 98%, transparent),
+    radial-gradient(circle 4px at 36px 4px, #27c93f 98%, transparent);
+  content: "";
+  height: 8px;
+  left: 14px;
+  position: absolute;
+  top: 10px;
+  width: 40px;
+}
+.lv-terminal .lv-icon {
+  background: none;
+  color: #27c93f;
+}
+.lv-terminal .lv-card--join .lv-icon {
+  color: #56b6c2;
+}
+.lv-terminal .lv-kicker,
+.lv-terminal .lv-title,
+.lv-terminal .lv-desc {
+  font-family: var(--font-mono);
+}
+.lv-terminal .lv-kicker {
+  color: #27c93f;
+}
+.lv-terminal .lv-card--join .lv-kicker {
+  color: #56b6c2;
+}
+.lv-terminal .lv-title {
+  color: #dfe4ea;
+  font-size: 15px;
+  text-transform: none;
+}
+.lv-terminal .lv-title::after {
+  animation: lv-blink 1.05s steps(1) infinite;
+  color: #27c93f;
+  content: "▮";
+  margin-left: 5px;
+}
+.lv-terminal .lv-card--join .lv-title::after {
+  color: #56b6c2;
+}
+.lv-terminal .lv-desc {
+  color: #6b7688;
+  font-size: 11.5px;
+}
+.lv-terminal .lv-arrow {
+  color: #4b5563;
+}
+@keyframes lv-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ======================================================================
+   13 · TRADING CARD — holographic foil sheen and inner frame
+   ====================================================================== */
+.lv-holo .lv-card {
+  background: linear-gradient(160deg, #1c1330, #0f0b1c);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+}
+.lv-holo .lv-card::before {
+  background: conic-gradient(
+    from 210deg,
+    rgba(255, 0, 128, 0.28), rgba(0, 255, 200, 0.24), rgba(120, 80, 255, 0.28),
+    rgba(255, 200, 0, 0.22), rgba(255, 0, 128, 0.28)
+  );
+  content: "";
+  inset: 0;
+  -webkit-mask-image: linear-gradient(115deg, transparent 28%, #000 50%, transparent 72%);
+  mask-image: linear-gradient(115deg, transparent 28%, #000 50%, transparent 72%);
+  opacity: 0.55;
+  position: absolute;
+  z-index: -1;
+}
+.lv-holo .lv-card::after {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  content: "";
+  inset: 6px;
+  position: absolute;
+  z-index: -1;
+}
+.lv-holo .lv-icon {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  color: #fff;
+}
+.lv-holo .lv-card--create .lv-kicker {
+  color: #7cffb2;
+}
+.lv-holo .lv-card--join .lv-kicker {
+  color: #7cc8ff;
+}
+.lv-holo .lv-desc {
+  color: rgba(255, 255, 255, 0.6);
+}
+.lv-holo .lv-arrow {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ======================================================================
+   14 · BLUEPRINT — cyan schematic grid on navy
+   ====================================================================== */
+.lv-blueprint .lv-card {
+  background: #0a1a2f;
+  border: 1px solid #1e4d6b;
+}
+.lv-blueprint .lv-card::before {
+  background-image:
+    linear-gradient(rgba(120, 200, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 200, 255, 0.12) 1px, transparent 1px);
+  background-size: 18px 18px;
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+.lv-blueprint .lv-card::after {
+  border: 1px dashed rgba(127, 212, 255, 0.4);
+  content: "";
+  inset: 8px;
+  position: absolute;
+  z-index: -1;
+}
+.lv-blueprint .lv-icon {
+  background: none;
+  border: 1px solid rgba(127, 212, 255, 0.5);
+  border-radius: 8px;
+  color: #7fd4ff;
+}
+.lv-blueprint .lv-kicker {
+  color: #7fd4ff;
+  font-family: var(--font-mono);
+}
+.lv-blueprint .lv-card--create .lv-kicker,
+.lv-blueprint .lv-card--join .lv-kicker {
+  color: #7fd4ff;
+}
+.lv-blueprint .lv-title {
+  color: #dff1ff;
+}
+.lv-blueprint .lv-desc {
+  color: #5f93b8;
+}
+.lv-blueprint .lv-arrow {
+  color: #7fd4ff;
+}
+
+/* ======================================================================
+   15 · NEON SIGN — glowing tube outline
+   ====================================================================== */
+.lv-neon .lv-card {
+  background: #0a0712;
+  border: 2px solid #333;
+}
+.lv-neon .lv-card--create {
+  border-color: #ff4d9d;
+  box-shadow: 0 0 14px rgba(255, 77, 157, 0.45), inset 0 0 12px rgba(255, 77, 157, 0.22);
+}
+.lv-neon .lv-card--join {
+  border-color: #4dd2ff;
+  box-shadow: 0 0 14px rgba(77, 210, 255, 0.45), inset 0 0 12px rgba(77, 210, 255, 0.22);
+}
+.lv-neon .lv-icon {
+  background: none;
+  border-radius: 12px;
+}
+.lv-neon .lv-card--create .lv-icon {
+  border: 1.5px solid #ff4d9d;
+  box-shadow: 0 0 8px rgba(255, 77, 157, 0.5);
+  color: #ff9ecb;
+}
+.lv-neon .lv-card--join .lv-icon {
+  border: 1.5px solid #4dd2ff;
+  box-shadow: 0 0 8px rgba(77, 210, 255, 0.5);
+  color: #a6e9ff;
+}
+.lv-neon .lv-card--create .lv-kicker {
+  color: #ff8cc2;
+}
+.lv-neon .lv-card--join .lv-kicker {
+  color: #9be3ff;
+}
+.lv-neon .lv-title {
+  color: #fff;
+}
+.lv-neon .lv-card--create .lv-title {
+  text-shadow: 0 0 8px #ff4d9d, 0 0 16px rgba(255, 77, 157, 0.6);
+}
+.lv-neon .lv-card--join .lv-title {
+  text-shadow: 0 0 8px #4dd2ff, 0 0 16px rgba(77, 210, 255, 0.6);
+}
+.lv-neon .lv-desc {
+  color: rgba(255, 255, 255, 0.5);
+}
+.lv-neon .lv-arrow {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ======================================================================
+   16 · NEWSPAPER — newsprint texture, serif headline
+   ====================================================================== */
+.lv-news .lv-card {
+  background: #e9e5d8;
+  border: 1px solid #cec8b6;
+  border-radius: 6px;
+  color: #1a1712;
+  font-family: Georgia, "Times New Roman", serif;
+}
+.lv-news .lv-card::before {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.09) 1px, transparent 1.3px);
+  background-size: 5px 5px;
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+.lv-news .lv-icon {
+  background: #1a1712;
+  border-radius: 4px;
+  color: #e9e5d8;
+}
+.lv-news .lv-card--create .lv-kicker {
+  color: #8a2b2b;
+}
+.lv-news .lv-card--join .lv-kicker {
+  color: #1a1712;
+}
+.lv-news .lv-kicker {
+  font-family: Georgia, serif;
+  letter-spacing: 0.18em;
+}
+.lv-news .lv-title {
+  color: #1a1712;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  font-weight: 800;
+}
+.lv-news .lv-desc {
+  color: #5b564a;
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+.lv-news .lv-arrow {
+  color: #1a1712;
+}
+
+/* ======================================================================
+   17 · NEUMORPHISM — soft extruded panels
+   ====================================================================== */
+.lv-neumorph {
+  background: #1a1a22;
+  border-radius: 24px;
+  padding: 22px;
+}
+.lv-neumorph .lv-card {
+  background: #1a1a22;
+  box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.55), -8px -8px 18px rgba(255, 255, 255, 0.04);
+}
+.lv-neumorph .lv-card:active {
+  box-shadow: inset 6px 6px 12px rgba(0, 0, 0, 0.55), inset -6px -6px 12px rgba(255, 255, 255, 0.04);
+  transform: none;
+}
+.lv-neumorph .lv-icon {
+  background: #1a1a22;
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.5), inset -4px -4px 8px rgba(255, 255, 255, 0.05);
+}
+.lv-neumorph .lv-title {
+  color: #e6e6ee;
+}
+.lv-neumorph .lv-desc {
+  color: rgba(255, 255, 255, 0.42);
+}
+.lv-neumorph .lv-arrow {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ======================================================================
+   18 · VAPORWAVE — retro sunset gradient and neon grid horizon
+   ====================================================================== */
+.lv-vapor .lv-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.lv-vapor .lv-card--create {
+  background: linear-gradient(180deg, #3b1064, #8a2b7a 55%, #e86a3a);
+}
+.lv-vapor .lv-card--join {
+  background: linear-gradient(180deg, #10225f, #2b5a8a 55%, #3ad0c0);
+}
+.lv-vapor .lv-card::before {
+  background: linear-gradient(180deg, #ffe36b, #ff5f8f);
+  border-radius: 50%;
+  content: "";
+  height: 60px;
+  left: 18px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  z-index: -1;
+}
+.lv-vapor .lv-card--join::before {
+  background: linear-gradient(180deg, #d6ffe8, #38d0ff);
+}
+.lv-vapor .lv-card::after {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 255, 255, 0.4) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(0deg, rgba(0, 255, 255, 0.3) 0 1px, transparent 1px 12px);
+  bottom: 0;
+  content: "";
+  height: 42%;
+  left: 0;
+  -webkit-mask-image: linear-gradient(#000, transparent);
+  mask-image: linear-gradient(#000, transparent);
+  position: absolute;
+  right: 0;
+  z-index: -1;
+}
+.lv-vapor .lv-icon {
+  background: none;
+  color: #fff;
+}
+.lv-vapor .lv-kicker {
+  color: #ffe36b;
+}
+.lv-vapor .lv-card--join .lv-kicker {
+  color: #a9ffe9;
+}
+.lv-vapor .lv-title {
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+.lv-vapor .lv-desc {
+  color: rgba(255, 255, 255, 0.82);
+}
+.lv-vapor .lv-arrow {
+  color: #fff;
+}
+
+/* ======================================================================
+   19 · STICKER — glossy die-cut sticker, slight tilt
+   ====================================================================== */
+.lv-sticker .lv-card {
+  border: 4px solid #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.lv-sticker .lv-card--create {
+  background: linear-gradient(160deg, #4ade80, #16a34a);
+  color: #06240f;
+  transform: rotate(-1.4deg);
+}
+.lv-sticker .lv-card--join {
+  background: linear-gradient(160deg, #60a5fa, #2563eb);
+  color: #061a3a;
+  transform: rotate(1.4deg);
+}
+.lv-sticker .lv-card:active {
+  transform: rotate(0deg) scale(0.985);
+}
+.lv-sticker .lv-card::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent 46%);
+  content: "";
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+.lv-sticker .lv-icon {
+  background: #fff;
+  border-radius: 12px;
+}
+.lv-sticker .lv-card--create .lv-icon {
+  color: #16a34a;
+}
+.lv-sticker .lv-card--join .lv-icon {
+  color: #2563eb;
+}
+.lv-sticker .lv-card--create .lv-kicker {
+  color: #06240f;
+}
+.lv-sticker .lv-card--join .lv-kicker {
+  color: #061a3a;
+}
+.lv-sticker .lv-title {
+  color: inherit;
+  font-weight: 800;
+}
+.lv-sticker .lv-desc {
+  color: inherit;
+  opacity: 0.72;
+}
+.lv-sticker .lv-arrow {
+  color: inherit;
+}
+
+/* ======================================================================
+   20 · COMIC — pop-art halftone and bold ink outline
+   ====================================================================== */
+.lv-comic .lv-card {
+  border: 3px solid #111;
+  border-radius: 14px;
+  color: #111;
+}
+.lv-comic .lv-card--create {
+  background: #ffd23f;
+}
+.lv-comic .lv-card--join {
+  background: #ff6b9d;
+}
+.lv-comic .lv-card::before {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.16) 2px, transparent 2.4px);
+  background-size: 10px 10px;
+  content: "";
+  inset: 0;
+  -webkit-mask-image: linear-gradient(120deg, #000, transparent 55%);
+  mask-image: linear-gradient(120deg, #000, transparent 55%);
+  position: absolute;
+  z-index: -1;
+}
+.lv-comic .lv-icon {
+  background: #111;
+  border-radius: 10px;
+  color: #fff;
+}
+.lv-comic .lv-card--create .lv-icon,
+.lv-comic .lv-card--join .lv-icon {
+  color: #fff;
+}
+.lv-comic .lv-card--create .lv-kicker,
+.lv-comic .lv-card--join .lv-kicker {
+  color: #111;
+  font-weight: 700;
+}
+.lv-comic .lv-title {
+  color: #111;
+  font-style: italic;
+  font-weight: 800;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.14);
+  text-transform: uppercase;
+}
+.lv-comic .lv-desc {
+  color: rgba(17, 17, 17, 0.72);
+  font-weight: 500;
+}
+.lv-comic .lv-arrow {
+  color: #111;
+}
+
 /* Respect reduced motion across every concept. */
 @media (prefers-reduced-motion: reduce) {
   .lv-card,
@@ -646,5 +1184,14 @@
   }
   .lv-card:active {
     transform: none;
+  }
+  .lv-terminal .lv-title::after {
+    animation: none;
+  }
+  .lv-sticker .lv-card--create {
+    transform: rotate(-1.4deg);
+  }
+  .lv-sticker .lv-card--join {
+    transform: rotate(1.4deg);
   }
 }
