@@ -1903,3 +1903,95 @@ dt {
 .home-tabs [data-slot="tabs-content"] > section > h2:first-child {
   display: none;
 }
+
+/* Group-stage standings tables shown in the Knockout tab. */
+.gt-section-title {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 4px 0 14px;
+}
+.group-tables {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  margin-bottom: 28px;
+}
+.gt-card {
+  background: #12121a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.gt-head {
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 13px 16px 11px;
+}
+.gt-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.gt-table thead th {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 7px 6px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.gt-table thead th.gt-team-h {
+  padding-left: 16px;
+  text-align: left;
+}
+.gt-table tbody td {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 9px 6px;
+  text-align: center;
+}
+.gt-table td.gt-team {
+  padding-left: 12px;
+  text-align: left;
+}
+.gt-cell {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+.gt-pos {
+  color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  width: 12px;
+}
+.gt-flag {
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  height: 15px;
+  object-fit: cover;
+  width: 21px;
+}
+.gt-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gt-muted {
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-weight: 500 !important;
+}
+.gt-adv .gt-pos {
+  color: #4ade80;
+}
+.gt-adv td.gt-team {
+  box-shadow: inset 2px 0 0 #4ade80;
+}

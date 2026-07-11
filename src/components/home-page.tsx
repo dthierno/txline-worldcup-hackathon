@@ -9,6 +9,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
 import {
@@ -277,6 +278,9 @@ export function HomePage() {
           <MyPredictionsSection fixtures={fixtures} />
         </TabsContent>
         <TabsContent value="knockout">
+          <h3 className="gt-section-title">Group stage</h3>
+          <GroupTables />
+          <h3 className="gt-section-title">Bracket</h3>
           <KnockoutBracket />
         </TabsContent>
       </Tabs>
