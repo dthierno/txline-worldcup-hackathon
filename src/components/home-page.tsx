@@ -250,15 +250,15 @@ export function HomePage() {
       <StoriesRail />
       */}
 
-      <Tabs className="home-tabs" defaultValue="matches">
+      <Tabs className="home-tabs" defaultValue="predictions">
         <TabsList className="w-full">
-          <TabsTrigger value="matches">
-            <HugeiconsIcon icon={FootballIcon} strokeWidth={2} />
-            Matches
-          </TabsTrigger>
           <TabsTrigger value="predictions">
             <HugeiconsIcon icon={TargetIcon} strokeWidth={2} />
             Predictions
+          </TabsTrigger>
+          <TabsTrigger value="matches">
+            <HugeiconsIcon icon={FootballIcon} strokeWidth={2} />
+            Matches
           </TabsTrigger>
           <TabsTrigger value="knockout">
             <HugeiconsIcon icon={ChampionIcon} strokeWidth={2} />
