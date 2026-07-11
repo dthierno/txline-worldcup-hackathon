@@ -740,7 +740,6 @@ function PredictionCard({
                   </span>
                 ) : null}
                 <span className="pc-pill-label">{outcome.label}</span>
-                <span className="pc-pill-odd">{outcome.odd ?? "–"}</span>
               </button>
               {outcome.pct != null ? (
                 <div className="pc-meter">
