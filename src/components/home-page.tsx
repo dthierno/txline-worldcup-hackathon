@@ -635,6 +635,106 @@ function cleanGoals(value: string): string {
   return String(Math.min(19, Number(digits)));
 }
 
+function StepPlusIcon() {
+  return (
+    <svg fill="currentColor" height="14" viewBox="0 0 16 16" width="14">
+      <path d="M3 8.01082C3 7.40476 3.42208 6.98268 4.02814 6.98268H6.99351V4.01732C6.99351 3.41126 7.40476 3 7.98918 3C8.59524 3 9.01732 3.41126 9.01732 4.01732V6.98268H11.9935C12.5887 6.98268 13 7.40476 13 8.01082C13 8.59524 12.5887 9.00649 11.9935 9.00649H9.01732V11.9827C9.01732 12.5779 8.59524 13 7.98918 13C7.40476 13 6.99351 12.5779 6.99351 11.9827V9.00649H4.02814C3.42208 9.00649 3 8.59524 3 8.01082Z" />
+    </svg>
+  );
+}
+
+function StepMinusIcon() {
+  return (
+    <svg fill="currentColor" height="14" viewBox="0 0 16 16" width="14">
+      <path d="M3.94633 9C3.30462 9 2.84473 8.62567 2.84473 8.00535C2.84473 7.38503 3.28323 7 3.94633 7H12.064C12.7271 7 13.1549 7.38503 13.1549 8.00535C13.1549 8.62567 12.7057 9 12.064 9H3.94633Z" />
+    </svg>
+  );
+}
+
+// Green tick shown between the two steppers once a full scoreline is set.
+function CheckBadge() {
+  return (
+    <span className="pc-check" aria-hidden="true">
+      <svg height="22" viewBox="0 0 24 24" width="22">
+        <defs>
+          <linearGradient
+            gradientUnits="userSpaceOnUse"
+            id="pcCheckGrad"
+            x1="0"
+            x2="20"
+            y1="24"
+            y2="2"
+          >
+            <stop offset="0.39" stopColor="#5FFF94" />
+            <stop offset="1" stopColor="#E9F420" />
+          </linearGradient>
+        </defs>
+        <circle
+          cx="12"
+          cy="12"
+          fill="none"
+          r="11"
+          stroke="rgba(255,255,255,0.2)"
+          strokeWidth="2"
+        />
+        <circle cx="12" cy="12" fill="url(#pcCheckGrad)" r="9" />
+        <path
+          d="M8 12.3l2.5 2.5L16 9.2"
+          fill="none"
+          stroke="#0d0d13"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.9"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function ScoreStepper({
+  ariaLabel,
+  onChange,
+  onStep,
+  value,
+}: {
+  ariaLabel: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onStep: (delta: number) => void;
+  value: string;
+}) {
+  return (
+    <div className="pc-stepper">
+      <button
+        aria-label={`Increase ${ariaLabel}`}
+        className="pc-step pc-step-up"
+        onClick={() => onStep(1)}
+        tabIndex={-1}
+        type="button"
+      >
+        <StepPlusIcon />
+      </button>
+      <input
+        aria-label={ariaLabel}
+        className="pc-score-box"
+        inputMode="numeric"
+        onChange={onChange}
+        placeholder="?"
+        value={value}
+      />
+      <button
+        aria-label={`Decrease ${ariaLabel}`}
+        className="pc-step pc-step-down"
+        disabled={value === "" || value === "0"}
+        onClick={() => onStep(-1)}
+        tabIndex={-1}
+        type="button"
+      >
+        <StepMinusIcon />
+      </button>
+    </div>
+  );
+}
+
 function PredictionCard({
   fixture,
   now,
@@ -711,6 +811,24 @@ function PredictionCard({
       }
     };
 
+  // + / − stepper buttons on either side of each goal box.
+  const step = (side: "home" | "away", delta: number) => {
+    const current = side === "home" ? home : away;
+    const value = String(
+      Math.max(0, Math.min(19, (current === "" ? 0 : Number(current)) + delta)),
+    );
+
+    if (side === "home") {
+      setHome(value);
+      commit(value, away);
+    } else {
+      setAway(value);
+      commit(home, value);
+    }
+  };
+
+  const bothFilled = home !== "" && away !== "";
+
   // Google Calendar "add event" link for kickoff (a 2h slot).
   const stamp = (date: Date) =>
     date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -763,21 +881,7 @@ function PredictionCard({
             name={fixture.homeTeam}
           />
 
-          {locked ? (
-            <span className="pc-score-slot pc-score-final">
-              {prediction ? prediction.homeGoals : "–"}
-            </span>
-          ) : (
-            <input
-              aria-label={`${fixture.homeTeam} goals`}
-              className="pc-score-slot pc-score-box"
-              inputMode="numeric"
-              onChange={onGoalsChange("home")}
-              placeholder="–"
-              value={home}
-            />
-          )}
-
+          {/* Stage + kick-off time — hidden for now, kept for later.
           <Link className="pc-when" href={`/match/${fixture.fixtureId}`}>
             {live ? (
               <span className="pc-live">LIVE</span>
@@ -790,21 +894,36 @@ function PredictionCard({
               </>
             )}
           </Link>
+          */}
 
-          {locked ? (
-            <span className="pc-score-slot pc-score-final">
-              {prediction ? prediction.awayGoals : "–"}
-            </span>
-          ) : (
-            <input
-              aria-label={`${fixture.awayTeam} goals`}
-              className="pc-score-slot pc-score-box"
-              inputMode="numeric"
-              onChange={onGoalsChange("away")}
-              placeholder="–"
-              value={away}
-            />
-          )}
+          <div className="pc-scores">
+            {locked ? (
+              <>
+                <span className="pc-score-final">
+                  {prediction ? prediction.homeGoals : "–"}
+                </span>
+                <span className="pc-score-final">
+                  {prediction ? prediction.awayGoals : "–"}
+                </span>
+              </>
+            ) : (
+              <>
+                <ScoreStepper
+                  ariaLabel={`${fixture.homeTeam} goals`}
+                  onChange={onGoalsChange("home")}
+                  onStep={(delta) => step("home", delta)}
+                  value={home}
+                />
+                <ScoreStepper
+                  ariaLabel={`${fixture.awayTeam} goals`}
+                  onChange={onGoalsChange("away")}
+                  onStep={(delta) => step("away", delta)}
+                  value={away}
+                />
+                {bothFilled ? <CheckBadge /> : null}
+              </>
+            )}
+          </div>
 
           <TeamSide
             href={`/match/${fixture.fixtureId}`}
