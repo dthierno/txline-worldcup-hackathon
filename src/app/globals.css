@@ -2299,6 +2299,21 @@ dt {
   justify-content: center;
   position: relative;
 }
+/* While a match is ongoing, the centre shows the fan's locked-in pick as two
+   read-only score boxes. */
+.pc-livebox {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 20px;
+  font-weight: 700;
+  height: 44px;
+  justify-content: center;
+  width: 46px;
+}
 .pc-check {
   align-items: center;
   display: flex;

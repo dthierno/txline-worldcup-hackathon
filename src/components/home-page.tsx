@@ -918,7 +918,16 @@ function PredictionCard({
           */}
 
           <div className="pc-scores">
-            {locked ? (
+            {live ? (
+              <>
+                <span className="pc-livebox">
+                  {prediction ? prediction.homeGoals : "–"}
+                </span>
+                <span className="pc-livebox">
+                  {prediction ? prediction.awayGoals : "–"}
+                </span>
+              </>
+            ) : locked ? (
               <>
                 <span className="pc-score-final">
                   {prediction ? prediction.homeGoals : "–"}
