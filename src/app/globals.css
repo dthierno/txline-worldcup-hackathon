@@ -2147,7 +2147,7 @@ dt {
 .pc-head-btn.is-fav {
   color: #fbbf24;
 }
-/* Inner dark panel holding the teams and the 1X2 markets. */
+/* Inner dark panel holding the teams and the prediction input. */
 .pc-panel {
   /* Subtle per-team colour glows over the dark panel (home top-left, away
      top-right), from the --glow vars set on the card. */
@@ -2166,6 +2166,9 @@ dt {
   border-radius: 20px;
   display: block;
   padding: 16px 14px 14px;
+}
+.pc-panel-link {
+  display: block;
   text-decoration: none;
 }
 .pc-teams {
@@ -2173,7 +2176,6 @@ dt {
   display: grid;
   gap: 8px;
   grid-template-columns: 1fr auto 1fr;
-  margin-bottom: 14px;
 }
 .pc-team {
   align-items: center;
@@ -2202,12 +2204,21 @@ dt {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Centre column: stage + kick-off time, then the scoreline boxes below. */
+.pc-center {
+  align-items: center;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .pc-when {
   align-items: center;
   color: var(--muted-foreground);
   display: flex;
   flex-direction: column;
-  padding-top: 6px;
+  padding-top: 4px;
+  text-decoration: none;
 }
 .pc-day {
   font-size: 10px;
@@ -2227,6 +2238,55 @@ dt {
   color: var(--won);
   font-size: 15px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+}
+/* Scoreline prediction, sat in the centre column between the two teams. */
+.pc-score {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.pc-score-box {
+  -moz-appearance: textfield;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  height: 48px;
+  text-align: center;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+  width: 46px;
+}
+.pc-score-box:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.45);
+  outline: none;
+}
+.pc-score-box::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+  font-weight: 500;
+}
+.pc-score[data-saved="true"] .pc-score-box {
+  border-color: color-mix(in srgb, var(--won) 55%, transparent);
+}
+.pc-score-dash {
+  color: var(--muted-foreground);
+  font-size: 18px;
+  font-weight: 700;
+}
+.pc-score-final {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+}
+.pc-score-empty {
+  color: var(--muted-foreground);
+  font-size: 18px;
 }
 .pc-form {
   align-items: center;

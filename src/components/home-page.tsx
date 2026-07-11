@@ -35,10 +35,13 @@ import {
   type ApiResult,
   type TxlineStatus,
 } from "@/lib/match-shared";
-import type { MatchPrediction } from "@/lib/prediction-engine";
+import { PREDICTION_LINES, type MatchPrediction } from "@/lib/prediction-engine";
 import {
+  isPredictionLocked,
+  loadPrediction,
   loadPredictions,
   loadSettlements,
+  savePrediction,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -598,9 +601,17 @@ function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
   );
 }
 
-function TeamSide({ iso, name }: { iso?: string; name: string }) {
+function TeamSide({
+  href,
+  iso,
+  name,
+}: {
+  href: string;
+  iso?: string;
+  name: string;
+}) {
   return (
-    <span className="pc-team">
+    <Link className="pc-team" href={href}>
       {iso ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${iso}.png`} />
@@ -609,19 +620,42 @@ function TeamSide({ iso, name }: { iso?: string; name: string }) {
       )}
       <span className="pc-name">{name}</span>
       <FormStrip results={teamForm(name)} />
-    </span>
+    </Link>
   );
+}
+
+// Clamp free typing to a plausible goal count (0–19), digits only.
+function cleanGoals(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 2);
+
+  if (digits === "") {
+    return "";
+  }
+
+  return String(Math.min(19, Number(digits)));
 }
 
 function PredictionCard({
   fixture,
   now,
+  prediction,
+  onPredictedChange,
 }: {
   fixture: WorldCupFixture;
   now: number | null;
+  prediction?: MatchPrediction;
+  onPredictedChange: (fixtureId: number, predicted: boolean) => void;
 }) {
   const [favourite, setFavourite] = useState(false);
+  const [home, setHome] = useState(
+    prediction ? String(prediction.homeGoals) : "",
+  );
+  const [away, setAway] = useState(
+    prediction ? String(prediction.awayGoals) : "",
+  );
+  const [justSaved, setJustSaved] = useState(false);
   const live = now !== null && isPotentiallyLive(fixture, now);
+  const locked = now !== null && isPredictionLocked(fixture, now);
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
@@ -629,6 +663,53 @@ function PredictionCard({
   const kickoff = new Date(fixture.kickoffUtc);
   const stage = fixtureStage(fixture);
   const hasStage = stage !== "World Cup";
+
+  // Persist the scoreline as a MatchPrediction, keeping any richer fields the
+  // full match page may have already saved. A blank box clears the pick.
+  const commit = (nextHome: string, nextAway: string) => {
+    if (nextHome === "" || nextAway === "") {
+      onPredictedChange(fixture.fixtureId, false);
+      setJustSaved(false);
+
+      return;
+    }
+
+    const homeGoals = Number(nextHome);
+    const awayGoals = Number(nextAway);
+    const existing = loadPrediction(fixture.fixtureId);
+
+    savePrediction({
+      ...existing,
+      fixtureId: fixture.fixtureId,
+      homeGoals,
+      awayGoals,
+      winner:
+        homeGoals > awayGoals
+          ? "home"
+          : homeGoals < awayGoals
+            ? "away"
+            : "draw",
+      totalGoals: homeGoals + awayGoals > PREDICTION_LINES.goals ? "over" : "under",
+      totalCards: existing?.totalCards ?? "under",
+      totalCorners: existing?.totalCorners ?? "under",
+      savedAt: new Date().toISOString(),
+    });
+    onPredictedChange(fixture.fixtureId, true);
+    setJustSaved(true);
+  };
+
+  const onGoalsChange =
+    (side: "home" | "away") => (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = cleanGoals(event.target.value);
+
+      if (side === "home") {
+        setHome(value);
+        commit(value, away);
+      } else {
+        setAway(value);
+        commit(home, value);
+      }
+    };
 
   // Google Calendar "add event" link for kickoff (a 2h slot).
   const stamp = (date: Date) =>
@@ -674,22 +755,75 @@ function PredictionCard({
           </button>
         </span>
       </div>
-      <Link className="pc-panel" href={`/match/${fixture.fixtureId}`}>
+      <div className="pc-panel">
         <div className="pc-teams">
-          <TeamSide iso={homeIso} name={fixture.homeTeam} />
-          <div className="pc-when">
-            {live ? (
-              <span className="pc-live">LIVE</span>
-            ) : (
-              <>
-                {hasStage ? <span className="pc-day">{stage}</span> : null}
-                <span className="pc-time">{formatKickoffTime(fixture.kickoffUtc)}</span>
-              </>
-            )}
+          <TeamSide
+            href={`/match/${fixture.fixtureId}`}
+            iso={homeIso}
+            name={fixture.homeTeam}
+          />
+
+          <div className="pc-center">
+            <Link className="pc-when" href={`/match/${fixture.fixtureId}`}>
+              {live ? (
+                <span className="pc-live">LIVE</span>
+              ) : (
+                <>
+                  {hasStage ? <span className="pc-day">{stage}</span> : null}
+                  <span className="pc-time">
+                    {formatKickoffTime(fixture.kickoffUtc)}
+                  </span>
+                </>
+              )}
+            </Link>
+
+            <div className="pc-score" data-saved={justSaved ? "true" : undefined}>
+              {locked ? (
+                prediction ? (
+                  <>
+                    <span className="pc-score-final">
+                      {prediction.homeGoals}
+                    </span>
+                    <span className="pc-score-dash">–</span>
+                    <span className="pc-score-final">
+                      {prediction.awayGoals}
+                    </span>
+                  </>
+                ) : (
+                  <span className="pc-score-empty" aria-hidden="true">
+                    –
+                  </span>
+                )
+              ) : (
+                <>
+                  <input
+                    aria-label={`${fixture.homeTeam} goals`}
+                    className="pc-score-box"
+                    inputMode="numeric"
+                    onChange={onGoalsChange("home")}
+                    placeholder="–"
+                    value={home}
+                  />
+                  <input
+                    aria-label={`${fixture.awayTeam} goals`}
+                    className="pc-score-box"
+                    inputMode="numeric"
+                    onChange={onGoalsChange("away")}
+                    placeholder="–"
+                    value={away}
+                  />
+                </>
+              )}
+            </div>
           </div>
-          <TeamSide iso={awayIso} name={fixture.awayTeam} />
+
+          <TeamSide
+            href={`/match/${fixture.fixtureId}`}
+            iso={awayIso}
+            name={fixture.awayTeam}
+          />
         </div>
-      </Link>
+      </div>
     </div>
   );
 }
@@ -707,10 +841,42 @@ function PredictionsFeed({
 }) {
   const [showPast, setShowPast] = useState(false);
 
-  // A day's "predicted" count reflects predictions already saved (e.g. from a
-  // match page) for that day's fixtures.
+  // Fixture ids with a saved scoreline. Seeded from predictions already on the
+  // device and updated live as the fan types into a card's score boxes.
+  const [predictedIds, setPredictedIds] = useState<Set<string>>(
+    () => new Set(Object.keys(predictions)),
+  );
+
+  // Predictions load client-side (localStorage), so the prop is empty on the
+  // first render and populated once mounted — fold those ids in when they land.
+  useEffect(() => {
+    setPredictedIds((prev) => {
+      const next = new Set(prev);
+
+      for (const id of Object.keys(predictions)) {
+        next.add(id);
+      }
+
+      return next;
+    });
+  }, [predictions]);
+
+  const handlePredictedChange = (fixtureId: number, predicted: boolean) => {
+    setPredictedIds((prev) => {
+      const next = new Set(prev);
+
+      if (predicted) {
+        next.add(String(fixtureId));
+      } else {
+        next.delete(String(fixtureId));
+      }
+
+      return next;
+    });
+  };
+
   const isPredicted = (fixture: WorldCupFixture) =>
-    predictions[String(fixture.fixtureId)] !== undefined;
+    predictedIds.has(String(fixture.fixtureId));
 
   const isLive = (fixture: WorldCupFixture) =>
     now !== null && isPotentiallyLive(fixture, now);
@@ -766,7 +932,13 @@ function PredictionsFeed({
         </div>
         <div className="pred-grid">
           {group.matches.map((fixture) => (
-            <PredictionCard fixture={fixture} key={fixture.fixtureId} now={now} />
+            <PredictionCard
+              fixture={fixture}
+              key={fixture.fixtureId}
+              now={now}
+              onPredictedChange={handlePredictedChange}
+              prediction={predictions[String(fixture.fixtureId)]}
+            />
           ))}
         </div>
       </div>
