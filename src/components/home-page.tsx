@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 
+import {
+  ChampionIcon,
+  FootballIcon,
+  TargetIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
 import {
@@ -244,9 +251,18 @@ export function HomePage() {
 
       <Tabs className="home-tabs" defaultValue="matches">
         <TabsList className="w-full">
-          <TabsTrigger value="matches">Matches</TabsTrigger>
-          <TabsTrigger value="predictions">Predictions</TabsTrigger>
-          <TabsTrigger value="knockout">Knockout</TabsTrigger>
+          <TabsTrigger value="matches">
+            <HugeiconsIcon icon={FootballIcon} strokeWidth={2} />
+            Matches
+          </TabsTrigger>
+          <TabsTrigger value="predictions">
+            <HugeiconsIcon icon={TargetIcon} strokeWidth={2} />
+            Predictions
+          </TabsTrigger>
+          <TabsTrigger value="knockout">
+            <HugeiconsIcon icon={ChampionIcon} strokeWidth={2} />
+            Knockout
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="matches">
           <MatchDayList
