@@ -13,7 +13,7 @@ import "./variations.css";
 // for every one — the look comes entirely from the `.lv-<id>` wrapper class in
 // variations.css, so the concepts stay directly comparable.
 const VARIATIONS = [
-  { id: "ticket", name: "Match Ticket", concept: "Perforated stub with World Cup colour strips" },
+  { id: "ticket", name: "Match Ticket", concept: "Perforated stub with a drifting World Cup colour wash" },
   { id: "scoreboard", name: "Stadium Scoreboard", concept: "LED dot-matrix panel, monospace readout" },
   { id: "pitch", name: "On the Pitch", concept: "Mowed turf stripes and white line markings" },
   { id: "glass", name: "Frosted Glass", concept: "Translucent panels over a colour wash" },

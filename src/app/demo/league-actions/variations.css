@@ -193,25 +193,33 @@
   margin-right: 18px;
 }
 .lv-ticket .lv-card::after {
+  animation: lv-ticket-flow 9s ease-in-out infinite alternate;
+  background-size: 300% 100%;
   content: "";
   inset: 0;
   -webkit-mask-image: linear-gradient(90deg, #000 0, #000 22%, transparent 66%);
   mask-image: linear-gradient(90deg, #000 0, #000 22%, transparent 66%);
-  opacity: 0.36;
+  opacity: 0.42;
   position: absolute;
   z-index: -1;
 }
 .lv-ticket .lv-card--create::after {
-  background: repeating-linear-gradient(
-    60deg, #dc2626 0 10px, #ea580c 10px 20px, #a5b4fc 20px 30px,
-    #2563eb 30px 40px, #7c3aed 40px 50px, #16a34a 50px 60px, #22d3ee 60px 70px
+  background-image: linear-gradient(
+    60deg, #dc2626, #ea580c, #a5b4fc, #2563eb, #7c3aed, #16a34a, #22d3ee
   );
 }
 .lv-ticket .lv-card--join::after {
-  background: repeating-linear-gradient(
-    120deg, #2563eb 0 10px, #7c3aed 10px 20px, #22d3ee 20px 30px,
-    #16a34a 30px 40px, #a5b4fc 40px 50px, #ea580c 50px 60px, #dc2626 60px 70px
+  background-image: linear-gradient(
+    120deg, #2563eb, #7c3aed, #22d3ee, #16a34a, #a5b4fc, #ea580c, #dc2626
   );
+}
+@keyframes lv-ticket-flow {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
 }
 
 /* ======================================================================
@@ -1186,6 +1194,9 @@
     transform: none;
   }
   .lv-terminal .lv-title::after {
+    animation: none;
+  }
+  .lv-ticket .lv-card::after {
     animation: none;
   }
   .lv-sticker .lv-card--create {
