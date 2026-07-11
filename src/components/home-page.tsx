@@ -4,6 +4,12 @@ import Link from "next/link";
 
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -236,15 +242,28 @@ export function HomePage() {
       <StoriesRail />
       */}
 
-      <MatchDayList
-        finals={mounted ? finals : {}}
-        fixtures={[...pastGames, ...upcomingGames]}
-        now={now}
-        odds={odds}
-        predictions={mounted ? predictions : {}}
-      />
-      <MyPredictionsSection fixtures={fixtures} />
-      <KnockoutBracket />
+      <Tabs className="home-tabs" defaultValue="matches">
+        <TabsList className="w-full">
+          <TabsTrigger value="matches">Matches</TabsTrigger>
+          <TabsTrigger value="predictions">Predictions</TabsTrigger>
+          <TabsTrigger value="knockout">Knockout</TabsTrigger>
+        </TabsList>
+        <TabsContent value="matches">
+          <MatchDayList
+            finals={mounted ? finals : {}}
+            fixtures={[...pastGames, ...upcomingGames]}
+            now={now}
+            odds={odds}
+            predictions={mounted ? predictions : {}}
+          />
+        </TabsContent>
+        <TabsContent value="predictions">
+          <MyPredictionsSection fixtures={fixtures} />
+        </TabsContent>
+        <TabsContent value="knockout">
+          <KnockoutBracket />
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }

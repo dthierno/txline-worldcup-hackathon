@@ -1894,3 +1894,12 @@ dt {
 .call-list li:last-child { border-bottom: none; }
 
 .call-outcome { color: var(--muted-foreground); }
+
+/* Tabs that switch the home feed (Matches / Predictions / Knockout). The tab
+   labels title each section, so hide the now-duplicate section heading. */
+.home-tabs {
+  margin-top: 18px;
+}
+.home-tabs [data-slot="tabs-content"] > section > h2:first-child {
+  display: none;
+}
