@@ -2061,19 +2061,9 @@ dt {
   }
 }
 .pc-card {
-  /* Our own chevron of colour strips (an original recreation of the reference
-     header look — not their asset), echoing the hero banner palette. */
-  background:
-    repeating-linear-gradient(
-        -55deg, #16a34a 0 14px, #4ade80 14px 28px, #22d3ee 28px 42px,
-        #2563eb 42px 56px, #7c3aed 56px 70px
-      )
-      top left / 50.5% 100% no-repeat,
-    repeating-linear-gradient(
-        55deg, #16a34a 0 14px, #4ade80 14px 28px, #22d3ee 28px 42px,
-        #2563eb 42px 56px, #7c3aed 56px 70px
-      )
-      top right / 50.5% 100% no-repeat;
+  /* Original chevron artwork behind the header + as the card frame, with the
+     dark panel on top. */
+  background: url("/card-header.png") top center / cover no-repeat, #0d0d13;
   border-radius: 18px;
   display: block;
   overflow: hidden;
