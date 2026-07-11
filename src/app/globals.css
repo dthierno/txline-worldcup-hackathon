@@ -2169,20 +2169,32 @@ dt {
 }
 .pc-panel::before {
   animation: pc-glow-home 13s ease-in-out infinite alternate;
-  background: radial-gradient(
-    72% 122% at 0% 0%,
-    color-mix(in srgb, var(--glow-home) 62%, transparent),
-    transparent 64%
-  );
+  background:
+    radial-gradient(
+      72% 100% at 0% 0%,
+      color-mix(in srgb, var(--glow-home) 62%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      64% 85% at 0% 100%,
+      color-mix(in srgb, var(--glow-home) 46%, transparent),
+      transparent 60%
+    );
 }
 .pc-panel::after {
   animation: pc-glow-away 13s ease-in-out infinite alternate;
   animation-delay: -6.5s;
-  background: radial-gradient(
-    72% 122% at 100% 0%,
-    color-mix(in srgb, var(--glow-away) 62%, transparent),
-    transparent 64%
-  );
+  background:
+    radial-gradient(
+      72% 100% at 100% 0%,
+      color-mix(in srgb, var(--glow-away) 62%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      64% 85% at 100% 100%,
+      color-mix(in srgb, var(--glow-away) 46%, transparent),
+      transparent 60%
+    );
 }
 /* Keep the card content above the animated glow layers. */
 .pc-teams {
