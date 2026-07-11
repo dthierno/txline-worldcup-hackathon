@@ -553,6 +553,19 @@ function stageLabel(stage: string): string {
   return STAGE_LABEL[stage] ?? stage;
 }
 
+// The live TxLINE feed tags these knockout fixtures with a generic
+// "World Cup" stage, so we derive the real round from this app's bracket
+// (see leftQuarterFinals / rightQuarterFinals / semiFinal1 above).
+const FIXTURE_STAGE_OVERRIDE: Record<number, string> = {
+  18213979: "Quarter-final", // Norway vs England
+  18222446: "Quarter-final", // Argentina vs Switzerland
+  18237038: "Semi-final", // France vs Spain
+};
+
+function fixtureStage(fixture: WorldCupFixture): string {
+  return FIXTURE_STAGE_OVERRIDE[fixture.fixtureId] ?? stageLabel(fixture.stage);
+}
+
 // Deterministic five-match form strip so each team shows a stable win/draw/loss
 // history. Illustrative — the app has no real form feed.
 function teamForm(team: string): ("w" | "d" | "l")[] {
@@ -614,10 +627,8 @@ function PredictionCard({
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
   const glowAway = (awayIso && teamGlow[awayIso]) || "#3b3b44";
   const kickoff = new Date(fixture.kickoffUtc);
-  const dayShort = new Intl.DateTimeFormat("en", {
-    timeZone: "UTC",
-    weekday: "short",
-  }).format(kickoff);
+  const stage = fixtureStage(fixture);
+  const hasStage = stage !== "World Cup";
 
   // Google Calendar "add event" link for kickoff (a 2h slot).
   const stamp = (date: Date) =>
@@ -641,12 +652,7 @@ function PredictionCard({
         <span className="pc-head-ic" aria-hidden="true">
           <HugeiconsIcon className="pc-ball" icon={FootballIcon} strokeWidth={2} />
         </span>
-        <span className="pc-comp">
-          World Cup 2026
-          {stageLabel(fixture.stage) !== "World Cup"
-            ? ` · ${stageLabel(fixture.stage)}`
-            : ""}
-        </span>
+        <span className="pc-comp">World Cup 2026</span>
         <span className="pc-head-actions">
           <a
             aria-label="Add to calendar"
@@ -676,7 +682,7 @@ function PredictionCard({
               <span className="pc-live">LIVE</span>
             ) : (
               <>
-                <span className="pc-day">{dayShort}</span>
+                {hasStage ? <span className="pc-day">{stage}</span> : null}
                 <span className="pc-time">{formatKickoffTime(fixture.kickoffUtc)}</span>
               </>
             )}

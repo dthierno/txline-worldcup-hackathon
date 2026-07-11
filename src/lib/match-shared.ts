@@ -4,7 +4,7 @@
 import { useSyncExternalStore } from "react";
 
 import type { MatchOutcome } from "./prediction-engine";
-import type { NormalizedLineups } from "./txline-normalize";
+import type { NormalizedLineups, OddsBoard } from "./txline-normalize";
 import type { WorldCupFixture } from "./world-cup-fixtures";
 
 export type TxlineStatus = {
@@ -20,7 +20,10 @@ export type TxlineScoreData = {
   awayGoals: number;
   awayRedCards: number;
   awayYellowCards: number;
+  clockRunning?: boolean;
   clockSeconds?: number;
+  kickoffTeam?: number;
+  statusId?: number;
   data?: Record<string, unknown>;
   eventId?: number;
   gameState?: string;
@@ -62,6 +65,7 @@ export type TxlineOddsSeriesPoint = {
 };
 
 export type TxlineOddsUpdatesData = {
+  board?: OddsBoard;
   count: number;
   latestTs: number | null;
   marketTypes: string[];
@@ -480,7 +484,9 @@ export function getDisplayUpdates(
 
   for (const update of sortedUpdates) {
     if (
-      (update.action === "goal" || update.action === "yellow_card") &&
+      (update.action === "goal" ||
+        update.action === "yellow_card" ||
+        update.action === "injury") &&
       update.eventId !== undefined &&
       typeof update.data?.PlayerId === "number"
     ) {
@@ -507,15 +513,34 @@ export function getDisplayUpdates(
   const readableActions = new Set([
     "additional_time",
     "corner",
+    "game_finalised",
     "goal",
+    "halftime_finalised",
     "injury",
+    "jersey",
     "kickoff",
+    "kickoff_team",
     "penalty",
+    "penalty_outcome",
+    "pitch",
     "possible",
     "red_card",
     "shot",
     "substitution",
+    "var",
+    "var_end",
+    "venue",
+    "weather",
     "yellow_card",
+  ]);
+  // Scene-setting records arrive pre-match with a zeroed clock; a minute
+  // prefix would be misleading noise.
+  const noMinuteActions = new Set([
+    "jersey",
+    "kickoff_team",
+    "pitch",
+    "venue",
+    "weather",
   ]);
 
   for (const update of sortedUpdates) {
@@ -526,7 +551,9 @@ export function getDisplayUpdates(
       continue;
     }
 
-    const minute = formatMinute(update.clockSeconds);
+    const minute = noMinuteActions.has(action)
+      ? ""
+      : formatMinute(update.clockSeconds);
     const prefix = minute ? `${minute} ` : "";
     const teamName = getTeamName(update, fixture);
     const scoreline = formatScoreline(update);
@@ -622,11 +649,86 @@ export function getDisplayUpdates(
     }
 
     if (action === "penalty" && teamName) {
-      text = `${prefix}Penalty event for ${teamName}. Score ${scoreline}.`;
+      text = `${prefix}Penalty for ${teamName}!`;
+    }
+
+    if (action === "penalty_outcome") {
+      const outcome = String(update.data?.Outcome ?? "");
+
+      if (outcome) {
+        text = `${prefix}Penalty ${outcome.toLowerCase()}${
+          teamName ? ` (${teamName})` : ""
+        }. Score ${scoreline}.`;
+      }
+    }
+
+    if (action === "var" && update.data?.Type) {
+      text = `${prefix}VAR review: possible ${formatFeedLabel(
+        String(update.data.Type),
+      ).toLowerCase()}.`;
+    }
+
+    if (action === "var_end" && update.data?.Outcome) {
+      text = `${prefix}VAR decision: ${formatFeedLabel(
+        String(update.data.Outcome),
+      ).toLowerCase()}.`;
     }
 
     if (action === "injury") {
-      text = `${prefix}Injury stoppage${teamName ? ` for ${teamName}` : ""}.`;
+      const injuredPlayer = resolvePlayerName(update);
+      const outcome = String(update.data?.Outcome ?? "");
+      const status =
+        outcome === "NotReturning"
+          ? " - cannot continue"
+          : outcome === "OnPitch"
+            ? " - continues after treatment"
+            : "";
+
+      text = `${prefix}Injury${
+        injuredPlayer
+          ? `: ${injuredPlayer}`
+          : teamName
+            ? ` stoppage for ${teamName}`
+            : " stoppage"
+      }${status}.`;
+    }
+
+    if (action === "halftime_finalised") {
+      text = `Half-time: ${scoreline}.`;
+    }
+
+    if (action === "game_finalised") {
+      text = `Full time: ${scoreline}.`;
+    }
+
+    if (action === "weather" || action === "pitch") {
+      const conditions = Array.isArray(update.data?.Conditions)
+        ? update.data.Conditions.map(String).join(", ")
+        : "";
+
+      if (conditions) {
+        text =
+          action === "weather"
+            ? `Conditions: ${conditions}.`
+            : `Pitch: ${conditions}.`;
+      }
+    }
+
+    if (action === "venue" && update.data?.Type) {
+      const type = String(update.data.Type);
+
+      text =
+        type === "neutral"
+          ? "Played at a neutral venue."
+          : `Venue: ${formatFeedLabel(type)}.`;
+    }
+
+    if (action === "jersey" && teamName && update.data?.Color) {
+      text = `${teamName} in ${String(update.data.Color)}.`;
+    }
+
+    if (action === "kickoff_team" && teamName) {
+      text = `${teamName} to kick off.`;
     }
 
     if (action === "shot" && teamName && update.data?.Outcome) {

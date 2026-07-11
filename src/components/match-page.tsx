@@ -71,16 +71,25 @@ import {
   type GoalCallAnswer,
 } from "@/lib/prediction-store";
 import {
+  applyScoutCorrections,
   computePossessionSplit,
+  deriveMatchClock,
   extractAddedTimeCalls,
   extractCornerCalls,
   extractGoalCalls,
   extractGoals,
+  extractMatchInfo,
+  extractMomentum,
+  extractPenaltyEvents,
   extractSubstitutionEvents,
+  formatLiveMinute,
+  formatMatchPhase,
   normalizeScoreSnapshot,
   withoutRaw,
   type GoalEvent,
+  type MomentumBucket,
   type NormalizedLineups,
+  type OddsBoard,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
 import {
@@ -350,10 +359,12 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   const replayUpdates = details.historicalUpdates?.data?.length
     ? details.historicalUpdates
     : details.updates;
-  const combinedUpdates = fillUnknownStats([
-    ...(replayUpdates?.data ?? []),
-    ...streamUpdates,
-  ]);
+  // Scout corrections first: drop discarded events (disallowed goals, wrongly
+  // logged corners) and apply amends (re-graded shot outcomes) so every
+  // consumer below - stats, calls, feed - sees the corrected record of play.
+  const combinedUpdates = applyScoutCorrections(
+    fillUnknownStats([...(replayUpdates?.data ?? []), ...streamUpdates]),
+  );
   const displayScore = getDisplayScore(details.score?.data, combinedUpdates);
   const scoreSource = replayUpdates?.data?.length
     ? `${details.score?.source ?? "TxLINE scores snapshot API"} + ${

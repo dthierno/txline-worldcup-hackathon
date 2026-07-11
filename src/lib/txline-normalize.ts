@@ -15,7 +15,13 @@ export type NormalizedTxlineScore = {
   awayGoals: number;
   awayRedCards: number;
   awayYellowCards: number;
+  clockRunning?: boolean;
   clockSeconds?: number;
+  // Scout match phase: 1 pre-match, 2 first half, 3 half-time, 4 second half,
+  // 5 full time (awaiting finalisation), 100 finalised.
+  statusId?: number;
+  // Which participant (1|2) kicks off, from the Kickoff.Team field.
+  kickoffTeam?: number;
   data?: Record<string, unknown>;
   // TxLINE event Id: shared by the multiple feed records one real-world event
   // can emit (unconfirmed then confirmed), used to dedupe event counts.
@@ -79,11 +85,29 @@ export type TxlineOddsSeriesPoint = {
   ts: number;
 };
 
+export type LineupPosition = "GK" | "DEF" | "MID" | "FWD";
+
 export type NormalizedLineupPlayer = {
   name: string;
   number?: string;
   playerId?: number;
+  position?: LineupPosition;
   starter: boolean;
+};
+
+// TxLINE lineup positionId bands observed on World Cup fixtures.
+const POSITION_BY_ID: Record<number, LineupPosition> = {
+  34: "GK",
+  35: "DEF",
+  36: "MID",
+  37: "FWD",
+};
+
+const POSITION_ORDER: Record<LineupPosition, number> = {
+  DEF: 1,
+  FWD: 3,
+  GK: 0,
+  MID: 2,
 };
 
 export type NormalizedLineupTeam = {
@@ -190,7 +214,11 @@ export function normalizeScoreSnapshot(raw: unknown): NormalizedTxlineScore {
   return {
     action: readString(latestEntry, "Action"),
     awayCorners: statMap.get(awayBase + 6) ?? 0,
+    clockRunning: readBoolean(clock, "Running"),
     eventId: readNumber(latestEntry, "Id"),
+    kickoffTeam: readNumber(readRecord(latestEntry, "Kickoff"), "Team"),
+    statusId:
+      readNumber(latestEntry, "StatusId") ?? readNumber(data, "StatusId"),
     ...(hasBanks
       ? { halfStats: { first: halfLine(1000), second: halfLine(3000) } }
       : {}),
@@ -238,9 +266,13 @@ export function normalizeOddsSnapshot(raw: unknown): NormalizedTxlineOdds {
         : [],
       type: typeof entry.SuperOddsType === "string" ? entry.SuperOddsType : "Market",
     }));
-  const resultMarket = markets.find(
-    (market) => market.type === "1X2_PARTICIPANT_RESULT",
-  );
+  // Prefer the full-match result market: TxLINE also quotes 1X2 per half
+  // (MarketPeriod "half=1"), which must not be read as match-winner odds.
+  const resultMarket =
+    markets.find(
+      (market) =>
+        market.type === "1X2_PARTICIPANT_RESULT" && !market.marketPeriod,
+    ) ?? markets.find((market) => market.type === "1X2_PARTICIPANT_RESULT");
 
   return {
     awayWinProbability: resultMarket?.probabilities[2] ?? null,
@@ -341,6 +373,8 @@ export function extractLineups(records: unknown[]): NormalizedLineups | null {
               ? (entry.player as Record<string, unknown>)
               : undefined;
 
+          const positionId = readNumber(entry, "positionId");
+
           return {
             name:
               typeof player?.preferredName === "string"
@@ -351,10 +385,20 @@ export function extractLineups(records: unknown[]): NormalizedLineups | null {
                 ? entry.rosterNumber
                 : undefined,
             playerId: readNumber(player, "normativeId"),
+            position:
+              positionId !== undefined
+                ? POSITION_BY_ID[positionId]
+                : undefined,
             starter: entry.starter === true,
           };
         })
-        .sort((left, right) => Number(right.starter) - Number(left.starter));
+        .sort(
+          (left, right) =>
+            Number(right.starter) - Number(left.starter) ||
+            (left.position ? POSITION_ORDER[left.position] : 4) -
+              (right.position ? POSITION_ORDER[right.position] : 4) ||
+            left.name.localeCompare(right.name),
+        );
 
       return {
         isHome: participant1IsHome ? isParticipant1 : !isParticipant1,
@@ -742,6 +786,497 @@ export function extractAddedTimeCalls(
   }
 
   return calls;
+}
+
+type CorrectableUpdate = {
+  action?: string;
+  clockSeconds?: number;
+  data?: Record<string, unknown>;
+  eventId?: number;
+};
+
+// Scout corrections. `action_discarded` shares its event Id with the event it
+// cancels (observed live: a disallowed goal, a corner, a throw-in) — drop all
+// of that event's records. `action_amend` carries the corrected action name
+// plus Previous/New field sets and links to its target by action + clock
+// second (its Id does NOT match the amended event); patch the matching
+// sibling's Data so e.g. a shot re-graded OnTarget → OffTarget counts right.
+export function applyScoutCorrections<T extends CorrectableUpdate>(
+  updates: T[],
+): T[] {
+  const discarded = new Set<number>();
+  const amends: Array<{
+    action: string;
+    clockSeconds?: number;
+    next: Record<string, unknown>;
+    previous: Record<string, unknown>;
+  }> = [];
+
+  for (const update of updates) {
+    if (
+      update.action === "action_discarded" &&
+      typeof update.eventId === "number"
+    ) {
+      discarded.add(update.eventId);
+    }
+
+    if (update.action === "action_amend") {
+      const action = update.data?.Action;
+      const previous = readRecord(update.data, "Previous");
+      const next = readRecord(update.data, "New");
+
+      if (typeof action === "string" && previous && next) {
+        const withoutClock = (record: Record<string, unknown>) =>
+          Object.fromEntries(
+            Object.entries(record).filter(([key]) => key !== "Clock"),
+          );
+
+        amends.push({
+          action,
+          clockSeconds: readNumber(readRecord(previous, "Clock"), "Seconds"),
+          next: withoutClock(next),
+          previous: withoutClock(previous),
+        });
+      }
+    }
+  }
+
+  if (!discarded.size && !amends.length) {
+    return updates;
+  }
+
+  return updates
+    .filter(
+      (update) =>
+        !(
+          typeof update.eventId === "number" && discarded.has(update.eventId)
+        ),
+    )
+    .map((update) => {
+      let data = update.data;
+
+      for (const amend of amends) {
+        if (
+          update.action !== amend.action ||
+          update.clockSeconds !== amend.clockSeconds ||
+          !Object.entries(amend.previous).every(
+            ([key, value]) => data?.[key] === value,
+          )
+        ) {
+          continue;
+        }
+
+        data = { ...data, ...amend.next };
+      }
+
+      return data === update.data ? update : { ...update, data };
+    });
+}
+
+export type MatchClockState = {
+  running: boolean;
+  seconds: number;
+  statusId?: number;
+  // Wall-clock ms of the record that reported this clock; when running, the
+  // current match second is seconds + (now - ts) / 1000.
+  ts?: number;
+};
+
+// Latest scout clock + match phase. Nearly every feed record carries a Clock;
+// status records advance the phase (see statusId doc on NormalizedTxlineScore).
+export function deriveMatchClock(
+  updates: Array<{
+    clockRunning?: boolean;
+    clockSeconds?: number;
+    seq?: number;
+    statusId?: number;
+    ts?: number;
+  }>,
+): MatchClockState | null {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  let clock: MatchClockState | null = null;
+  let statusId: number | undefined;
+
+  for (const update of sorted) {
+    if (typeof update.clockSeconds === "number") {
+      clock = {
+        running: update.clockRunning === true,
+        seconds: update.clockSeconds,
+        ts: update.ts,
+      };
+    }
+
+    if (typeof update.statusId === "number") {
+      statusId = update.statusId;
+    }
+  }
+
+  return clock ? { ...clock, statusId } : null;
+}
+
+export function formatMatchPhase(statusId?: number): string | undefined {
+  const phases: Record<number, string> = {
+    1: "Pre-match",
+    2: "First half",
+    3: "Half-time",
+    4: "Second half",
+    5: "Full time",
+    100: "Full time",
+  };
+
+  return statusId !== undefined ? phases[statusId] : undefined;
+}
+
+// "37'" during regulation, "45+2'" / "90+4'" in added time of either half.
+export function formatLiveMinute(seconds: number, statusId?: number): string {
+  const minute = Math.max(1, Math.floor(seconds / 60) + 1);
+  const cap = statusId === 2 ? 45 : statusId === 4 ? 90 : undefined;
+
+  return cap !== undefined && minute > cap
+    ? `${cap}+${minute - cap}'`
+    : `${minute}'`;
+}
+
+export type MatchInfo = {
+  awayJersey?: string;
+  homeJersey?: string;
+  kickoffSide?: "away" | "home";
+  pitch?: string;
+  venueType?: string;
+  weather?: string;
+};
+
+// Scene-setting scout records (all pre-match unless re-reported): weather and
+// pitch conditions, venue type, jersey colors, and who kicks off.
+export function extractMatchInfo(
+  updates: Array<{
+    action?: string;
+    data?: Record<string, unknown>;
+    participant?: number;
+    participant1IsHome: boolean;
+    seq?: number;
+  }>,
+): MatchInfo | null {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const info: MatchInfo = {};
+
+  const sideOf = (update: {
+    participant?: number;
+    participant1IsHome: boolean;
+  }): "away" | "home" | undefined => {
+    if (update.participant !== 1 && update.participant !== 2) {
+      return undefined;
+    }
+
+    return (
+      update.participant1IsHome !== false
+        ? update.participant === 1
+        : update.participant === 2
+    )
+      ? "home"
+      : "away";
+  };
+  const conditions = (data?: Record<string, unknown>) =>
+    Array.isArray(data?.Conditions)
+      ? data.Conditions.map(String).join(", ")
+      : undefined;
+
+  for (const update of sorted) {
+    if (update.action === "weather") {
+      info.weather = conditions(update.data) ?? info.weather;
+    } else if (update.action === "pitch") {
+      info.pitch = conditions(update.data) ?? info.pitch;
+    } else if (update.action === "venue") {
+      const type = update.data?.Type;
+
+      info.venueType = typeof type === "string" ? type : info.venueType;
+    } else if (update.action === "jersey") {
+      const color = update.data?.Color;
+      const side = sideOf(update);
+
+      if (typeof color === "string" && side === "home") {
+        info.homeJersey = color;
+      } else if (typeof color === "string" && side === "away") {
+        info.awayJersey = color;
+      }
+    } else if (update.action === "kickoff_team") {
+      info.kickoffSide = sideOf(update) ?? info.kickoffSide;
+    }
+  }
+
+  return Object.values(info).some((value) => value !== undefined)
+    ? info
+    : null;
+}
+
+export type MomentumBucket = {
+  awayPressure: number;
+  homePressure: number;
+  startMinute: number;
+};
+
+// Attack-pressure weights for TxLINE's possession-phase and chance actions.
+const MOMENTUM_WEIGHTS: Record<string, number> = {
+  attack_possession: 1,
+  corner: 2,
+  danger_possession: 2,
+  high_danger_possession: 3,
+  shot: 3,
+};
+
+// Rolling attack momentum per side: weighted pressure events bucketed by
+// match-clock interval. Only possession phases and chances score; safe/basic
+// possession is neutral.
+export function extractMomentum(
+  updates: Array<{
+    action?: string;
+    clockSeconds?: number;
+    eventId?: number;
+    participant?: number;
+    possession?: number;
+    seq?: number;
+  }>,
+  bucketMinutes = 5,
+): MomentumBucket[] {
+  const buckets = new Map<number, { away: number; home: number }>();
+  const seenEvents = new Set<string>();
+  let participant1IsHome = true;
+
+  for (const update of updates as Array<
+    (typeof updates)[number] & { participant1IsHome?: boolean }
+  >) {
+    if (typeof update.participant1IsHome === "boolean") {
+      participant1IsHome = update.participant1IsHome;
+    }
+
+    const weight = MOMENTUM_WEIGHTS[update.action ?? ""];
+    const team = update.participant ?? update.possession;
+    const clock = update.clockSeconds;
+
+    if (
+      !weight ||
+      (team !== 1 && team !== 2) ||
+      typeof clock !== "number" ||
+      !Number.isFinite(clock)
+    ) {
+      continue;
+    }
+
+    // Chances emit sibling records per event Id; count each event once.
+    if (update.action === "shot" || update.action === "corner") {
+      const key = `${update.action}-${update.eventId ?? `seq-${update.seq}`}`;
+
+      if (seenEvents.has(key)) {
+        continue;
+      }
+
+      seenEvents.add(key);
+    }
+
+    const bucketStart =
+      Math.floor(clock / (bucketMinutes * 60)) * bucketMinutes;
+    const bucket = buckets.get(bucketStart) ?? { away: 0, home: 0 };
+    const isHome = participant1IsHome ? team === 1 : team === 2;
+
+    bucket[isHome ? "home" : "away"] += weight;
+    buckets.set(bucketStart, bucket);
+  }
+
+  return [...buckets.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([startMinute, bucket]) => ({
+      awayPressure: bucket.away,
+      homePressure: bucket.home,
+      startMinute,
+    }));
+}
+
+export type PenaltyEvent = {
+  clockSeconds?: number;
+  key: string;
+  outcome?: "missed" | "scored";
+  participant?: number;
+  resolved: boolean;
+  seq: number;
+  varOutcome?: string;
+  voided: boolean;
+};
+
+// Penalty situations: a `penalty` record raises one (with VAR checks arriving
+// as `var`/`var_end`), settled by `penalty_outcome` (Outcome Missed/Scored) or
+// by the score advancing while the penalty is pending.
+export function extractPenaltyEvents(
+  updates: Array<{
+    action?: string;
+    awayGoals: number;
+    clockSeconds?: number;
+    data?: Record<string, unknown>;
+    eventId?: number;
+    homeGoals: number;
+    participant?: number;
+    seq?: number;
+  }>,
+): PenaltyEvent[] {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const finished = sorted.some((update) => update.action === "game_finalised");
+  const events: PenaltyEvent[] = [];
+  const seen = new Set<string>();
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const update = sorted[index];
+
+    if (update.action !== "penalty") {
+      continue;
+    }
+
+    const key = `penalty-${update.eventId ?? `seq-${update.seq}`}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+
+    const goalsAtRaise = update.homeGoals + update.awayGoals;
+    let outcome: PenaltyEvent["outcome"];
+    let varOutcome: string | undefined;
+
+    for (const later of sorted.slice(index + 1)) {
+      if (later.action === "penalty" && later.eventId !== update.eventId) {
+        break;
+      }
+
+      if (later.action === "var_end" && typeof later.data?.Outcome === "string") {
+        varOutcome = later.data.Outcome;
+      }
+
+      if (
+        later.action === "penalty_outcome" &&
+        typeof later.data?.Outcome === "string"
+      ) {
+        outcome = later.data.Outcome === "Missed" ? "missed" : "scored";
+        break;
+      }
+
+      if (later.homeGoals + later.awayGoals > goalsAtRaise) {
+        outcome = "scored";
+        break;
+      }
+    }
+
+    events.push({
+      clockSeconds: update.clockSeconds,
+      key,
+      outcome,
+      participant: update.participant,
+      resolved: outcome !== undefined,
+      seq: update.seq ?? 0,
+      varOutcome,
+      voided: outcome === undefined && finished,
+    });
+  }
+
+  return events;
+}
+
+export type OddsBoardLine = {
+  line: number;
+  // Decimal odds (TxLINE prices are decimal odds × 1000).
+  prices: number[];
+  ts: number;
+};
+
+export type OddsBoard = {
+  // [home, away] per handicap line (from part1/part2 price names).
+  asianHandicap: OddsBoardLine[];
+  // [over, under] per goals line.
+  overUnder: OddsBoardLine[];
+  // Full-match 1X2 as decimal odds.
+  result: { away: number; draw: number; home: number; ts: number } | null;
+};
+
+// Current full-match odds board across the three TxLINE market families,
+// keeping the latest priced record per market + line. Records with an empty
+// Prices array are suspended markets and are skipped.
+export function buildOddsBoard(raw: unknown): OddsBoard {
+  const entries = (Array.isArray(raw) ? raw : []).filter(
+    (entry): entry is Record<string, unknown> =>
+      Boolean(entry && typeof entry === "object"),
+  );
+  const latestByLine = new Map<
+    string,
+    { line: number; prices: number[]; ts: number; type: string }
+  >();
+  let result: OddsBoard["result"] = null;
+
+  for (const entry of entries) {
+    const type = entry.SuperOddsType;
+    const ts = readNumber(entry, "Ts") ?? 0;
+    const prices = Array.isArray(entry.Prices)
+      ? entry.Prices.map(Number).filter((price) => Number.isFinite(price))
+      : [];
+
+    if (typeof type !== "string" || entry.MarketPeriod || !prices.length) {
+      continue;
+    }
+
+    if (type === "1X2_PARTICIPANT_RESULT" && prices.length >= 3) {
+      if (!result || ts >= result.ts) {
+        result = {
+          away: prices[2] / 1000,
+          draw: prices[1] / 1000,
+          home: prices[0] / 1000,
+          ts,
+        };
+      }
+
+      continue;
+    }
+
+    const lineMatch = /(?:^|,)line=(-?[\d.]+)/.exec(
+      String(entry.MarketParameters ?? ""),
+    );
+
+    if (
+      (type !== "OVERUNDER_PARTICIPANT_GOALS" &&
+        type !== "ASIANHANDICAP_PARTICIPANT_GOALS") ||
+      !lineMatch ||
+      prices.length < 2
+    ) {
+      continue;
+    }
+
+    const line = Number(lineMatch[1]);
+    const key = `${type}:${line}`;
+    const existing = latestByLine.get(key);
+
+    if (!existing || ts >= existing.ts) {
+      latestByLine.set(key, {
+        line,
+        prices: prices.map((price) => price / 1000),
+        ts,
+        type,
+      });
+    }
+  }
+
+  const linesOf = (type: string) =>
+    [...latestByLine.values()]
+      .filter((entry) => entry.type === type)
+      .sort((left, right) => left.line - right.line)
+      .map(({ line, prices, ts }) => ({ line, prices, ts }));
+
+  return {
+    asianHandicap: linesOf("ASIANHANDICAP_PARTICIPANT_GOALS"),
+    overUnder: linesOf("OVERUNDER_PARTICIPANT_GOALS"),
+    result,
+  };
 }
 
 export function normalizeValidationSummary(raw: unknown): TxlineValidationSummary {
