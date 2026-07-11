@@ -590,6 +590,15 @@ function fixtureStage(fixture: WorldCupFixture): string {
   return FIXTURE_STAGE_OVERRIDE[fixture.fixtureId] ?? stageLabel(fixture.stage);
 }
 
+// Deterministic stand-in live score per fixture. Illustrative only — there is
+// no real live-score feed, so this stays stable rather than pretending to tick.
+function liveScore(fixture: WorldCupFixture): { away: number; home: number } {
+  let hash = (2166136261 ^ fixture.fixtureId) >>> 0;
+  hash = (hash * 16777619) >>> 0;
+
+  return { away: (hash >>> 13) % 4, home: (hash >>> 5) % 4 };
+}
+
 // Deterministic five-match form strip so each team shows a stable win/draw/loss
 // history. Illustrative — the app has no real form feed.
 function teamForm(team: string): ("w" | "d" | "l")[] {
@@ -777,6 +786,7 @@ function PredictionCard({
   const [justSaved, setJustSaved] = useState(false);
   const live = now !== null && isPotentiallyLive(fixture, now);
   const locked = now !== null && isPredictionLocked(fixture, now);
+  const ls = liveScore(fixture);
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
@@ -873,16 +883,28 @@ function PredictionCard({
           <HugeiconsIcon className="pc-ball" icon={FootballIcon} strokeWidth={2} />
         </span>
         <span className="pc-comp">World Cup 2026</span>
+        {live ? (
+          <span className="pc-live-chip">
+            <span className="pc-live-dot" aria-hidden="true" />
+            <span className="pc-live-chip-score">
+              {ls.home}
+              <span className="pc-live-chip-dash">-</span>
+              {ls.away}
+            </span>
+          </span>
+        ) : null}
         <span className="pc-head-actions">
-          <a
-            aria-label="Add to calendar"
-            className="pc-head-btn"
-            href={calendarUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
-          </a>
+          {live ? null : (
+            <a
+              aria-label="Add to calendar"
+              className="pc-head-btn"
+              href={calendarUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
+            </a>
+          )}
           <button
             aria-label="Favourite"
             aria-pressed={favourite}
@@ -1140,7 +1162,8 @@ function PredictionsFeed({
       </ol>
       <p className="muted">
         Prototype league stored on this device. Rival scores are simulated;
-        your points settle from TxLINE data only. Form strips are illustrative.
+        your points settle from TxLINE data only. Form strips and live scores
+        are illustrative.
       </p>
     </>
   );

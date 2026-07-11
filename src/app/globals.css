@@ -2107,6 +2107,50 @@ dt {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Subtle live match-score chip in the header while a game is ongoing. */
+.pc-live-chip {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 999px;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+}
+.pc-live-dot {
+  animation: pc-live-pulse 1.5s ease-in-out infinite;
+  background: #ef4444;
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 6px;
+  width: 6px;
+}
+.pc-live-chip-score {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.pc-live-chip-dash {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 2px;
+}
+@keyframes pc-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.72);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-live-dot {
+    animation: none;
+  }
+}
 /* Star (favourite) + add-to-calendar buttons on the header right. */
 .pc-head-actions {
   align-items: center;
