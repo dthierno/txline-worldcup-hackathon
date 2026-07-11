@@ -35,6 +35,45 @@ const VARIATIONS = [
   { id: "comic", name: "Comic", concept: "Pop-art halftone and bold ink outline" },
 ];
 
+// The live home-page cards, reusing the shipped `.league-card` classes from
+// globals.css (static here — no dialogs) so this section mirrors production.
+function HomeCards() {
+  return (
+    <div className="league-actions">
+      <button className="league-card league-card--create" type="button">
+        <span className="league-card-icon">
+          <HugeiconsIcon icon={AddTeamIcon} strokeWidth={1.8} />
+        </span>
+        <span className="league-card-body">
+          <span className="league-card-kicker">Private league</span>
+          <span className="league-card-title">Create a league</span>
+          <span className="league-card-desc">
+            Set one up and invite your friends to predict.
+          </span>
+        </span>
+        <span className="league-card-arrow" aria-hidden="true">
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+        </span>
+      </button>
+      <button className="league-card league-card--join" type="button">
+        <span className="league-card-icon">
+          <HugeiconsIcon icon={Ticket01Icon} strokeWidth={1.8} />
+        </span>
+        <span className="league-card-body">
+          <span className="league-card-kicker">Invite code</span>
+          <span className="league-card-title">Join a league</span>
+          <span className="league-card-desc">
+            Got a code from a friend? Jump straight in.
+          </span>
+        </span>
+        <span className="league-card-arrow" aria-hidden="true">
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+        </span>
+      </button>
+    </div>
+  );
+}
+
 function Pair({ id }: { id: string }) {
   // Only the glass concept needs a real backdrop blur; set it inline so
   // Lightning CSS (which strips backdrop-filter from stylesheets) can't drop it.
@@ -140,6 +179,19 @@ export default function LeagueActionsDemoPage() {
           visual language.
         </p>
       </div>
+
+      <section className="lv-sec">
+        <div className="lv-sec-head">
+          <span className="lv-num">★</span>
+          <div>
+            <h2 className="lv-name">Home page (live)</h2>
+            <p className="lv-concept">
+              The cards currently shipping on the home page.
+            </p>
+          </div>
+        </div>
+        <HomeCards />
+      </section>
 
       {VARIATIONS.map((v, i) => (
         <section className="lv-sec" key={v.id}>
