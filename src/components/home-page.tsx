@@ -36,6 +36,7 @@ import {
   type TxlineStatus,
 } from "@/lib/match-shared";
 import { PREDICTION_LINES, type MatchPrediction } from "@/lib/prediction-engine";
+import type { NormalizedTxlineScore } from "@/lib/txline-normalize";
 import {
   isPredictionLocked,
   loadPrediction,
@@ -156,7 +157,43 @@ export function HomePage() {
     loadSettlements(),
   );
   const [odds, setOdds] = useState<Record<number, string[]>>({});
+  const [scores, setScores] = useState<Record<number, NormalizedTxlineScore>>(
+    {},
+  );
   const now = useNow();
+
+  // Live score snapshots from TxLINE for any in-play fixture; polled while the
+  // match is inside its live window so the score and clock stay current.
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = () => {
+      const liveFixtures = fixtures.filter((fixture) =>
+        isPotentiallyLive(fixture, Date.now()),
+      );
+
+      liveFixtures.forEach((fixture) => {
+        fetchJson<NormalizedTxlineScore>(
+          `/api/txline/scores/${fixture.fixtureId}`,
+        ).then((result) => {
+          if (!cancelled && result.data) {
+            setScores((prev) => ({
+              ...prev,
+              [fixture.fixtureId]: result.data as NormalizedTxlineScore,
+            }));
+          }
+        });
+      });
+    };
+
+    load();
+    const timer = setInterval(load, 20_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [fixtures]);
 
   // Decimal 1X2 odds chips for upcoming fixtures (from TxLINE win
   // probabilities; at most four fetches).
@@ -287,6 +324,7 @@ export function HomePage() {
             fixtures={[...pastGames, ...upcomingGames]}
             now={now}
             predictions={mounted ? predictions : {}}
+            scores={scores}
           />
         </TabsContent>
         <TabsContent value="knockout">
@@ -590,15 +628,6 @@ function fixtureStage(fixture: WorldCupFixture): string {
   return FIXTURE_STAGE_OVERRIDE[fixture.fixtureId] ?? stageLabel(fixture.stage);
 }
 
-// Deterministic stand-in live score per fixture. Illustrative only — there is
-// no real live-score feed, so this stays stable rather than pretending to tick.
-function liveScore(fixture: WorldCupFixture): { away: number; home: number } {
-  let hash = (2166136261 ^ fixture.fixtureId) >>> 0;
-  hash = (hash * 16777619) >>> 0;
-
-  return { away: (hash >>> 13) % 4, home: (hash >>> 5) % 4 };
-}
-
 // Deterministic five-match form strip so each team shows a stable win/draw/loss
 // history. Illustrative — the app has no real form feed.
 function teamForm(team: string): ("w" | "d" | "l")[] {
@@ -770,11 +799,13 @@ function PredictionCard({
   now,
   prediction,
   onPredictedChange,
+  score,
 }: {
   fixture: WorldCupFixture;
   now: number | null;
   prediction?: MatchPrediction;
   onPredictedChange: (fixtureId: number, predicted: boolean) => void;
+  score?: NormalizedTxlineScore;
 }) {
   const [favourite, setFavourite] = useState(false);
   const [home, setHome] = useState(
@@ -784,16 +815,30 @@ function PredictionCard({
     prediction ? String(prediction.awayGoals) : "",
   );
   const [justSaved, setJustSaved] = useState(false);
-  const live = now !== null && isPotentiallyLive(fixture, now);
+  // Prefer TxLINE's match phase when present (2 first half, 3 half-time,
+  // 4 second half); otherwise fall back to the kickoff-window heuristic.
+  const inPlay =
+    score?.statusId != null
+      ? [2, 3, 4].includes(score.statusId)
+      : now !== null && isPotentiallyLive(fixture, now);
+  const live = inPlay;
   const locked = now !== null && isPredictionLocked(fixture, now);
-  const ls = liveScore(fixture);
-  // Elapsed match minute from the real kickoff time (ignores the half-time
-  // break; capped at 90+).
-  const elapsedMin =
-    now === null
-      ? 0
-      : Math.floor((now - new Date(fixture.kickoffUtc).getTime()) / 60_000);
-  const matchMinute = elapsedMin >= 90 ? "90+'" : `${Math.max(1, elapsedMin)}'`;
+  // Real live score from TxLINE; 0–0 until the feed reports goals.
+  const liveHome = score?.homeGoals ?? 0;
+  const liveAway = score?.awayGoals ?? 0;
+  // Match minute: TxLINE clock when it's ticking, else elapsed since kickoff.
+  const clockMin =
+    typeof score?.clockSeconds === "number"
+      ? Math.floor(score.clockSeconds / 60)
+      : now === null
+        ? 0
+        : Math.floor((now - new Date(fixture.kickoffUtc).getTime()) / 60_000);
+  const matchMinute =
+    score?.statusId === 3
+      ? "HT"
+      : clockMin >= 90
+        ? "90+'"
+        : `${Math.max(1, clockMin)}'`;
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
@@ -984,9 +1029,9 @@ function PredictionCard({
             <span className="pc-live-dot" aria-hidden="true" />
             <span className="pc-livebar-min">{matchMinute}</span>
             <span className="pc-livebar-score">
-              {ls.home}
+              {liveHome}
               <span className="pc-livebar-dash">–</span>
-              {ls.away}
+              {liveAway}
             </span>
           </div>
         ) : null}
@@ -1000,11 +1045,13 @@ function PredictionsFeed({
   fixtures,
   now,
   predictions,
+  scores,
 }: {
   finals: Record<string, StoredSettlement>;
   fixtures: WorldCupFixture[];
   now: number | null;
   predictions: Record<string, MatchPrediction>;
+  scores: Record<number, NormalizedTxlineScore>;
 }) {
   const [showPast, setShowPast] = useState(false);
 
@@ -1105,6 +1152,7 @@ function PredictionsFeed({
               now={now}
               onPredictedChange={handlePredictedChange}
               prediction={predictions[String(fixture.fixtureId)]}
+              score={scores[fixture.fixtureId]}
             />
           ))}
         </div>
@@ -1169,8 +1217,8 @@ function PredictionsFeed({
       </ol>
       <p className="muted">
         Prototype league stored on this device. Rival scores are simulated;
-        your points settle from TxLINE data only. Form strips and live scores
-        are illustrative.
+        your points and live scores come from TxLINE. Form strips are
+        illustrative.
       </p>
     </>
   );
