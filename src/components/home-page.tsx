@@ -756,66 +756,55 @@ function PredictionCard({
         </span>
       </div>
       <div className="pc-panel">
-        <div className="pc-teams">
+        <div className="pc-teams" data-saved={justSaved ? "true" : undefined}>
           <TeamSide
             href={`/match/${fixture.fixtureId}`}
             iso={homeIso}
             name={fixture.homeTeam}
           />
 
-          <div className="pc-center">
-            <Link className="pc-when" href={`/match/${fixture.fixtureId}`}>
-              {live ? (
-                <span className="pc-live">LIVE</span>
-              ) : (
-                <>
-                  {hasStage ? <span className="pc-day">{stage}</span> : null}
-                  <span className="pc-time">
-                    {formatKickoffTime(fixture.kickoffUtc)}
-                  </span>
-                </>
-              )}
-            </Link>
+          {locked ? (
+            <span className="pc-score-slot pc-score-final">
+              {prediction ? prediction.homeGoals : "–"}
+            </span>
+          ) : (
+            <input
+              aria-label={`${fixture.homeTeam} goals`}
+              className="pc-score-slot pc-score-box"
+              inputMode="numeric"
+              onChange={onGoalsChange("home")}
+              placeholder="–"
+              value={home}
+            />
+          )}
 
-            <div className="pc-score" data-saved={justSaved ? "true" : undefined}>
-              {locked ? (
-                prediction ? (
-                  <>
-                    <span className="pc-score-final">
-                      {prediction.homeGoals}
-                    </span>
-                    <span className="pc-score-dash">–</span>
-                    <span className="pc-score-final">
-                      {prediction.awayGoals}
-                    </span>
-                  </>
-                ) : (
-                  <span className="pc-score-empty" aria-hidden="true">
-                    –
-                  </span>
-                )
-              ) : (
-                <>
-                  <input
-                    aria-label={`${fixture.homeTeam} goals`}
-                    className="pc-score-box"
-                    inputMode="numeric"
-                    onChange={onGoalsChange("home")}
-                    placeholder="–"
-                    value={home}
-                  />
-                  <input
-                    aria-label={`${fixture.awayTeam} goals`}
-                    className="pc-score-box"
-                    inputMode="numeric"
-                    onChange={onGoalsChange("away")}
-                    placeholder="–"
-                    value={away}
-                  />
-                </>
-              )}
-            </div>
-          </div>
+          <Link className="pc-when" href={`/match/${fixture.fixtureId}`}>
+            {live ? (
+              <span className="pc-live">LIVE</span>
+            ) : (
+              <>
+                {hasStage ? <span className="pc-day">{stage}</span> : null}
+                <span className="pc-time">
+                  {formatKickoffTime(fixture.kickoffUtc)}
+                </span>
+              </>
+            )}
+          </Link>
+
+          {locked ? (
+            <span className="pc-score-slot pc-score-final">
+              {prediction ? prediction.awayGoals : "–"}
+            </span>
+          ) : (
+            <input
+              aria-label={`${fixture.awayTeam} goals`}
+              className="pc-score-slot pc-score-box"
+              inputMode="numeric"
+              onChange={onGoalsChange("away")}
+              placeholder="–"
+              value={away}
+            />
+          )}
 
           <TeamSide
             href={`/match/${fixture.fixtureId}`}
