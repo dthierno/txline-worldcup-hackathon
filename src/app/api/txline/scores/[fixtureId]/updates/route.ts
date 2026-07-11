@@ -11,7 +11,7 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const config = getTxlineConfig();
   const { fixtureId } = await context.params;
   const id = Number.parseInt(fixtureId, 10);
@@ -19,6 +19,14 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!Number.isFinite(id)) {
     return NextResponse.json({ error: "Invalid fixtureId" }, { status: 400 });
   }
+
+  // Cursor: only return events newer than the last one the client already has,
+  // so a poll ships the handful of new events rather than the whole match.
+  const since = Number.parseInt(
+    new URL(request.url).searchParams.get("since") ?? "0",
+    10,
+  );
+  const cursor = Number.isFinite(since) ? since : 0;
 
   if (!config.configured) {
     return NextResponse.json({
@@ -29,8 +37,12 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   try {
+    const updates = (await fetchTxlineScoreUpdates(id))
+      .map(withoutRaw)
+      .filter((update) => (update.seq ?? 0) > cursor);
+
     return NextResponse.json({
-      data: (await fetchTxlineScoreUpdates(id)).map(withoutRaw),
+      data: updates,
       mode: "txline",
       source: "TxLINE scores updates API",
     });

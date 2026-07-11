@@ -22,7 +22,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   fetchJson,
@@ -166,6 +166,9 @@ export function HomePage() {
   );
   const [odds, setOdds] = useState<Record<number, string[]>>({});
   const [scores, setScores] = useState<Record<number, LiveScore>>({});
+  // Highest event seq already folded per fixture, so each poll only pulls new
+  // events (see the `since` cursor on the updates route).
+  const lastSeqRef = useRef<Record<number, number>>({});
   const now = useNow();
 
   // Live scores from TxLINE for any in-play fixture, polled while the match is
@@ -181,8 +184,11 @@ export function HomePage() {
       );
 
       liveFixtures.forEach((fixture) => {
+        const id = fixture.fixtureId;
+        const since = lastSeqRef.current[id] ?? 0;
+
         fetchJson<NormalizedTxlineScore[]>(
-          `/api/txline/scores/${fixture.fixtureId}/updates`,
+          `/api/txline/scores/${id}/updates?since=${since}`,
         ).then((result) => {
           const updates = result.data;
 
@@ -190,25 +196,33 @@ export function HomePage() {
             return;
           }
 
-          const latest = updates.reduce<LiveScore>(
-            (acc, update) => ({
-              // A disallowed goal arrives as `action_discarded`; ignore its
-              // inflated count and keep the last confirmed score.
-              awayGoals:
-                update.action === "action_discarded"
-                  ? acc.awayGoals
-                  : update.awayGoals,
-              clockSeconds: update.clockSeconds ?? acc.clockSeconds,
-              homeGoals:
-                update.action === "action_discarded"
-                  ? acc.homeGoals
-                  : update.homeGoals,
-              statusId: update.statusId ?? acc.statusId,
-            }),
-            { awayGoals: 0, homeGoals: 0 },
+          lastSeqRef.current[id] = updates.reduce(
+            (max, update) => Math.max(max, update.seq ?? max),
+            since,
           );
 
-          setScores((prev) => ({ ...prev, [fixture.fixtureId]: latest }));
+          setScores((prev) => {
+            const base: LiveScore = prev[id] ?? { awayGoals: 0, homeGoals: 0 };
+            // Each record carries the running total, so the latest non-discard
+            // record wins; a disallowed goal (`action_discarded`) is skipped.
+            const folded = updates.reduce<LiveScore>(
+              (acc, update) => ({
+                awayGoals:
+                  update.action === "action_discarded"
+                    ? acc.awayGoals
+                    : update.awayGoals,
+                clockSeconds: update.clockSeconds ?? acc.clockSeconds,
+                homeGoals:
+                  update.action === "action_discarded"
+                    ? acc.homeGoals
+                    : update.homeGoals,
+                statusId: update.statusId ?? acc.statusId,
+              }),
+              base,
+            );
+
+            return { ...prev, [id]: folded };
+          });
         });
       });
     };
