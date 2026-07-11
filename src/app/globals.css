@@ -2082,10 +2082,13 @@ dt {
 }
 .pc-head-ic {
   align-items: center;
+  background: #000;
+  border-radius: 9px;
   color: #fbbf24;
   display: flex;
   flex-shrink: 0;
-  gap: 3px;
+  gap: 4px;
+  padding: 5px 8px;
 }
 .pc-head-ic svg {
   height: 15px;
