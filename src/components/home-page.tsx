@@ -159,7 +159,7 @@ export function HomePage() {
   // Decimal 1X2 odds chips for upcoming fixtures (from TxLINE win
   // probabilities; at most four fetches).
   useEffect(() => {
-    const upcoming = fixtures.filter((f) => !isPastFixture(f)).slice(0, 4);
+    const upcoming = fixtures.filter((f) => !isPastFixture(f)).slice(0, 10);
 
     upcoming.forEach((fixture) => {
       fetchJson<{
@@ -597,6 +597,15 @@ function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
   );
 }
 
+type Outcome = "home" | "draw" | "away";
+
+// Deterministic "how many others picked this" count for the community badge.
+function communityCount(fixtureId: number): number {
+  const hash = (fixtureId * 2654435761) >>> 0;
+
+  return 200 + (hash % 1800);
+}
+
 function TeamSide({
   fixtureId,
   iso,
@@ -607,14 +616,14 @@ function TeamSide({
   name: string;
 }) {
   return (
-    <Link className="pc-side" href={`/match/${fixtureId}`}>
+    <Link className="pc-team" href={`/match/${fixtureId}`}>
       {iso ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${iso}.png`} />
       ) : (
         <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
       )}
-      <span className="pc-team">{name}</span>
+      <span className="pc-name">{name}</span>
       <FormStrip results={teamForm(name)} />
     </Link>
   );
@@ -624,99 +633,130 @@ function PredictionCard({
   fixture,
   now,
   odds,
-  pick,
+  picked,
   settlement,
   onPick,
 }: {
   fixture: WorldCupFixture;
   now: number | null;
   odds?: string[];
-  pick: { home: string; away: string };
+  picked?: Outcome;
   settlement?: StoredSettlement;
-  onPick: (home: string, away: string) => void;
+  onPick: (outcome: Outcome) => void;
 }) {
   const live = now !== null && isPotentiallyLive(fixture, now);
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
+  const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
+  const glowAway = (awayIso && teamGlow[awayIso]) || "#3b3b44";
   const percents = odds ? impliedPercents(odds) : null;
 
-  // Editable only for upcoming, unsettled matches (kickoff not yet reached).
+  // Pickable only for upcoming, unsettled matches (kickoff not yet reached).
   const editable =
     !settlement && now !== null && !isPredictionLocked(fixture, now);
 
-  let home = pick.home;
-  let away = pick.away;
-  let boxState = pick.home !== "" || pick.away !== "" ? "pick" : "empty";
+  const kickoff = new Date(fixture.kickoffUtc);
+  const dayShort = new Intl.DateTimeFormat("en", {
+    timeZone: "UTC",
+    weekday: "short",
+  }).format(kickoff);
 
-  if (settlement) {
-    [home = "", away = ""] = settlement.finalScore.split("-").map((s) => s.trim());
-    boxState = settlement.totalPoints > 0 ? "hit" : "result";
-  }
+  const favorite: Outcome | null = percents
+    ? (["home", "draw", "away"] as const)[
+        percents.indexOf(Math.max(...percents))
+      ]
+    : null;
 
-  const clean = (value: string) => value.replace(/\D/g, "").slice(0, 2);
+  const outcomes: {
+    fill: string;
+    key: Outcome;
+    label: string;
+    odd?: string;
+    pct?: number;
+  }[] = [
+    { fill: glowHome, key: "home", label: fixture.homeTeam, odd: odds?.[0], pct: percents?.[0] },
+    { fill: "#64748b", key: "draw", label: "Draw", odd: odds?.[1], pct: percents?.[1] },
+    { fill: glowAway, key: "away", label: fixture.awayTeam, odd: odds?.[2], pct: percents?.[2] },
+  ];
 
   return (
     <div
       className="pc-card"
       style={
         {
-          "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
-          "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
+          "--glow-home": glowHome,
+          "--glow-away": glowAway,
         } as React.CSSProperties
       }
     >
-      <span className="pc-head">
-        <HugeiconsIcon className="pc-head-ic" icon={ChampionIcon} strokeWidth={2} />
-        {stageLabel(fixture.stage)} · {live ? "LIVE" : formatKickoffTime(fixture.kickoffUtc)}
-      </span>
-      <div className="pc-body">
-        <TeamSide fixtureId={fixture.fixtureId} iso={homeIso} name={fixture.homeTeam} />
-        <div className="pc-center">
-          <div className="pc-boxes">
-            {editable ? (
-              <>
-                <input
-                  aria-label={`${fixture.homeTeam} goals`}
-                  className="pc-box pc-input"
-                  inputMode="numeric"
-                  maxLength={2}
-                  onChange={(event) => onPick(clean(event.target.value), pick.away)}
-                  placeholder="–"
-                  value={pick.home}
-                />
-                <input
-                  aria-label={`${fixture.awayTeam} goals`}
-                  className="pc-box pc-input"
-                  inputMode="numeric"
-                  maxLength={2}
-                  onChange={(event) => onPick(pick.home, clean(event.target.value))}
-                  placeholder="–"
-                  value={pick.away}
-                />
-              </>
+      <div className="pc-head">
+        <span className="pc-head-ic" aria-hidden="true">
+          <HugeiconsIcon className="pc-ball" icon={FootballIcon} strokeWidth={2} />
+          <HugeiconsIcon icon={ChampionIcon} strokeWidth={2} />
+        </span>
+        <span className="pc-comp">
+          World Cup 2026
+          {stageLabel(fixture.stage) !== "World Cup"
+            ? ` · ${stageLabel(fixture.stage)}`
+            : ""}
+        </span>
+      </div>
+      <div className="pc-panel">
+        <div className="pc-teams">
+          <TeamSide fixtureId={fixture.fixtureId} iso={homeIso} name={fixture.homeTeam} />
+          <div className="pc-when">
+            {live ? (
+              <span className="pc-live">LIVE</span>
             ) : (
               <>
-                <span className={`pc-box pc-box--${boxState}`}>{home}</span>
-                <span className={`pc-box pc-box--${boxState}`}>{away}</span>
+                <span className="pc-day">{dayShort}</span>
+                <span className="pc-time">{formatKickoffTime(fixture.kickoffUtc)}</span>
               </>
             )}
           </div>
-          {odds && percents ? (
-            <>
-              <span className="pc-odds">
-                <span>{odds[0]}</span>
-                <span>{odds[1]}</span>
-                <span>{odds[2]}</span>
-              </span>
-              <span className="pc-pct">
-                <span>{percents[0]}%</span>
-                <span>{percents[1]}%</span>
-                <span>{percents[2]}%</span>
-              </span>
-            </>
-          ) : null}
+          <TeamSide fixtureId={fixture.fixtureId} iso={awayIso} name={fixture.awayTeam} />
         </div>
-        <TeamSide fixtureId={fixture.fixtureId} iso={awayIso} name={fixture.awayTeam} />
+        <div className="pc-markets">
+          {outcomes.map((outcome) => (
+            <div className="pc-market" key={outcome.key}>
+              <button
+                className={`pc-pill${picked === outcome.key ? " is-picked" : ""}`}
+                disabled={!editable}
+                onClick={() => onPick(outcome.key)}
+                type="button"
+              >
+                {favorite === outcome.key ? (
+                  <span className="pc-pill-badge">
+                    {communityCount(fixture.fixtureId).toLocaleString("en-US")}
+                    <svg
+                      aria-hidden="true"
+                      fill="currentColor"
+                      height="9"
+                      viewBox="0 0 16 16"
+                      width="9"
+                    >
+                      <circle cx="8" cy="5" r="3" />
+                      <path d="M2 14c0-3 2.7-4.5 6-4.5S14 11 14 14z" />
+                    </svg>
+                  </span>
+                ) : null}
+                <span className="pc-pill-label">{outcome.label}</span>
+                <span className="pc-pill-odd">{outcome.odd ?? "–"}</span>
+              </button>
+              {outcome.pct != null ? (
+                <div className="pc-meter">
+                  <span className="pc-pct">{outcome.pct}%</span>
+                  <div className="pc-track">
+                    <div
+                      className="pc-fill"
+                      style={{ background: outcome.fill, width: `${outcome.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -736,52 +776,52 @@ function PredictionsFeed({
   predictions: Record<string, MatchPrediction>;
 }) {
   const [showPast, setShowPast] = useState(false);
-  // Inline score edits made this session, layered over the saved predictions so
-  // the display and the per-day count update immediately.
-  const [edits, setEdits] = useState<Record<string, { home: string; away: string }>>(
-    {},
-  );
+  // 1X2 outcome picks made this session, layered over the saved predictions so
+  // the highlight and the per-day count update immediately.
+  const [picks, setPicks] = useState<Record<string, Outcome>>({});
 
-  const pickFor = (fixture: WorldCupFixture) => {
-    const edited = edits[String(fixture.fixtureId)];
+  const winnerOf = (prediction: MatchPrediction): Outcome =>
+    prediction.winner ??
+    (prediction.homeGoals > prediction.awayGoals
+      ? "home"
+      : prediction.homeGoals < prediction.awayGoals
+        ? "away"
+        : "draw");
 
-    if (edited) {
-      return edited;
+  const pickedFor = (fixture: WorldCupFixture): Outcome | undefined => {
+    const session = picks[String(fixture.fixtureId)];
+
+    if (session) {
+      return session;
     }
 
     const saved = predictions[String(fixture.fixtureId)];
 
-    return saved
-      ? { home: String(saved.homeGoals), away: String(saved.awayGoals) }
-      : { home: "", away: "" };
+    return saved ? winnerOf(saved) : undefined;
   };
 
-  const handlePick = (fixture: WorldCupFixture, home: string, away: string) => {
-    setEdits((prev) => ({
-      ...prev,
-      [String(fixture.fixtureId)]: { home, away },
-    }));
+  const handlePick = (fixture: WorldCupFixture, outcome: Outcome) => {
+    setPicks((prev) => ({ ...prev, [String(fixture.fixtureId)]: outcome }));
 
-    // Persist once both boxes hold a number; derive the winner from the score
-    // and keep any other markets already saved on the match page.
-    if (home !== "" && away !== "") {
-      const homeGoals = Number.parseInt(home, 10);
-      const awayGoals = Number.parseInt(away, 10);
-      const existing = loadPrediction(fixture.fixtureId);
+    // Keep an existing exact score if it already implies this outcome; otherwise
+    // store a representative scoreline (1-0 / 1-1 / 0-1) so the prediction is
+    // valid and can be refined on the match page.
+    const existing = loadPrediction(fixture.fixtureId);
+    const keep = existing && winnerOf(existing) === outcome;
+    const homeGoals = keep ? existing.homeGoals : outcome === "away" ? 0 : 1;
+    const awayGoals = keep ? existing.awayGoals : outcome === "home" ? 0 : 1;
 
-      savePrediction({
-        totalCards: "under",
-        totalCorners: "under",
-        totalGoals: homeGoals + awayGoals >= 3 ? "over" : "under",
-        ...(existing ?? {}),
-        awayGoals,
-        fixtureId: fixture.fixtureId,
-        homeGoals,
-        savedAt: new Date().toISOString(),
-        winner:
-          homeGoals > awayGoals ? "home" : homeGoals < awayGoals ? "away" : "draw",
-      });
-    }
+    savePrediction({
+      totalCards: "under",
+      totalCorners: "under",
+      totalGoals: homeGoals + awayGoals >= 3 ? "over" : "under",
+      ...(existing ?? {}),
+      awayGoals,
+      fixtureId: fixture.fixtureId,
+      homeGoals,
+      savedAt: new Date().toISOString(),
+      winner: outcome,
+    });
   };
 
   const isLive = (fixture: WorldCupFixture) =>
@@ -821,11 +861,9 @@ function PredictionsFeed({
     label: string;
     matches: WorldCupFixture[];
   }) => {
-    const predicted = group.matches.filter((match) => {
-      const p = pickFor(match);
-
-      return p.home !== "" && p.away !== "";
-    }).length;
+    const predicted = group.matches.filter(
+      (match) => pickedFor(match) !== undefined,
+    ).length;
 
     return (
       <div className="pred-day-block" key={group.label}>
@@ -847,8 +885,8 @@ function PredictionsFeed({
               key={fixture.fixtureId}
               now={now}
               odds={odds[fixture.fixtureId]}
-              onPick={(home, away) => handlePick(fixture, home, away)}
-              pick={pickFor(fixture)}
+              onPick={(outcome) => handlePick(fixture, outcome)}
+              picked={pickedFor(fixture)}
               settlement={finals[String(fixture.fixtureId)]}
             />
           ))}
