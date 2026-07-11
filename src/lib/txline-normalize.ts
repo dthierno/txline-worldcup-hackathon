@@ -935,9 +935,10 @@ export function deriveMatchClock(
   return clock ? { ...clock, statusId } : null;
 }
 
-// StatusIds verified live on NOR-ENG (went to extra time): 6 = regulation
-// over / ET break, 7 = ET first half (kickoff again at 5400s). Higher ids
-// (ET2, penalties) unobserved so far - keep the >= 6 fallback until then.
+// StatusIds verified live on NOR-ENG, full extra-time run: 5 full time,
+// 6 regulation over / ET break, 7 ET first half (kickoff at 5400s), 8 ET
+// break, 9 ET second half (kickoff at 6300s), 10 over after ET, 100
+// finalised. Penalty-shootout ids are still unobserved (likely 11+).
 export function formatMatchPhase(statusId?: number): string | undefined {
   const phases: Record<number, string> = {
     1: "Pre-match",
@@ -947,11 +948,14 @@ export function formatMatchPhase(statusId?: number): string | undefined {
     5: "Full time",
     6: "Extra time",
     7: "Extra time",
+    8: "Extra time",
+    9: "Extra time",
+    10: "Full time",
     100: "Full time",
   };
 
-  if (statusId !== undefined && statusId > 7 && statusId < 100) {
-    return "Extra time";
+  if (statusId !== undefined && statusId > 10 && statusId < 100) {
+    return "Penalties";
   }
 
   return statusId !== undefined ? phases[statusId] : undefined;
@@ -967,7 +971,7 @@ export function formatLiveMinute(seconds: number, statusId?: number): string {
         ? 90
         : statusId === 7
           ? 105
-          : statusId !== undefined && statusId > 7 && statusId < 100
+          : statusId === 9
             ? 120
             : undefined;
 

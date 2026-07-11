@@ -125,11 +125,15 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   try {
+    // The historical replay is EMPTY (not an error) until TxLINE publishes
+    // it post-finalisation - fall back to the live updates feed either way.
     const updates = Number.isFinite(requestedSeq)
       ? []
-      : await fetchTxlineHistoricalScoreUpdates(id).catch(() =>
-          fetchTxlineScoreUpdates(id),
-        );
+      : await fetchTxlineHistoricalScoreUpdates(id)
+          .then((records) =>
+            records.length ? records : fetchTxlineScoreUpdates(id),
+          )
+          .catch(() => fetchTxlineScoreUpdates(id));
     const latestSeq = Number.isFinite(requestedSeq)
       ? requestedSeq
       : [...updates].sort((left, right) => (right.seq ?? 0) - (left.seq ?? 0))[0]

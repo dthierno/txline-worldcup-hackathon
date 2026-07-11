@@ -127,23 +127,25 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
 - **GameState never becomes "finished"** on devnet. `game_finalised` action is
   the authoritative end; `halftime_finalised` marks the break (both carry a
   `Score` object with H1/HT/H2/Total per participant).
-- **StatusId map** (verified live on NOR-ENG, which went to extra time):
-  1 pre-match, 2 first half, 3 half-time, 4 second half, 5 full time,
-  **6 = regulation over / ET break, 7 = extra time first half** (kickoff
-  again at clock 5400s), higher ids = later ET phases / penalties
-  (unconfirmed), 100 finalised. Nearly every record carries
-  `Clock {Running, Seconds}` (H2 starts at 2700s, ET1 at 5400s);
-  `Kickoff.Team` says who kicks off. The match-page badge uses StatusId
-  (feed or stream) because GameState stays "scheduled" throughout;
-  settlement still waits for `game_finalised`.
-- **Extra time IS covered by the stat banks**: on NOR-ENG the 4000s bank
-  held ET totals and the 7000s bank ET1 (Bellingham's 93' ET goal appeared
-  as 4002=1 and 7002=1, keys 1/2 include ET goals). 2000s = HT snapshot
-  (confirmed twice). 5000s/6000s still unobserved (likely ET2 / pens).
-  `formatLiveMinute` caps: 45 (H1), 90 (H2), 105 (ET1, id 7), 120 (later
-  ET ids). Penalty shootouts: expected to arrive as penalty/
-  penalty_outcome records without score advances (live calls would work);
-  shootout impact on keys 1/2 unknown until observed.
+- **StatusId map** (fully verified on NOR-ENG, which went the whole
+  extra-time distance): 1 pre-match, 2 first half, 3 half-time, 4 second
+  half, 5 full time, 6 regulation over / ET break, 7 ET first half
+  (kickoff at clock 5400s), 8 ET break, 9 ET second half (kickoff at
+  6300s), 10 over after ET, 100 finalised. **Penalty-shootout ids remain
+  unobserved** (assumed 11+; the app labels >10 "Penalties"). Nearly every
+  record carries `Clock {Running, Seconds}`; `Kickoff.Team` says who kicks
+  off. The match-page badge uses StatusId (feed or stream) because
+  GameState stays "scheduled" throughout; settlement still waits for
+  `game_finalised`.
+- **Extra time is fully covered**: keys 1/2 include ET goals; bank map
+  verified against game_finalised Score sections (H1/HT/H2/ET1/ET2/
+  ETTotal/Total): **1000s=H1, 2000s=HT snapshot, 3000s=H2, 4000s=ET1,
+  5000s=ET2, 7000s=ET total; 6000s never populated — likely the shootout
+  bank.** Four `additional_time` records on an ET match (H1, H2, ET1,
+  ET2); added-time calls only use the first two. `formatLiveMinute` caps:
+  45 (H1), 90 (H2), 105 (ET1), 120 (ET2). Penalty shootouts: expected as
+  penalty/penalty_outcome records without score advances (live calls
+  would work); shootout impact on keys 1/2 unknown until observed.
 - One real event → multiple feed records sharing `Id` (normalized `eventId`):
   first sibling is often empty (no Participant/Data), confirmed ones carry
   payload. Always merge by eventId before counting or reading players.

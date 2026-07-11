@@ -393,13 +393,14 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     feedFinished ||
     (isPastFixture(fixture) && !liveStreamEligible && displayScore)
       ? "Finished"
-      : feedStatusId >= 6
-        ? // 6 = regulation over / ET break, 7 = ET first half (verified live
-          // on NOR-ENG); higher un-finalised ids are later ET phases.
-          "Extra time"
-        : feedStatusId === 5
-          ? "Full time"
-          : feedStatusId === 3
+      : feedStatusId > 10
+        ? "Penalties"
+        : feedStatusId >= 6 && feedStatusId <= 9
+          ? // 6-9 = ET break through ET second half (verified live NOR-ENG).
+            "Extra time"
+          : feedStatusId === 5 || feedStatusId === 10
+            ? "Full time"
+            : feedStatusId === 3
           ? "Half-time"
           : feedStatusId >= 2 ||
               (streamIndicatesLive && formattedState === "Not started")
@@ -543,19 +544,20 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           ? Math.max(0, (now - matchClock.ts) / 1000)
           : 0)
       : null;
+  // Break/ended phases show the phase alone; playing phases show the minute.
   const clockLabel =
     liveClockSeconds !== null && matchClock
-      ? matchClock.statusId === 3
-        ? "Half-time"
-        : matchClock.statusId === 5
-          ? "Full time"
-          : (matchClock.statusId ?? 0) >= 2
-            ? `${formatLiveMinute(liveClockSeconds, matchClock.statusId)}${
-                formatMatchPhase(matchClock.statusId)
-                  ? ` · ${formatMatchPhase(matchClock.statusId)}`
-                  : ""
-              }`
-            : null
+      ? [3, 5, 6, 8, 10].includes(matchClock.statusId ?? 0)
+        ? matchClock.statusId === 3
+          ? "Half-time"
+          : formatMatchPhase(matchClock.statusId) ?? null
+        : (matchClock.statusId ?? 0) >= 2
+          ? `${formatLiveMinute(liveClockSeconds, matchClock.statusId)}${
+              formatMatchPhase(matchClock.statusId)
+                ? ` · ${formatMatchPhase(matchClock.statusId)}`
+                : ""
+            }`
+          : null
       : null;
   const statRows: Array<{ away: number; home: number; label: string }> = [
     ...(shots.home + shots.away > 0
