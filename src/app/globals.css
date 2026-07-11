@@ -2243,3 +2243,27 @@ dt {
 .pred-you .pred-rank {
   color: var(--won);
 }
+
+/* Inline-editable score boxes in the prediction cards. */
+.pc-side {
+  text-decoration: none;
+}
+.pc-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+  caret-color: var(--won);
+  cursor: text;
+  outline: none;
+  padding: 0;
+  text-align: center;
+}
+.pc-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+.pc-input:hover {
+  border-color: #3a3a44;
+}
+.pc-input:focus {
+  border-color: var(--won);
+}

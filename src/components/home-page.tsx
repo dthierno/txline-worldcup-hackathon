@@ -33,8 +33,11 @@ import {
 } from "@/lib/match-shared";
 import type { MatchPrediction } from "@/lib/prediction-engine";
 import {
+  isPredictionLocked,
+  loadPrediction,
   loadPredictions,
   loadSettlements,
+  savePrediction,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -592,42 +595,67 @@ function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
   );
 }
 
+function TeamSide({
+  fixtureId,
+  iso,
+  name,
+}: {
+  fixtureId: number;
+  iso?: string;
+  name: string;
+}) {
+  return (
+    <Link className="pc-side" href={`/match/${fixtureId}`}>
+      {iso ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${iso}.png`} />
+      ) : (
+        <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
+      )}
+      <span className="pc-team">{name}</span>
+      <FormStrip results={teamForm(name)} />
+    </Link>
+  );
+}
+
 function PredictionCard({
   fixture,
   now,
   odds,
-  prediction,
+  pick,
   settlement,
+  onPick,
 }: {
   fixture: WorldCupFixture;
   now: number | null;
   odds?: string[];
-  prediction?: MatchPrediction;
+  pick: { home: string; away: string };
   settlement?: StoredSettlement;
+  onPick: (home: string, away: string) => void;
 }) {
   const live = now !== null && isPotentiallyLive(fixture, now);
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
+  const percents = odds ? impliedPercents(odds) : null;
 
-  let home = "";
-  let away = "";
-  let boxState = "empty";
+  // Editable only for upcoming, unsettled matches (kickoff not yet reached).
+  const editable =
+    !settlement && now !== null && !isPredictionLocked(fixture, now);
+
+  let home = pick.home;
+  let away = pick.away;
+  let boxState = pick.home !== "" || pick.away !== "" ? "pick" : "empty";
 
   if (settlement) {
     [home = "", away = ""] = settlement.finalScore.split("-").map((s) => s.trim());
     boxState = settlement.totalPoints > 0 ? "hit" : "result";
-  } else if (prediction) {
-    home = String(prediction.homeGoals);
-    away = String(prediction.awayGoals);
-    boxState = "pick";
   }
 
-  const percents = odds ? impliedPercents(odds) : null;
+  const clean = (value: string) => value.replace(/\D/g, "").slice(0, 2);
 
   return (
-    <Link
+    <div
       className="pc-card"
-      href={`/match/${fixture.fixtureId}`}
       style={
         {
           "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
@@ -639,22 +667,38 @@ function PredictionCard({
         <HugeiconsIcon className="pc-head-ic" icon={ChampionIcon} strokeWidth={2} />
         {stageLabel(fixture.stage)} · {live ? "LIVE" : formatKickoffTime(fixture.kickoffUtc)}
       </span>
-      <span className="pc-body">
-        <span className="pc-side">
-          {homeIso ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${homeIso}.png`} />
-          ) : (
-            <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
-          )}
-          <span className="pc-team">{fixture.homeTeam}</span>
-          <FormStrip results={teamForm(fixture.homeTeam)} />
-        </span>
-        <span className="pc-center">
-          <span className="pc-boxes">
-            <span className={`pc-box pc-box--${boxState}`}>{home}</span>
-            <span className={`pc-box pc-box--${boxState}`}>{away}</span>
-          </span>
+      <div className="pc-body">
+        <TeamSide fixtureId={fixture.fixtureId} iso={homeIso} name={fixture.homeTeam} />
+        <div className="pc-center">
+          <div className="pc-boxes">
+            {editable ? (
+              <>
+                <input
+                  aria-label={`${fixture.homeTeam} goals`}
+                  className="pc-box pc-input"
+                  inputMode="numeric"
+                  maxLength={2}
+                  onChange={(event) => onPick(clean(event.target.value), pick.away)}
+                  placeholder="–"
+                  value={pick.home}
+                />
+                <input
+                  aria-label={`${fixture.awayTeam} goals`}
+                  className="pc-box pc-input"
+                  inputMode="numeric"
+                  maxLength={2}
+                  onChange={(event) => onPick(pick.home, clean(event.target.value))}
+                  placeholder="–"
+                  value={pick.away}
+                />
+              </>
+            ) : (
+              <>
+                <span className={`pc-box pc-box--${boxState}`}>{home}</span>
+                <span className={`pc-box pc-box--${boxState}`}>{away}</span>
+              </>
+            )}
+          </div>
           {odds && percents ? (
             <>
               <span className="pc-odds">
@@ -669,19 +713,10 @@ function PredictionCard({
               </span>
             </>
           ) : null}
-        </span>
-        <span className="pc-side">
-          {awayIso ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${awayIso}.png`} />
-          ) : (
-            <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
-          )}
-          <span className="pc-team">{fixture.awayTeam}</span>
-          <FormStrip results={teamForm(fixture.awayTeam)} />
-        </span>
-      </span>
-    </Link>
+        </div>
+        <TeamSide fixtureId={fixture.fixtureId} iso={awayIso} name={fixture.awayTeam} />
+      </div>
+    </div>
   );
 }
 
@@ -698,6 +733,54 @@ function PredictionsFeed({
   odds: Record<number, string[]>;
   predictions: Record<string, MatchPrediction>;
 }) {
+  // Inline score edits made this session, layered over the saved predictions so
+  // the display and the per-day count update immediately.
+  const [edits, setEdits] = useState<Record<string, { home: string; away: string }>>(
+    {},
+  );
+
+  const pickFor = (fixture: WorldCupFixture) => {
+    const edited = edits[String(fixture.fixtureId)];
+
+    if (edited) {
+      return edited;
+    }
+
+    const saved = predictions[String(fixture.fixtureId)];
+
+    return saved
+      ? { home: String(saved.homeGoals), away: String(saved.awayGoals) }
+      : { home: "", away: "" };
+  };
+
+  const handlePick = (fixture: WorldCupFixture, home: string, away: string) => {
+    setEdits((prev) => ({
+      ...prev,
+      [String(fixture.fixtureId)]: { home, away },
+    }));
+
+    // Persist once both boxes hold a number; derive the winner from the score
+    // and keep any other markets already saved on the match page.
+    if (home !== "" && away !== "") {
+      const homeGoals = Number.parseInt(home, 10);
+      const awayGoals = Number.parseInt(away, 10);
+      const existing = loadPrediction(fixture.fixtureId);
+
+      savePrediction({
+        totalCards: "under",
+        totalCorners: "under",
+        totalGoals: homeGoals + awayGoals >= 3 ? "over" : "under",
+        ...(existing ?? {}),
+        awayGoals,
+        fixtureId: fixture.fixtureId,
+        homeGoals,
+        savedAt: new Date().toISOString(),
+        winner:
+          homeGoals > awayGoals ? "home" : homeGoals < awayGoals ? "away" : "draw",
+      });
+    }
+  };
+
   const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
 
   for (const fixture of fixtures) {
@@ -726,9 +809,11 @@ function PredictionsFeed({
   return (
     <>
       {groups.map((group) => {
-        const predicted = group.matches.filter(
-          (match) => predictions[String(match.fixtureId)],
-        ).length;
+        const predicted = group.matches.filter((match) => {
+          const p = pickFor(match);
+
+          return p.home !== "" && p.away !== "";
+        }).length;
 
         return (
           <div className="pred-day-block" key={group.label}>
@@ -750,7 +835,8 @@ function PredictionsFeed({
                   key={fixture.fixtureId}
                   now={now}
                   odds={odds[fixture.fixtureId]}
-                  prediction={predictions[String(fixture.fixtureId)]}
+                  onPick={(home, away) => handlePick(fixture, home, away)}
+                  pick={pickFor(fixture)}
                   settlement={finals[String(fixture.fixtureId)]}
                 />
               ))}
