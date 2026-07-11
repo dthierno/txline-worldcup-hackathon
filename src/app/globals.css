@@ -2310,19 +2310,23 @@ dt {
   transform: translate(-50%, -50%);
   z-index: 1;
 }
-/* Segmented + / number / − stepper for each team's predicted goals. */
+/* Glassy + / number / − stepper for each team's predicted goals: one rounded
+   translucent column so the animated team glow bleeds gently through it. */
 .pc-stepper {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   justify-self: center;
+  overflow: hidden;
   width: 52px;
 }
 .pc-step {
   align-items: center;
-  background: #3a3d43;
+  background: transparent;
   border: none;
-  color: #d3d6db;
+  color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   display: flex;
   height: 26px;
@@ -2332,42 +2336,41 @@ dt {
     color 0.14s ease;
 }
 .pc-step-up {
-  border-radius: 9px 9px 0 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .pc-step-down {
-  border-radius: 0 0 9px 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 .pc-step:hover {
-  background: #484b52;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 .pc-step:active {
-  background: #55585f;
+  background: rgba(255, 255, 255, 0.16);
 }
 .pc-step:disabled {
-  background: #2f3237;
-  color: #565961;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.22);
   cursor: default;
 }
 .pc-score-box {
   -moz-appearance: textfield;
-  background: #23262b;
+  background: rgba(255, 255, 255, 0.02);
   border: none;
-  border-radius: 0;
+  box-sizing: border-box;
   color: #fff;
   font-size: 19px;
   font-weight: 600;
   height: 40px;
   text-align: center;
-  width: 52px;
+  width: 100%;
 }
 .pc-score-box:focus {
+  background: rgba(255, 255, 255, 0.08);
   outline: none;
 }
 .pc-score-box::placeholder {
-  color: #61656c;
-}
-.pc-score-box:placeholder-shown {
-  background: #1c1f23;
+  color: rgba(255, 255, 255, 0.32);
 }
 .pc-score-box::-webkit-outer-spin-button,
 .pc-score-box::-webkit-inner-spin-button {
