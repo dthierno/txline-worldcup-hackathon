@@ -787,6 +787,13 @@ function PredictionCard({
   const live = now !== null && isPotentiallyLive(fixture, now);
   const locked = now !== null && isPredictionLocked(fixture, now);
   const ls = liveScore(fixture);
+  // Elapsed match minute from the real kickoff time (ignores the half-time
+  // break; capped at 90+).
+  const elapsedMin =
+    now === null
+      ? 0
+      : Math.floor((now - new Date(fixture.kickoffUtc).getTime()) / 60_000);
+  const matchMinute = elapsedMin >= 90 ? "90+'" : `${Math.max(1, elapsedMin)}'`;
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
@@ -883,28 +890,16 @@ function PredictionCard({
           <HugeiconsIcon className="pc-ball" icon={FootballIcon} strokeWidth={2} />
         </span>
         <span className="pc-comp">World Cup 2026</span>
-        {live ? (
-          <span className="pc-live-chip">
-            <span className="pc-live-dot" aria-hidden="true" />
-            <span className="pc-live-chip-score">
-              {ls.home}
-              <span className="pc-live-chip-dash">-</span>
-              {ls.away}
-            </span>
-          </span>
-        ) : null}
         <span className="pc-head-actions">
-          {live ? null : (
-            <a
-              aria-label="Add to calendar"
-              className="pc-head-btn"
-              href={calendarUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
-            </a>
-          )}
+          <a
+            aria-label="Add to calendar"
+            className="pc-head-btn"
+            href={calendarUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
+          </a>
           <button
             aria-label="Favourite"
             aria-pressed={favourite}
@@ -983,6 +978,18 @@ function PredictionCard({
             name={fixture.awayTeam}
           />
         </div>
+
+        {live ? (
+          <div className="pc-livebar">
+            <span className="pc-live-dot" aria-hidden="true" />
+            <span className="pc-livebar-min">{matchMinute}</span>
+            <span className="pc-livebar-score">
+              {ls.home}
+              <span className="pc-livebar-dash">–</span>
+              {ls.away}
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
