@@ -2061,28 +2061,34 @@ dt {
   }
 }
 .pc-card {
+  /* World Cup colour strips forming a chevron — the frame + header behind the
+     dark panel, echoing the hero banner. */
   background:
-    radial-gradient(70% 130% at 0% 0%, color-mix(in srgb, var(--glow-home) 22%, transparent), transparent 58%),
-    radial-gradient(70% 130% at 100% 0%, color-mix(in srgb, var(--glow-away) 22%, transparent), transparent 58%),
-    #16161d;
-  border: 1px solid #23232b;
+    repeating-linear-gradient(
+        -50deg, #16a34a 0 15px, #22d3ee 15px 30px, #2563eb 30px 45px,
+        #7c3aed 45px 60px, #dc2626 60px 75px, #ea580c 75px 90px
+      )
+      top left / 50.5% 100% no-repeat,
+    repeating-linear-gradient(
+        50deg, #16a34a 0 15px, #22d3ee 15px 30px, #2563eb 30px 45px,
+        #7c3aed 45px 60px, #dc2626 60px 75px, #ea580c 75px 90px
+      )
+      top right / 50.5% 100% no-repeat;
   border-radius: 18px;
   display: block;
+  overflow: hidden;
   padding: 4px;
-  transition: border-color 0.18s ease;
 }
-.pc-card:hover {
-  border-color: #3a3a44;
-}
-/* Header: competition · stage, on the gradient. */
+/* Header: competition · stage, sitting on the colour strips. */
 .pc-head {
   align-items: center;
-  color: rgba(255, 255, 255, 0.9);
+  color: #fff;
   display: flex;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   gap: 8px;
-  padding: 8px 10px 10px;
+  padding: 9px 12px 11px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 .pc-head-ic {
   align-items: center;
