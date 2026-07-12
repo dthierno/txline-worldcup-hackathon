@@ -140,6 +140,7 @@ export type GoalEvent = {
   playerId?: number;
   scoringSide: "home" | "away";
   seq: number;
+  statusId?: number;
 };
 
 export type SubstitutionEvent = {
@@ -473,6 +474,7 @@ type GoalSourceUpdate = {
   participant?: number;
   participant1IsHome: boolean;
   seq?: number;
+  statusId?: number;
 };
 
 // Every goal of the match: score advances mark the goals; the scorer PlayerId
@@ -495,6 +497,7 @@ export function extractGoals(updates: GoalSourceUpdate[]): GoalEvent[] {
         homeGoals: update.homeGoals,
         scoringSide: update.homeGoals > previousHome ? "home" : "away",
         seq: update.seq ?? 0,
+        statusId: update.statusId,
       });
     }
 

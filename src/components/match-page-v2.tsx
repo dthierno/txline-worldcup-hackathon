@@ -1327,17 +1327,65 @@ function MomentumSection({
     return null;
   }
 
-  const maxMinute = momentum[momentum.length - 1].startMinute + 5;
-  const extraTime = maxMinute > 92;
+  // The scout clock overruns each period's nominal end during stoppage time
+  // (H1 runs past 45', ET2 past 120'), which would stretch the timeline and
+  // drift markers past their separators. Football convention instead: clamp
+  // into the period window, so a 45+2' goal sits ON the halftime line and a
+  // 120+1' goal at the AET edge.
+  const PERIOD_WINDOW: Record<number, [number, number]> = {
+    2: [0, 45],
+    3: [45, 45],
+    4: [45, 90],
+    5: [90, 90],
+    6: [90, 90],
+    7: [90, 105],
+    8: [105, 105],
+    9: [105, 120],
+    10: [120, 120],
+  };
+  const clampToPeriod = (rawMinute: number, statusId?: number) => {
+    const window =
+      statusId !== undefined
+        ? PERIOD_WINDOW[statusId > 10 ? 10 : statusId]
+        : undefined;
+
+    return window
+      ? Math.min(Math.max(rawMinute, window[0]), window[1])
+      : rawMinute;
+  };
+  const lastBucketEnd = momentum[momentum.length - 1].startMinute + 5;
+  const extraTime = lastBucketEnd > 92;
+  const maxMinute = extraTime ? 120 : 90;
+  // Buckets past the timeline end (stoppage) fold into the final position.
+  const bucketPoints = new Map<
+    number,
+    { away: number; home: number; label: string }
+  >();
+
+  for (const bucket of momentum) {
+    const minute = Math.min(bucket.startMinute + 2.5, maxMinute - 0.5);
+    const existing = bucketPoints.get(minute);
+
+    bucketPoints.set(minute, {
+      away: (existing?.away ?? 0) + bucket.awayPressure,
+      home: (existing?.home ?? 0) + bucket.homePressure,
+      label: existing
+        ? `${existing.label.split("-")[0]}-${bucket.startMinute + 5}'`
+        : `${bucket.startMinute}-${bucket.startMinute + 5}'`,
+    });
+  }
+
   const data = [
     { away: 0, home: 0, minute: 0, net: 0 },
-    ...momentum.map((bucket) => ({
-      away: bucket.awayPressure,
-      home: bucket.homePressure,
-      label: `${bucket.startMinute}-${bucket.startMinute + 5}'`,
-      minute: bucket.startMinute + 2.5,
-      net: bucket.homePressure - bucket.awayPressure,
-    })),
+    ...[...bucketPoints.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([minute, bucket]) => ({
+        away: bucket.away,
+        home: bucket.home,
+        label: bucket.label,
+        minute,
+        net: bucket.home - bucket.away,
+      })),
     { away: 0, home: 0, minute: maxMinute, net: 0 },
   ];
   const peak = Math.max(1, ...data.map((entry) => Math.abs(entry.net)));
@@ -1351,21 +1399,16 @@ function MomentumSection({
   const splitOffset =
     dataMax <= 0 ? 0 : dataMin >= 0 ? 1 : dataMax / (dataMax - dataMin);
   const gradientId = `mmt-split-${fixture.fixtureId}`;
-  const separators = [
-    ...(maxMinute > 45 ? [45] : []),
-    ...(extraTime ? [90] : []),
-  ];
+  const separators = [45, ...(extraTime ? [90] : [])];
   const tickLabel = (minute: number) =>
     minute === 0
       ? "0'"
       : minute === 45
         ? "HT"
-        : minute === maxMinute
-          ? extraTime
+        : minute === 90
+          ? "FT"
+          : minute === 120
             ? "AET"
-            : "FT"
-          : minute === 90
-            ? "FT"
             : `${minute}'`;
   const goalDot = (props: { cx?: number; cy?: number }) => (
     <g>
@@ -1452,7 +1495,10 @@ function MomentumSection({
               key={goal.seq}
               r={10}
               shape={goalDot}
-              x={Math.min((goal.clockSeconds ?? 0) / 60, maxMinute)}
+              x={Math.min(
+                clampToPeriod((goal.clockSeconds ?? 0) / 60, goal.statusId),
+                maxMinute,
+              )}
               y={goal.scoringSide === "home" ? lim * 0.82 : -lim * 0.82}
             />
           ))}
