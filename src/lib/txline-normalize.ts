@@ -943,7 +943,7 @@ export function formatMatchPhase(statusId?: number): string | undefined {
   const phases: Record<number, string> = {
     1: "Pre-match",
     2: "First half",
-    3: "Half-time",
+    3: "Halftime",
     4: "Second half",
     5: "Full time",
     6: "Extra time",

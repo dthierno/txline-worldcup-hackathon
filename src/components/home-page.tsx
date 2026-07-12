@@ -1050,9 +1050,14 @@ function PredictionCard({
       : now === null
         ? 0
         : Math.floor((now - new Date(fixture.kickoffUtc).getTime()) / 60_000);
+  // Breaks show a label with no pulsing dot; the dot means the clock runs.
+  const atBreak =
+    score?.statusId === 3 || score?.statusId === 6 || score?.statusId === 8;
   const matchMinute =
     score?.statusId === 3
       ? "Halftime"
+      : score?.statusId === 6 || score?.statusId === 8
+        ? "Extra time break"
       : typeof score?.clockSeconds === "number"
         ? formatLiveMinute(score.clockSeconds, score.statusId)
         : clockMin >= 90
@@ -1243,7 +1248,9 @@ function PredictionCard({
                     <span className="pc-ft-score">{liveAway}</span>
                   </span>
                   <span className="pc-live-row">
-                    <span className="pc-live-dot" aria-hidden="true" />
+                    {atBreak ? null : (
+                      <span className="pc-live-dot" aria-hidden="true" />
+                    )}
                     <span className="pc-livebar-min">{matchMinute}</span>
                   </span>
                 </span>

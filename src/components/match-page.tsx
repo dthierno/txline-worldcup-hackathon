@@ -408,7 +408,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           : feedStatusId === 5 || feedStatusId === 10
             ? "Full time"
             : feedStatusId === 3
-          ? "Half-time"
+          ? "Halftime"
           : feedStatusId >= 2 ||
               (streamIndicatesLive && formattedState === "Not started")
             ? "Live"
@@ -556,7 +556,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     liveClockSeconds !== null && matchClock
       ? [3, 5, 6, 8, 10].includes(matchClock.statusId ?? 0)
         ? matchClock.statusId === 3
-          ? "Half-time"
+          ? "Halftime"
           : formatMatchPhase(matchClock.statusId) ?? null
         : (matchClock.statusId ?? 0) >= 2
           ? `${formatLiveMinute(liveClockSeconds, matchClock.statusId)}${

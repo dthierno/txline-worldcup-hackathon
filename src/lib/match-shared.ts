@@ -257,7 +257,7 @@ export function formatGameState(gameState?: string) {
     ended: "Finished",
     finished: "Finished",
     first_half: "First half",
-    halftime: "Half time",
+    halftime: "Halftime",
     scheduled: "Not started",
     second_half: "Second half",
   };
@@ -735,7 +735,7 @@ export function getDisplayUpdates(
     }
 
     if (action === "halftime_finalised") {
-      text = `Half-time: ${scoreline}.`;
+      text = `Halftime: ${scoreline}.`;
     }
 
     if (action === "game_finalised") {
