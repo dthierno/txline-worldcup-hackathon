@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FootballIcon } from "@hugeicons/core-free-icons";
+import {
+  Calendar03Icon,
+  FootballIcon,
+  Location01Icon,
+  SunCloud02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -767,14 +772,21 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     displayState === "Not started" || displayState === "Scheduled";
   const kickoff = new Date(fixture.kickoffUtc);
   const heroInfo = [
-    `${new Intl.DateTimeFormat("en", {
-      day: "numeric",
-      month: "long",
-      timeZone: "UTC",
-      weekday: "short",
-    }).format(kickoff)} · ${formatUtcTime(kickoff.getTime())} UTC`,
-    ...(matchInfo?.venueType === "neutral" ? ["Neutral ground"] : []),
-    ...(matchInfo?.weather ? [matchInfo.weather] : []),
+    {
+      icon: Calendar03Icon,
+      label: `${new Intl.DateTimeFormat("en", {
+        day: "numeric",
+        month: "long",
+        timeZone: "UTC",
+        weekday: "short",
+      }).format(kickoff)}, ${formatUtcTime(kickoff.getTime())} UTC`,
+    },
+    ...(matchInfo?.venueType === "neutral"
+      ? [{ icon: Location01Icon, label: "Neutral ground" }]
+      : []),
+    ...(matchInfo?.weather
+      ? [{ icon: SunCloud02Icon, label: matchInfo.weather }]
+      : []),
   ];
 
   return (
@@ -878,7 +890,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           </div>
           <ul className="mp2-hero-info">
             {heroInfo.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item.label}>
+                <HugeiconsIcon
+                  aria-hidden
+                  icon={item.icon}
+                  strokeWidth={1.8}
+                />
+                {item.label}
+              </li>
             ))}
           </ul>
           <div className="mp2-hero-grid">
