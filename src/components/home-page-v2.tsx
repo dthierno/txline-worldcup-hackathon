@@ -126,6 +126,22 @@ const KNOWN_FINALS: Record<number, [number, number]> = Object.fromEntries(
   worldCupResults.map((result) => [result.fixtureId, result.score]),
 );
 
+// Solid trophy for day headers (the free icon set only ships outlines).
+function TrophyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="pred-day-ic"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M6 2h12v6a6 6 0 0 1-4.5 5.81V16.5H16a2 2 0 0 1 2 2V21H6v-2.5a2 2 0 0 1 2-2h2.5v-2.69A6 6 0 0 1 6 8V2z" />
+      <path d="M5 4v4c0 .72.13 1.4.36 2.04A4.5 4.5 0 0 1 1.5 5.5V4H5z" />
+      <path d="M19 4v4c0 .72-.13 1.4-.36 2.04A4.5 4.5 0 0 0 22.5 5.5V4H19z" />
+    </svg>
+  );
+}
+
 function team(code: string): BracketTeam {
   return { code, iso: teamIso[code] };
 }
@@ -1518,11 +1534,7 @@ function PredictionsFeed({
     const predicted = group.matches.filter(isPredicted).length;
     const header = (
       <>
-        <HugeiconsIcon
-          className="pred-day-ic"
-          icon={ChampionIcon}
-          strokeWidth={2}
-        />
+        <TrophyIcon />
         <span className="pred-day-name">{group.label}</span>
         <span className="pred-day-count">
           {predicted} / {group.matches.length}
