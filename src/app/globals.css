@@ -2883,3 +2883,118 @@ dt {
   gap: 5px;
   justify-content: center;
 }
+
+/* --- homepage v2 demo: summary strip, compact history, hit labels --- */
+.sum-strip {
+  background: #141419;
+  border: 1px solid #23232b;
+  border-radius: 14px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 22px;
+  padding: 14px 10px;
+}
+.sum-cell {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sum-cell b {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.sum-cell span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.hist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.hist-row {
+  align-items: center;
+  background: #141419;
+  border: 1px solid #23232b;
+  border-radius: 12px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr auto auto;
+  padding: 9px 14px;
+}
+.hist-main {
+  align-items: center;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 18px minmax(0, 1fr) auto minmax(0, 1fr) 18px;
+  min-width: 0;
+  text-decoration: none;
+}
+.hist-flag {
+  border-radius: 50%;
+  height: 18px;
+  object-fit: cover;
+  width: 18px;
+}
+.hist-team {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-team.away {
+  text-align: right;
+}
+.hist-ft {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.hist-pick {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hist-chip {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.hist-chip.win {
+  background: color-mix(in srgb, var(--won) 18%, transparent);
+  color: var(--won);
+}
+.hist-chip.zero {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+.hist-chip.none {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted-foreground);
+}
+.pc-why {
+  color: var(--won);
+  font-size: 11px;
+  font-weight: 700;
+  left: 50%;
+  letter-spacing: 0.3px;
+  position: absolute;
+  text-transform: uppercase;
+  top: calc(100% + 30px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}

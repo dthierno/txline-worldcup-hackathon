@@ -25,7 +25,9 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  buildOutcome,
   fetchJson,
+  fillUnknownStats,
   formatDate,
   isPastFixture,
   isPotentiallyLive,
@@ -34,10 +36,18 @@ import {
   useNow,
   type ApiResult,
   type TxlineStatus,
+  type TxlineUpdateData,
 } from "@/lib/match-shared";
-import { PREDICTION_LINES, type MatchPrediction } from "@/lib/prediction-engine";
 import {
+  PREDICTION_LINES,
+  settlePrediction,
+  type MatchPrediction,
+} from "@/lib/prediction-engine";
+import {
+  applyScoutCorrections,
+  extractGoals,
   formatLiveMinute,
+  type NormalizedLineups,
   type NormalizedTxlineScore,
 } from "@/lib/txline-normalize";
 import {
@@ -50,6 +60,7 @@ import {
   loadPredictions,
   loadSettlements,
   savePrediction,
+  saveSettlement,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -176,7 +187,7 @@ const bronzeFinal = match("LS1", "LS2", {
   date: "Jul 18",
 });
 
-export function HomePage() {
+export function HomePageV2() {
   const [fixtures, setFixtures] = useState<WorldCupFixture[]>(
     txlineWorldCupFixtures,
   );
@@ -188,7 +199,7 @@ export function HomePage() {
   const [predictions] = useState<Record<string, MatchPrediction>>(() =>
     loadPredictions(),
   );
-  const [finals] = useState<Record<string, StoredSettlement>>(() =>
+  const [finals, setFinals] = useState<Record<string, StoredSettlement>>(() =>
     loadSettlements(),
   );
   const [odds, setOdds] = useState<Record<number, string[]>>({});
@@ -306,6 +317,89 @@ export function HomePage() {
       });
     });
   }, [fixtures]);
+
+  // Auto-settle finished predictions right here on the home page: fans should
+  // not have to revisit each match page to collect their points. Uses the
+  // same corrected feed + settlement engine as the match page.
+  const settlingRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const candidates = fixtures
+      .filter((fixture) => {
+        const id = fixture.fixtureId;
+
+        return (
+          predictions[String(id)] !== undefined &&
+          finals[String(id)] === undefined &&
+          KNOWN_FINALS[id] !== undefined &&
+          !settlingRef.current.has(id)
+        );
+      })
+      .slice(0, 4);
+
+    for (const fixture of candidates) {
+      const id = fixture.fixtureId;
+
+      settlingRef.current.add(id);
+      void (async () => {
+        const [historical, lineups] = await Promise.all([
+          fetchJson<TxlineUpdateData[]>(`/api/txline/scores/${id}/historical`),
+          fetchJson<NormalizedLineups>(`/api/txline/scores/${id}/lineups`),
+        ]);
+        let raw = historical.data ?? [];
+
+        if (!raw.length) {
+          raw =
+            (await fetchJson<TxlineUpdateData[]>(
+              `/api/txline/scores/${id}/updates`,
+            ).then((result) => result.data)) ?? [];
+        }
+
+        const updates = applyScoutCorrections(fillUnknownStats(raw));
+
+        if (!updates.some((update) => update.action === "game_finalised")) {
+          return;
+        }
+
+        const latest = [...updates].sort(
+          (left, right) => (right.seq ?? 0) - (left.seq ?? 0),
+        )[0];
+        const firstGoal = extractGoals(updates)[0];
+        const scorerName =
+          firstGoal?.playerId !== undefined
+            ? lineups.data?.teams
+                .flatMap((team) => team.players)
+                .find((player) => player.playerId === firstGoal.playerId)?.name
+            : undefined;
+        const outcome = buildOutcome(
+          latest,
+          true,
+          firstGoal
+            ? { playerId: firstGoal.playerId, scorerName }
+            : null,
+        );
+        const prediction = predictions[String(id)];
+
+        if (!outcome || !prediction) {
+          return;
+        }
+
+        const settlement = settlePrediction(prediction, outcome, {
+          awayTeam: fixture.awayTeam,
+          homeTeam: fixture.homeTeam,
+        });
+        const stored: StoredSettlement = {
+          finalScore: `${outcome.homeGoals}-${outcome.awayGoals}`,
+          fixtureId: id,
+          settledAt: new Date().toISOString(),
+          totalPoints: settlement.totalPoints,
+        };
+
+        saveSettlement(stored);
+        setFinals((previous) => ({ ...previous, [String(id)]: stored }));
+      })();
+    }
+  }, [fixtures, predictions, finals]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1040,6 +1134,16 @@ function PredictionCard({
 
     return KNOWN_FINALS[fixture.fixtureId] ?? null;
   })();
+  const exactHit =
+    prediction &&
+    ftScore &&
+    prediction.homeGoals === ftScore[0] &&
+    prediction.awayGoals === ftScore[1];
+  const winnerHit =
+    prediction &&
+    ftScore &&
+    Math.sign(prediction.homeGoals - prediction.awayGoals) ===
+      Math.sign(ftScore[0] - ftScore[1]);
   // Real live score from TxLINE; 0–0 until the feed reports goals.
   const liveHome = score?.homeGoals ?? 0;
   const liveAway = score?.awayGoals ?? 0;
@@ -1227,6 +1331,11 @@ function PredictionCard({
                     <span className="pc-ft-score">{ftScore[1]}</span>
                   </span>
                 ) : null}
+                {prediction && final && (exactHit || winnerHit) ? (
+                  <span className="pc-why">
+                    {exactHit ? "Exact score!" : "Right winner"}
+                  </span>
+                ) : null}
               </>
             ) : live ? (
               <>
@@ -1330,13 +1439,24 @@ function PredictionsFeed({
   const isLive = (fixture: WorldCupFixture) =>
     now !== null && isPotentiallyLive(fixture, now);
 
-  // Main = live + not-yet-kicked-off games (what the fan acts on now). Finished
-  // games drop into a collapsed "Past results" section, newest first.
+  // Freshly settled games keep their card in the main feed for ~a day (the
+  // payoff moment), then retire into the compact history below.
+  const RECENT_WINDOW_MS = 27 * 60 * 60 * 1000;
+  const isRecent = (fixture: WorldCupFixture) =>
+    now !== null &&
+    now - new Date(fixture.kickoffUtc).getTime() < RECENT_WINDOW_MS;
+
+  // Main = live + upcoming + recently finished. Older finished games drop
+  // into the collapsed history, newest first.
   const mainGames = fixtures.filter(
-    (fixture) => !isPastFixture(fixture) || isLive(fixture),
+    (fixture) =>
+      !isPastFixture(fixture) || isLive(fixture) || isRecent(fixture),
   );
   const pastGames = fixtures
-    .filter((fixture) => isPastFixture(fixture) && !isLive(fixture))
+    .filter(
+      (fixture) =>
+        isPastFixture(fixture) && !isLive(fixture) && !isRecent(fixture),
+    )
     .sort(
       (left, right) =>
         new Date(right.kickoffUtc).getTime() -
@@ -1401,6 +1521,21 @@ function PredictionsFeed({
     (total, settlement) => total + (settlement.totalPoints ?? 0),
     0,
   );
+  const settledEntries = Object.values(finals).sort((left, right) =>
+    left.settledAt < right.settledAt ? -1 : 1,
+  );
+  const hits = settledEntries.filter(
+    (settlement) => settlement.totalPoints > 0,
+  ).length;
+  let streak = 0;
+
+  for (let index = settledEntries.length - 1; index >= 0; index -= 1) {
+    if (settledEntries[index].totalPoints > 0) {
+      streak += 1;
+    } else {
+      break;
+    }
+  }
 
   const leaderboard = [
     { name: "You", points: settledPoints, you: true },
@@ -1411,6 +1546,30 @@ function PredictionsFeed({
 
   return (
     <>
+      <div className="sum-strip">
+        <div className="sum-cell">
+          <b>{Object.keys(predictions).length}</b>
+          <span>Predictions</span>
+        </div>
+        <div className="sum-cell">
+          <b>{settledPoints}</b>
+          <span>Points</span>
+        </div>
+        <div className="sum-cell">
+          <b>
+            {hits}/{settledEntries.length}
+          </b>
+          <span>Hits</span>
+        </div>
+        <div className="sum-cell">
+          <b>
+            {streak}
+            {streak > 1 ? " 🔥" : ""}
+          </b>
+          <span>Streak</span>
+        </div>
+      </div>
+
       {mainGames.length > 0 ? (
         toGroups(mainGames).map(renderGroup)
       ) : (
@@ -1425,18 +1584,103 @@ function PredictionsFeed({
             onClick={() => setShowPast((value) => !value)}
             type="button"
           >
-            <span>Past results</span>
+            <span>History</span>
             <span className="pred-past-count">{pastGames.length}</span>
             <HugeiconsIcon
               icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
               strokeWidth={2}
             />
           </button>
-          {showPast ? toGroups(pastGames).map(renderGroup) : null}
+          {showPast ? (
+            <ul className="hist-list">
+              {pastGames.map((fixture) => {
+                const id = String(fixture.fixtureId);
+                const prediction = predictions[id];
+                const final = finals[id];
+                const ftMatch = final?.finalScore?.match(/^(\d+)-(\d+)$/);
+                const ft: [number, number] | null = ftMatch
+                  ? [Number(ftMatch[1]), Number(ftMatch[2])]
+                  : KNOWN_FINALS[fixture.fixtureId] ?? null;
+                const exact =
+                  prediction &&
+                  ft &&
+                  prediction.homeGoals === ft[0] &&
+                  prediction.awayGoals === ft[1];
+                const rightWinner =
+                  prediction &&
+                  ft &&
+                  Math.sign(prediction.homeGoals - prediction.awayGoals) ===
+                    Math.sign(ft[0] - ft[1]);
+                const homeIso = teamFlag(fixture.homeTeam);
+                const awayIso = teamFlag(fixture.awayTeam);
+
+                return (
+                  <li className="hist-row" key={fixture.fixtureId}>
+                    <Link
+                      className="hist-main"
+                      href={`/match/${fixture.fixtureId}`}
+                    >
+                      {homeIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt=""
+                          className="hist-flag"
+                          src={`https://flagcdn.com/w40/${homeIso}.png`}
+                        />
+                      ) : null}
+                      <span className="hist-team">{fixture.homeTeam}</span>
+                      <span className="hist-ft">
+                        {ft ? `${ft[0]} - ${ft[1]}` : "-"}
+                      </span>
+                      <span className="hist-team away">
+                        {fixture.awayTeam}
+                      </span>
+                      {awayIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt=""
+                          className="hist-flag"
+                          src={`https://flagcdn.com/w40/${awayIso}.png`}
+                        />
+                      ) : null}
+                    </Link>
+                    <span className="hist-pick">
+                      {prediction
+                        ? `You: ${prediction.homeGoals}-${prediction.awayGoals}`
+                        : "No pick"}
+                    </span>
+                    <span
+                      className={`hist-chip${
+                        final && final.totalPoints > 0
+                          ? " win"
+                          : prediction
+                            ? " zero"
+                            : " none"
+                      }`}
+                    >
+                      {final
+                        ? final.totalPoints > 0
+                          ? `+${final.totalPoints}${
+                              exact
+                                ? " · Exact"
+                                : rightWinner
+                                  ? " · Winner"
+                                  : ""
+                            }`
+                          : "0"
+                        : prediction
+                          ? "…"
+                          : "— 0"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 
-      <h3 className="gt-section-title">Local league</h3>
+      <h3 className="gt-section-title">Local league · demo rivals</h3>
       <ol className="pred-board">
         {leaderboard.map((player, index) => (
           <li
