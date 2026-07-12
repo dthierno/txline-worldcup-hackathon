@@ -2040,6 +2040,10 @@ dt {
   height: 18px;
   width: 18px;
 }
+/* The free icon set has no solid trophy variant: fill the stroke paths. */
+.pred-day-ic path {
+  fill: currentColor;
+}
 .pred-day-name {
   color: #fff;
   font-size: 1.05em;
