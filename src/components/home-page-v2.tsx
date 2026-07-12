@@ -1536,9 +1536,14 @@ function PredictionsFeed({
       <>
         <TrophyIcon />
         <span className="pred-day-name">{group.label}</span>
-        <span className="pred-day-count">
-          {predicted} / {group.matches.length}
+        <span className="pred-day-pill">
+          {group.matches.length} game{group.matches.length === 1 ? "" : "s"}
         </span>
+        {predicted > 0 ? (
+          <span className="pred-day-pill predicted">
+            {predicted} predicted
+          </span>
+        ) : null}
         {collapsible ? (
           <HugeiconsIcon
             className="pred-day-chevron"

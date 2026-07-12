@@ -3082,3 +3082,18 @@ dt {
 .pred-day-toggle .pred-day-count {
   font-size: 0.8em;
 }
+
+/* v2: explicit day pills instead of the ambiguous "1 / 1" counter. */
+.pred-day-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.pred-day-pill.predicted {
+  background: color-mix(in srgb, var(--won) 14%, transparent);
+  color: var(--won);
+}
