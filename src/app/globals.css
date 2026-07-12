@@ -1901,6 +1901,8 @@ dt {
 /* Tabs that switch the home feed (Matches / Predictions / Knockout). The tab
    labels title each section, so hide the now-duplicate section heading. */
 .home-tabs {
+  /* Match the tab bar's gap to its content with the 18px above it. */
+  gap: 18px;
   margin-top: 18px;
 }
 .home-tabs [data-slot="tabs-content"] > section > h2:first-child {
@@ -2034,6 +2036,11 @@ dt {
   display: flex;
   gap: 10px;
   margin: 22px 0 12px;
+}
+/* The first day group sits flush under the tab bar; the tabs' own gap
+   already provides the 18px breathing room. */
+.pred-col-main > .pred-day-block:first-child .pred-day {
+  margin-top: 0;
 }
 .pred-day-ic {
   color: #fbbf24;
@@ -3029,7 +3036,7 @@ dt {
 }
 .pred-col-side .gt-section-title {
   /* Align the leaderboard title's top with the first day header on the left. */
-  margin-top: 22px;
+  margin-top: 0;
 }
 @media (max-width: 900px) {
   .pred-layout {
