@@ -7,6 +7,7 @@ import type { WorldCupFixture } from "./world-cup-fixtures";
 const PREDICTIONS_KEY = "fan-forecast.predictions.v1";
 const SETTLEMENTS_KEY = "fan-forecast.settlements.v1";
 const GOAL_CALLS_KEY = "fan-forecast.goalcalls.v1";
+const FIXTURES_KEY = "fan-forecast.fixtures.v1";
 
 export const GOAL_CALL_POINTS = 2;
 
@@ -72,6 +73,26 @@ export function saveGoalCall(
     ...all,
     [String(fixtureId)]: { ...(all[String(fixtureId)] ?? {}), [callKey]: answer },
   });
+}
+
+// TxLINE drops finished fixtures from its snapshot within hours; cache every
+// fixture this device has seen so past matches never vanish from the app.
+export function loadCachedFixtures(): WorldCupFixture[] {
+  return Object.values(readJsonRecord<WorldCupFixture>(FIXTURES_KEY));
+}
+
+export function cacheFixtures(fixtures: WorldCupFixture[]): void {
+  if (!fixtures.length) {
+    return;
+  }
+
+  const all = readJsonRecord<WorldCupFixture>(FIXTURES_KEY);
+
+  for (const fixture of fixtures) {
+    all[String(fixture.fixtureId)] = fixture;
+  }
+
+  writeJsonRecord(FIXTURES_KEY, all);
 }
 
 export function isPredictionLocked(

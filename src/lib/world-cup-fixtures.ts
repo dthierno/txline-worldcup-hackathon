@@ -81,6 +81,33 @@ export const txlineWorldCupFixtures: WorldCupFixture[] = [
     kickoffUtc: "2026-07-09T20:00:00.000Z",
     stage: "Quarter-finals",
   },
+  // TxLINE drops finished fixtures from its snapshot within hours, so every
+  // fixture we want to keep visible needs a seed entry (the localStorage
+  // fixture cache covers fixtures a device saw while they were listed).
+  {
+    fixtureId: 18213979,
+    fixtureGroup: "World Cup > Quarter-finals",
+    homeTeam: "Norway",
+    awayTeam: "England",
+    kickoffUtc: "2026-07-11T21:00:00.000Z",
+    stage: "Quarter-finals",
+  },
+  {
+    fixtureId: 18222446,
+    fixtureGroup: "World Cup > Quarter-finals",
+    homeTeam: "Argentina",
+    awayTeam: "Switzerland",
+    kickoffUtc: "2026-07-12T01:00:00.000Z",
+    stage: "Quarter-finals",
+  },
+  {
+    fixtureId: 18237038,
+    fixtureGroup: "World Cup > Semi-finals",
+    homeTeam: "France",
+    awayTeam: "Spain",
+    kickoffUtc: "2026-07-14T19:00:00.000Z",
+    stage: "Semi-finals",
+  },
 ];
 
 export const featuredFixture = txlineWorldCupFixtures.find(

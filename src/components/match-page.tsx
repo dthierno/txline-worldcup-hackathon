@@ -63,6 +63,8 @@ import {
 import {
   GOAL_CALL_POINTS,
   isPredictionLocked,
+  cacheFixtures,
+  loadCachedFixtures,
   loadGoalCalls,
   loadPrediction,
   loadSettlements,
@@ -140,11 +142,16 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         ? fixturesResult.data
         : [];
 
-      setFixtures(
-        mergeFixtures(txlineWorldCupFixtures, liveFixtures, {
-          worldCupOnly: false,
-        }),
+      // Include the on-device fixture cache: finished fixtures drop off the
+      // TxLINE snapshot within hours, and deep links must keep resolving.
+      const merged = mergeFixtures(
+        [...loadCachedFixtures(), ...txlineWorldCupFixtures],
+        liveFixtures,
+        { worldCupOnly: false },
       );
+
+      cacheFixtures(merged);
+      setFixtures(merged);
       setFixturesLoaded(true);
     }
 

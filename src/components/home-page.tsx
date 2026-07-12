@@ -36,9 +36,14 @@ import {
   type TxlineStatus,
 } from "@/lib/match-shared";
 import { PREDICTION_LINES, type MatchPrediction } from "@/lib/prediction-engine";
-import type { NormalizedTxlineScore } from "@/lib/txline-normalize";
+import {
+  formatLiveMinute,
+  type NormalizedTxlineScore,
+} from "@/lib/txline-normalize";
 import {
   isPredictionLocked,
+  cacheFixtures,
+  loadCachedFixtures,
   loadPrediction,
   loadPredictions,
   loadSettlements,
@@ -57,6 +62,18 @@ type LiveScore = {
   homeGoals: number;
   statusId?: number;
 };
+
+// TxLINE StatusIds: 2/4 halves, 3 HT, 6-9 extra-time phases (all in play);
+// 5 = full time, 10+ = over after ET / finalised.
+const IN_PLAY_STATUS_IDS = new Set([2, 3, 4, 6, 7, 8, 9]);
+
+function statusInPlay(statusId?: number) {
+  return statusId !== undefined && IN_PLAY_STATUS_IDS.has(statusId);
+}
+
+function statusEnded(statusId?: number) {
+  return statusId !== undefined && (statusId === 5 || statusId >= 10);
+}
 
 type BracketTeam = {
   code: string;
@@ -288,7 +305,16 @@ export function HomePage() {
         ? fixturesResult.data
         : [];
 
-      setFixtures(mergeFixtures(txlineWorldCupFixtures, liveFixtures));
+      // Merge the on-device fixture cache under the seed (seed labels win),
+      // then cache the result: TxLINE drops finished fixtures from its
+      // snapshot within hours, and cached ones must not vanish.
+      const merged = mergeFixtures(
+        [...loadCachedFixtures(), ...txlineWorldCupFixtures],
+        liveFixtures,
+      );
+
+      cacheFixtures(merged);
+      setFixtures(merged);
       setFixtureSource(
         liveFixtures.length > 0
           ? `${fixturesResult.source ?? "TxLINE fixtures snapshot API"} + docs seed`
@@ -357,6 +383,7 @@ export function HomePage() {
             now={now}
             odds={odds}
             predictions={mounted ? predictions : {}}
+            scores={scores}
           />
         </TabsContent>
         <TabsContent value="predictions">
@@ -531,12 +558,14 @@ function MatchDayList({
   now,
   odds,
   predictions,
+  scores,
 }: {
   finals: Record<string, StoredSettlement>;
   fixtures: WorldCupFixture[];
   now: number | null;
   odds: Record<number, string[]>;
   predictions: Record<string, MatchPrediction>;
+  scores?: Record<number, LiveScore>;
 }) {
   const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
 
@@ -561,11 +590,18 @@ function MatchDayList({
           </h3>
           {group.matches.map((fixture) => {
             const past = isPastFixture(fixture);
-            const live = now !== null && isPotentiallyLive(fixture, now);
+            const liveScore = scores?.[fixture.fixtureId];
+            const final = finals[String(fixture.fixtureId)];
+            // Folded feed status beats the kickoff-window heuristic; a stored
+            // settlement also means the match is over.
+            const live = statusInPlay(liveScore?.statusId)
+              ? true
+              : statusEnded(liveScore?.statusId) || final
+                ? false
+                : now !== null && isPotentiallyLive(fixture, now);
             const homeIso = teamFlag(fixture.homeTeam);
             const awayIso = teamFlag(fixture.awayTeam);
             const prediction = predictions[String(fixture.fixtureId)];
-            const final = finals[String(fixture.fixtureId)];
             const fixtureOdds = odds[fixture.fixtureId];
 
             return (
@@ -856,11 +892,11 @@ function PredictionCard({
     prediction ? String(prediction.awayGoals) : "",
   );
   const [justSaved, setJustSaved] = useState(false);
-  // Prefer TxLINE's match phase when present (2 first half, 3 half-time,
-  // 4 second half); otherwise fall back to the kickoff-window heuristic.
+  // Prefer TxLINE's match phase when present (halves, HT and extra-time
+  // phases all count as in play); otherwise the kickoff-window heuristic.
   const inPlay =
     score?.statusId != null
-      ? [2, 3, 4].includes(score.statusId)
+      ? statusInPlay(score.statusId)
       : now !== null && isPotentiallyLive(fixture, now);
   const live = inPlay;
   const locked = now !== null && isPredictionLocked(fixture, now);
@@ -877,9 +913,11 @@ function PredictionCard({
   const matchMinute =
     score?.statusId === 3
       ? "HT"
-      : clockMin >= 90
-        ? "90+'"
-        : `${Math.max(1, clockMin)}'`;
+      : typeof score?.clockSeconds === "number"
+        ? formatLiveMinute(score.clockSeconds, score.statusId)
+        : clockMin >= 90
+          ? "90+'"
+          : `${Math.max(1, clockMin)}'`;
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
   const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
