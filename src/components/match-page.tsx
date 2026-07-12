@@ -1071,7 +1071,9 @@ export function GoalCallsSection({
                     : correct
                       ? ` · ✓ +${GOAL_CALL_POINTS}`
                       : " · ✗ 0"
-                  : ""}
+                  : call.resolved && !call.voided
+                    ? " · — 0"
+                    : ""}
               </span>
             </li>
           );
