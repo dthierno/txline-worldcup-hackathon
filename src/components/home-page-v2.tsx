@@ -17,6 +17,11 @@ import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -1503,39 +1508,66 @@ function PredictionsFeed({
     return groups;
   };
 
-  const renderGroup = (group: {
-    label: string;
-    matches: WorldCupFixture[];
-  }) => {
+  const renderGroup = (
+    group: {
+      label: string;
+      matches: WorldCupFixture[];
+    },
+    { collapsible = false }: { collapsible?: boolean } = {},
+  ) => {
     const predicted = group.matches.filter(isPredicted).length;
+    const header = (
+      <>
+        <HugeiconsIcon
+          className="pred-day-ic"
+          icon={ChampionIcon}
+          strokeWidth={2}
+        />
+        <span className="pred-day-name">{group.label}</span>
+        <span className="pred-day-count">
+          {predicted} / {group.matches.length}
+        </span>
+        {collapsible ? (
+          <HugeiconsIcon
+            className="pred-day-chevron"
+            icon={ArrowDown01Icon}
+            strokeWidth={2}
+          />
+        ) : null}
+      </>
+    );
+    const grid = (
+      <div className="pred-grid">
+        {group.matches.map((fixture) => (
+          <PredictionCard
+            final={finals[String(fixture.fixtureId)]}
+            fixture={fixture}
+            form={formByTeam}
+            key={fixture.fixtureId}
+            now={now}
+            onPredictedChange={handlePredictedChange}
+            prediction={predictions[String(fixture.fixtureId)]}
+            score={scores[fixture.fixtureId]}
+          />
+        ))}
+      </div>
+    );
 
     return (
       <div className="pred-day-block" key={group.label}>
-        <div className="pred-day">
-          <HugeiconsIcon
-            className="pred-day-ic"
-            icon={ChampionIcon}
-            strokeWidth={2}
-          />
-          <span className="pred-day-name">{group.label}</span>
-          <span className="pred-day-count">
-            {predicted} / {group.matches.length}
-          </span>
-        </div>
-        <div className="pred-grid">
-          {group.matches.map((fixture) => (
-            <PredictionCard
-              final={finals[String(fixture.fixtureId)]}
-              fixture={fixture}
-              form={formByTeam}
-              key={fixture.fixtureId}
-              now={now}
-              onPredictedChange={handlePredictedChange}
-              prediction={predictions[String(fixture.fixtureId)]}
-              score={scores[fixture.fixtureId]}
-            />
-          ))}
-        </div>
+        {collapsible ? (
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="pred-day pred-day-toggle">
+              {header}
+            </CollapsibleTrigger>
+            <CollapsibleContent>{grid}</CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <>
+            <div className="pred-day">{header}</div>
+            {grid}
+          </>
+        )}
       </div>
     );
   };
@@ -1556,7 +1588,9 @@ function PredictionsFeed({
     <div className="pred-layout">
       <div className="pred-col-main">
         {mainGames.length > 0 ? (
-          toGroups(mainGames).map(renderGroup)
+          toGroups(mainGames).map((group) =>
+            renderGroup(group, { collapsible: true }),
+          )
         ) : (
           <p className="muted">No upcoming matches right now.</p>
         )}
@@ -1576,7 +1610,9 @@ function PredictionsFeed({
                 strokeWidth={2}
               />
             </button>
-            {showPast ? toGroups(pastGames).map(renderGroup) : null}
+            {showPast
+            ? toGroups(pastGames).map((group) => renderGroup(group))
+            : null}
           </div>
         ) : null}
       </div>

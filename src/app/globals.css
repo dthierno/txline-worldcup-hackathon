@@ -3039,3 +3039,33 @@ dt {
     position: static;
   }
 }
+
+/* v2: collapsible main-feed day headers. */
+.pred-day-toggle {
+  align-items: center;
+  background: #141419;
+  border: 1px solid #23232b;
+  border-radius: 12px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  margin-bottom: 12px;
+  padding: 11px 16px;
+  text-align: left;
+  transition: border-color 0.18s ease;
+  width: 100%;
+}
+.pred-day-toggle:hover {
+  border-color: #3a3a44;
+}
+.pred-day-chevron {
+  color: var(--muted-foreground);
+  height: 18px;
+  margin-left: auto;
+  transition: rotate 0.2s ease;
+  width: 18px;
+}
+.pred-day-toggle[data-panel-open] .pred-day-chevron {
+  rotate: 180deg;
+}
