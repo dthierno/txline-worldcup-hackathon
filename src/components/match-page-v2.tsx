@@ -894,6 +894,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
       <MomentumSection
         awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
+        extraTime={combinedUpdates.some(
+          (update) =>
+            update.statusId === 7 ||
+            update.statusId === 8 ||
+            update.statusId === 9,
+        )}
         fixture={fixture}
         goals={goals}
         homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
@@ -1312,12 +1318,14 @@ function MomentumTooltip({
 // gradient split exactly at the zero crossing of the area's bounding box.
 function MomentumSection({
   awayColor,
+  extraTime,
   fixture,
   goals,
   homeColor,
   momentum,
 }: {
   awayColor: string;
+  extraTime: boolean;
   fixture: WorldCupFixture;
   goals: GoalEvent[];
   homeColor: string;
@@ -1326,6 +1334,18 @@ function MomentumSection({
   if (momentum.length < 2) {
     return null;
   }
+
+  // Two near-identical team colours (Spain red vs Belgium red) would make
+  // the two halves of the chart indistinguishable - fall back to a neutral
+  // for the away side, FotMob-style.
+  const channel = (hex: string, i: number) =>
+    Number.parseInt(hex.slice(i, i + 2), 16);
+  const colorDistance = Math.hypot(
+    channel(homeColor, 1) - channel(awayColor, 1),
+    channel(homeColor, 3) - channel(awayColor, 3),
+    channel(homeColor, 5) - channel(awayColor, 5),
+  );
+  const chartAwayColor = colorDistance < 100 ? "#e5e7eb" : awayColor;
 
   // The scout clock overruns each period's nominal end during stoppage time
   // (H1 runs past 45', ET2 past 120'), which would stretch the timeline and
@@ -1353,8 +1373,6 @@ function MomentumSection({
       ? Math.min(Math.max(rawMinute, window[0]), window[1])
       : rawMinute;
   };
-  const lastBucketEnd = momentum[momentum.length - 1].startMinute + 5;
-  const extraTime = lastBucketEnd > 92;
   const maxMinute = extraTime ? 120 : 90;
   // Buckets past the timeline end (stoppage) fold into the final position.
   const bucketPoints = new Map<
@@ -1392,12 +1410,16 @@ function MomentumSection({
   // Symmetric Y domain keeps the zero baseline dead centre; padding leaves
   // room for the goal badges pinned near the edges.
   const lim = peak * 1.3;
-  // Where zero sits within the area's own bounding box (top = 0, bottom = 1)
-  // - that is where the fill flips from the home to the away colour.
-  const dataMax = Math.max(...data.map((entry) => entry.net));
-  const dataMin = Math.min(...data.map((entry) => entry.net));
-  const splitOffset =
-    dataMax <= 0 ? 0 : dataMin >= 0 ? 1 : dataMax / (dataMax - dataMin);
+  // The colour split anchors in user space exactly on the zero baseline:
+  // with a symmetric Y domain that is the vertical centre of the plot area.
+  // (Deriving it from the area's bounding box is unreliable - "natural"
+  // smoothing overshoots the data extremes.) Geometry is fixed: the
+  // container is 200px tall (see .mmt-chart), margins below.
+  const CHART_HEIGHT = 200;
+  const MARGIN_TOP = 6;
+  const XAXIS_HEIGHT = 24;
+  const PLOT_TOP = MARGIN_TOP;
+  const PLOT_BOTTOM = CHART_HEIGHT - XAXIS_HEIGHT;
   const gradientId = `mmt-split-${fixture.fixtureId}`;
   const separators = [45, ...(extraTime ? [90] : [])];
   const tickLabel = (minute: number) =>
@@ -1431,7 +1453,7 @@ function MomentumSection({
     </g>
   );
   const chartConfig = {
-    away: { color: awayColor, label: fixture.awayTeam },
+    away: { color: chartAwayColor, label: fixture.awayTeam },
     home: { color: homeColor, label: fixture.homeTeam },
   } satisfies ChartConfig;
 
@@ -1444,15 +1466,23 @@ function MomentumSection({
           margin={{ bottom: 0, left: 10, right: 10, top: 6 }}
         >
           <defs>
-            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset={splitOffset} stopColor={homeColor} />
-              <stop offset={splitOffset} stopColor={awayColor} />
+            <linearGradient
+              gradientUnits="userSpaceOnUse"
+              id={gradientId}
+              x1="0"
+              x2="0"
+              y1={PLOT_TOP}
+              y2={PLOT_BOTTOM}
+            >
+              <stop offset={0.5} stopColor={homeColor} />
+              <stop offset={0.5} stopColor={chartAwayColor} />
             </linearGradient>
           </defs>
           <XAxis
             axisLine={false}
             dataKey="minute"
             domain={[0, maxMinute]}
+            height={XAXIS_HEIGHT}
             interval={0}
             tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 700 }}
             tickFormatter={tickLabel}
@@ -1512,7 +1542,7 @@ function MomentumSection({
         {fixture.homeTeam}
         <span
           className="momentum-dot"
-          style={{ backgroundColor: awayColor }}
+          style={{ backgroundColor: chartAwayColor }}
         />{" "}
         {fixture.awayTeam} — net attack pressure from TxLINE possession
         phases, shots and corners, per 5 minutes. Balls mark goals.
