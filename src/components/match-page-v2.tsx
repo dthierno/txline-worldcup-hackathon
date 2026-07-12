@@ -12,8 +12,21 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import {
+  Area,
+  AreaChart,
+  ReferenceDot,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Button } from "@/components/ui/button";
+import {
+  ChartContainer,
+  ChartTooltip,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   Dialog,
   DialogContent,
@@ -1261,33 +1274,42 @@ export function GoalCallsSection({
   );
 }
 
-// Catmull-Rom -> cubic bezier, for a smooth broadcast-style curve through
-// the momentum points.
-function smoothPath(points: Array<[number, number]>): string {
-  if (points.length < 2) return "";
+// Tooltip for the momentum chart: the hovered 5-minute window with each
+// side's raw pressure score.
+function MomentumTooltip({
+  active,
+  awayTeam,
+  homeTeam,
+  payload,
+}: {
+  active?: boolean;
+  awayTeam: string;
+  homeTeam: string;
+  payload?: Array<{
+    payload?: { away: number; home: number; label?: string };
+  }>;
+}) {
+  const bucket = payload?.[0]?.payload;
 
-  let d = `M${points[0][0]},${points[0][1]}`;
-
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const p0 = points[Math.max(0, i - 1)];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[Math.min(points.length - 1, i + 2)];
-    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-
-    d += `C${c1x.toFixed(2)},${c1y.toFixed(2)},${c2x.toFixed(2)},${c2y.toFixed(2)},${p2[0]},${p2[1]}`;
+  if (!active || !bucket?.label) {
+    return null;
   }
 
-  return d;
+  return (
+    <div className="mmt-tip">
+      <div className="mmt-tip-label">{bucket.label}</div>
+      <div>
+        {homeTeam} {bucket.home} · {awayTeam} {bucket.away}
+      </div>
+    </div>
+  );
 }
 
-// Attack momentum as a split area chart: net pressure per 5-minute bucket
-// swings above the midline in the home colour and below it in the away
-// colour, with dotted period separators and ball markers on goals
-// (FotMob-style, hand-rolled SVG - no chart library).
+// Attack momentum as a split area chart (shadcn chart / recharts): one
+// signed series - home pressure minus away pressure - so the curve swings
+// above the zero baseline in the home colour and "upside down" below it in
+// the away colour. The flip is just negative values plus a two-stop
+// gradient split exactly at the zero crossing of the area's bounding box.
 function MomentumSection({
   awayColor,
   fixture,
@@ -1305,152 +1327,137 @@ function MomentumSection({
     return null;
   }
 
-  const W = 660;
-  const PLOT_H = 168;
-  const AXIS_H = 22;
-  const H = PLOT_H + AXIS_H;
-  const PAD_X = 8;
-  const PAD_Y = 16;
-  const mid = PLOT_H / 2;
   const maxMinute = momentum[momentum.length - 1].startMinute + 5;
   const extraTime = maxMinute > 92;
-  const peak = Math.max(
-    1,
-    ...momentum.map((bucket) =>
-      Math.abs(bucket.homePressure - bucket.awayPressure),
-    ),
-  );
-  const x = (minute: number) =>
-    PAD_X + (Math.min(minute, maxMinute) / maxMinute) * (W - 2 * PAD_X);
-  const y = (net: number) => mid - (net / peak) * (mid - PAD_Y);
-  const points: Array<[number, number]> = [
-    [x(0), mid],
-    ...momentum.map(
-      (bucket): [number, number] => [
-        Number(x(bucket.startMinute + 2.5).toFixed(2)),
-        Number(y(bucket.homePressure - bucket.awayPressure).toFixed(2)),
-      ],
-    ),
-    [x(maxMinute), mid],
+  const data = [
+    { away: 0, home: 0, minute: 0, net: 0 },
+    ...momentum.map((bucket) => ({
+      away: bucket.awayPressure,
+      home: bucket.homePressure,
+      label: `${bucket.startMinute}-${bucket.startMinute + 5}'`,
+      minute: bucket.startMinute + 2.5,
+      net: bucket.homePressure - bucket.awayPressure,
+    })),
+    { away: 0, home: 0, minute: maxMinute, net: 0 },
   ];
-  const curve = smoothPath(points);
-  const area = `${curve}L${x(maxMinute)},${mid}L${x(0)},${mid}Z`;
+  const peak = Math.max(1, ...data.map((entry) => Math.abs(entry.net)));
+  // Symmetric Y domain keeps the zero baseline dead centre; padding leaves
+  // room for the goal badges pinned near the edges.
+  const lim = peak * 1.3;
+  // Where zero sits within the area's own bounding box (top = 0, bottom = 1)
+  // - that is where the fill flips from the home to the away colour.
+  const dataMax = Math.max(...data.map((entry) => entry.net));
+  const dataMin = Math.min(...data.map((entry) => entry.net));
+  const splitOffset =
+    dataMax <= 0 ? 0 : dataMin >= 0 ? 1 : dataMax / (dataMax - dataMin);
   const gradientId = `mmt-split-${fixture.fixtureId}`;
   const separators = [
     ...(maxMinute > 45 ? [45] : []),
     ...(extraTime ? [90] : []),
   ];
-  const ticks: Array<{ anchor: string; label: string; minute: number }> = [
-    { anchor: "start", label: "0'", minute: 0 },
-    ...(maxMinute > 45 ? [{ anchor: "middle", label: "HT", minute: 45 }] : []),
-    ...(extraTime ? [{ anchor: "middle", label: "FT", minute: 90 }] : []),
-    {
-      anchor: "end",
-      label: extraTime ? "AET" : "FT",
-      minute: maxMinute,
-    },
-  ];
+  const tickLabel = (minute: number) =>
+    minute === 0
+      ? "0'"
+      : minute === 45
+        ? "HT"
+        : minute === maxMinute
+          ? extraTime
+            ? "AET"
+            : "FT"
+          : minute === 90
+            ? "FT"
+            : `${minute}'`;
+  const goalDot = (props: { cx?: number; cy?: number }) => (
+    <g>
+      <circle
+        cx={props.cx}
+        cy={props.cy}
+        fill="#101014"
+        r="10"
+        stroke="rgba(255, 255, 255, 0.18)"
+      />
+      <text
+        dominantBaseline="central"
+        fontSize="11"
+        textAnchor="middle"
+        x={props.cx}
+        y={(props.cy ?? 0) + 0.5}
+      >
+        ⚽
+      </text>
+    </g>
+  );
+  const chartConfig = {
+    away: { color: awayColor, label: fixture.awayTeam },
+    home: { color: homeColor, label: fixture.homeTeam },
+  } satisfies ChartConfig;
 
   return (
     <section className="card" aria-labelledby="momentum-heading">
       <h2 id="momentum-heading">Momentum</h2>
-      <svg
-        aria-label={`Attack momentum: ${fixture.homeTeam} above the line, ${fixture.awayTeam} below`}
-        className="mmt-chart"
-        role="img"
-        viewBox={`0 0 ${W} ${H}`}
-      >
-        <defs>
-          <linearGradient
-            gradientUnits="userSpaceOnUse"
-            id={gradientId}
-            x1="0"
-            x2="0"
-            y1="0"
-            y2={PLOT_H}
-          >
-            <stop offset={mid / PLOT_H} stopColor={homeColor} />
-            <stop offset={mid / PLOT_H} stopColor={awayColor} />
-          </linearGradient>
-        </defs>
-        <line
-          stroke="rgba(255, 255, 255, 0.08)"
-          x1={PAD_X}
-          x2={W - PAD_X}
-          y1={mid}
-          y2={mid}
-        />
-        {separators.map((minute) => (
-          <line
-            key={minute}
-            stroke="rgba(255, 255, 255, 0.16)"
-            strokeDasharray="0.1 8"
-            strokeLinecap="round"
-            strokeWidth="2.5"
-            x1={x(minute)}
-            x2={x(minute)}
-            y1={4}
-            y2={PLOT_H - 4}
+      <ChartContainer className="mmt-chart" config={chartConfig}>
+        <AreaChart
+          data={data}
+          margin={{ bottom: 0, left: 10, right: 10, top: 6 }}
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset={splitOffset} stopColor={homeColor} />
+              <stop offset={splitOffset} stopColor={awayColor} />
+            </linearGradient>
+          </defs>
+          <XAxis
+            axisLine={false}
+            dataKey="minute"
+            domain={[0, maxMinute]}
+            interval={0}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 700 }}
+            tickFormatter={tickLabel}
+            tickLine={false}
+            tickMargin={8}
+            ticks={[0, ...separators, maxMinute]}
+            type="number"
           />
-        ))}
-        <path d={area} fill={`url(#${gradientId})`} fillOpacity="0.85" />
-        <path
-          d={curve}
-          fill="none"
-          stroke={`url(#${gradientId})`}
-          strokeWidth="1.5"
-        />
-        {momentum.map((bucket) => (
-          <rect
-            fill="transparent"
-            height={PLOT_H}
-            key={bucket.startMinute}
-            width={x(bucket.startMinute + 5) - x(bucket.startMinute)}
-            x={x(bucket.startMinute)}
-            y={0}
-          >
-            <title>
-              {`${bucket.startMinute}-${bucket.startMinute + 5}' · ${fixture.homeTeam} ${bucket.homePressure}, ${fixture.awayTeam} ${bucket.awayPressure}`}
-            </title>
-          </rect>
-        ))}
-        {goals.map((goal) => {
-          const gx = x((goal.clockSeconds ?? 0) / 60);
-          const gy = goal.scoringSide === "home" ? 11 : PLOT_H - 11;
-
-          return (
-            <g key={goal.seq}>
-              <circle
-                cx={gx}
-                cy={gy}
-                fill="#101014"
-                r="10"
-                stroke="rgba(255, 255, 255, 0.18)"
+          <YAxis domain={[-lim, lim]} hide type="number" />
+          <ReferenceLine stroke="rgba(255, 255, 255, 0.08)" y={0} />
+          {separators.map((minute) => (
+            <ReferenceLine
+              key={minute}
+              stroke="rgba(255, 255, 255, 0.16)"
+              strokeDasharray="0.1 8"
+              strokeLinecap="round"
+              strokeWidth={2.5}
+              x={minute}
+            />
+          ))}
+          <ChartTooltip
+            content={
+              <MomentumTooltip
+                awayTeam={fixture.awayTeam}
+                homeTeam={fixture.homeTeam}
               />
-              <text
-                dominantBaseline="central"
-                fontSize="11"
-                textAnchor="middle"
-                x={gx}
-                y={gy + 0.5}
-              >
-                ⚽
-              </text>
-            </g>
-          );
-        })}
-        {ticks.map((tick) => (
-          <text
-            className="mmt-tick"
-            key={tick.label + tick.minute}
-            textAnchor={tick.anchor}
-            x={x(tick.minute)}
-            y={PLOT_H + 16}
-          >
-            {tick.label}
-          </text>
-        ))}
-      </svg>
+            }
+            cursor={{ stroke: "rgba(255, 255, 255, 0.18)" }}
+          />
+          <Area
+            dataKey="net"
+            fill={`url(#${gradientId})`}
+            fillOpacity={0.85}
+            isAnimationActive={false}
+            stroke={`url(#${gradientId})`}
+            type="natural"
+          />
+          {goals.map((goal) => (
+            <ReferenceDot
+              key={goal.seq}
+              r={10}
+              shape={goalDot}
+              x={Math.min((goal.clockSeconds ?? 0) / 60, maxMinute)}
+              y={goal.scoringSide === "home" ? lim * 0.82 : -lim * 0.82}
+            />
+          ))}
+        </AreaChart>
+      </ChartContainer>
       <p className="momentum-legend muted">
         <span
           className="momentum-dot"

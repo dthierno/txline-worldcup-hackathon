@@ -3300,15 +3300,23 @@ dt {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
-/* Momentum chart (v2 match page): split area chart in the team colours. */
+/* Momentum chart (v2 match page): split area chart in the team colours,
+   built on the shadcn chart component (recharts). */
 .mmt-chart {
-  display: block;
-  height: auto;
+  aspect-ratio: auto;
+  height: 200px;
   width: 100%;
 }
-.mmt-chart .mmt-tick {
-  fill: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.mmt-tip {
+  background: #191920;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  color: var(--foreground);
+  font-size: 12px;
+  padding: 8px 11px;
+}
+.mmt-tip-label {
+  color: var(--muted-foreground);
+  font-weight: 600;
+  margin-bottom: 2px;
 }
