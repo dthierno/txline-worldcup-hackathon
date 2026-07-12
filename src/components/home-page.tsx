@@ -56,6 +56,7 @@ import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
+import { worldCupResults } from "@/lib/world-cup-results";
 
 // Confirmed live score folded from the TxLINE updates feed.
 type LiveScore = {
@@ -102,21 +103,12 @@ const teamIso: Record<string, string> = {
   SWE: "se", USA: "us",
 };
 
-// Real final scores of already-played fixtures (home-away), for devices that
-// never saw the match live: settlements and the live-score fold take
-// precedence when present.
-const KNOWN_FINALS: Record<number, [number, number]> = {
-  18185036: [0, 3], // Canada - Morocco
-  18188721: [0, 1], // Paraguay - France
-  18187298: [1, 2], // Brazil - Norway
-  18192996: [2, 3], // Mexico - England
-  18198205: [0, 1], // Portugal - Spain
-  18193785: [1, 4], // USA - Belgium
-  18202701: [3, 2], // Argentina - Egypt
-  18202783: [0, 0], // Switzerland - Colombia
-  18209181: [2, 0], // France - Morocco
-  18213979: [1, 2], // Norway - England
-};
+// Real final scores of already-played fixtures (home-away), recovered from
+// TxLINE's windowed history endpoints; settlements and the live-score fold
+// take precedence when present.
+const KNOWN_FINALS: Record<number, [number, number]> = Object.fromEntries(
+  worldCupResults.map((result) => [result.fixtureId, result.score]),
+);
 
 function team(code: string): BracketTeam {
   return { code, iso: teamIso[code] };
@@ -150,12 +142,12 @@ const leftRound2: BracketMatch[] = [
 
 const leftQuarterFinals: BracketMatch[] = [
   match("FRA", "MAR", { score: "2 - 0", winner: "home" }),
-  match("ESP", "BEL", { date: "Tomorrow" }),
+  match("ESP", "BEL", { score: "2 - 1", winner: "home" }),
 ];
 
 const rightQuarterFinals: BracketMatch[] = [
-  match("NOR", "ENG", { date: "Jul 11" }),
-  match("ARG", "SUI", { date: "Jul 11" }),
+  match("NOR", "ENG", { score: "1 - 2", winner: "away" }),
+  match("ARG", "SUI", { date: "Jul 12" }),
 ];
 
 const rightRound2: BracketMatch[] = [
@@ -176,8 +168,8 @@ const rightRound1: BracketMatch[] = [
   match("COL", "GHA", { score: "1 - 0", winner: "home" }),
 ];
 
-const semiFinal1 = match("FRA", "TBD", { date: "Jul 14" });
-const semiFinal2 = match("TBD", "TBD", { date: "Jul 15" });
+const semiFinal1 = match("FRA", "ESP", { date: "Jul 14" });
+const semiFinal2 = match("ENG", "TBD", { date: "Jul 15" });
 const finalMatch = match("WS1", "WS2", { badge: "FINAL", date: "Jul 19" });
 const bronzeFinal = match("LS1", "LS2", {
   badge: "BRONZE-FINAL",
@@ -740,32 +732,70 @@ function fixtureStage(fixture: WorldCupFixture): string {
   return FIXTURE_STAGE_OVERRIDE[fixture.fixtureId] ?? stageLabel(fixture.stage);
 }
 
-// Deterministic five-match form strip so each team shows a stable win/draw/loss
-// history. Illustrative — the app has no real form feed.
-function teamForm(team: string): ("w" | "d" | "l")[] {
-  let hash = 2166136261;
+type FormResult = "d" | "l" | "w";
 
-  for (let index = 0; index < team.length; index += 1) {
-    hash = (hash ^ team.charCodeAt(index)) >>> 0;
-    hash = (hash * 16777619) >>> 0;
+// Real tournament form: the recovered results dataset (back to the group
+// stage) plus any ended result this device saw live. Draws stay draws even
+// when decided on penalties (standard form notation).
+function buildTeamForm(
+  fixtures: WorldCupFixture[],
+  scores: Record<number, LiveScore>,
+): Record<string, FormResult[]> {
+  const games = new Map<
+    number,
+    { away: string; home: string; kickoffUtc: string; score: [number, number] }
+  >();
+
+  for (const result of worldCupResults) {
+    games.set(result.fixtureId, result);
   }
 
-  const results: ("w" | "d" | "l")[] = [];
+  for (const [id, score] of Object.entries(scores)) {
+    const fixture = fixtures.find(
+      (candidate) => candidate.fixtureId === Number(id),
+    );
 
-  for (let index = 0; index < 5; index += 1) {
-    hash = (hash * 1103515245 + 12345) >>> 0;
-    const bucket = (hash >>> 8) % 10;
-
-    results.push(bucket < 5 ? "w" : bucket < 8 ? "d" : "l");
+    if (fixture && statusEnded(score.statusId) && !games.has(Number(id))) {
+      games.set(Number(id), {
+        away: fixture.awayTeam,
+        home: fixture.homeTeam,
+        kickoffUtc: fixture.kickoffUtc,
+        score: [score.homeGoals, score.awayGoals],
+      });
+    }
   }
 
-  return results;
+  const form: Record<string, FormResult[]> = {};
+  const played = [...games.values()].sort(
+    (left, right) =>
+      new Date(left.kickoffUtc).getTime() -
+      new Date(right.kickoffUtc).getTime(),
+  );
+
+  for (const game of played) {
+    const [home, away] = game.score;
+
+    (form[game.home] ??= []).push(home > away ? "w" : home < away ? "l" : "d");
+    (form[game.away] ??= []).push(away > home ? "w" : away < home ? "l" : "d");
+  }
+
+  for (const team of Object.keys(form)) {
+    form[team] = form[team].slice(-5);
+  }
+
+  return form;
 }
 
-function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
+function FormStrip({ results }: { results: FormResult[] }) {
+  // Always five slots (oldest first); unknown history pads as muted dots.
+  const slots: Array<FormResult | "u"> = [
+    ...Array<"u">(Math.max(0, 5 - results.length)).fill("u"),
+    ...results.slice(-5),
+  ];
+
   return (
     <span className="pc-form" aria-hidden="true">
-      {results.map((result, index) => (
+      {slots.map((result, index) => (
         <span className={`pc-dot pc-${result}`} key={index} />
       ))}
     </span>
@@ -773,10 +803,12 @@ function FormStrip({ results }: { results: ("w" | "d" | "l")[] }) {
 }
 
 function TeamSide({
+  form,
   href,
   iso,
   name,
 }: {
+  form?: FormResult[];
   href: string;
   iso?: string;
   name: string;
@@ -790,7 +822,7 @@ function TeamSide({
         <span className="pc-flag pc-flag-tbd" aria-hidden="true" />
       )}
       <span className="pc-name">{name}</span>
-      <FormStrip results={teamForm(name)} />
+      <FormStrip results={form ?? []} />
     </Link>
   );
 }
@@ -934,6 +966,7 @@ function PointsBadge({ points }: { points: number }) {
 function PredictionCard({
   final,
   fixture,
+  form,
   now,
   prediction,
   onPredictedChange,
@@ -941,6 +974,7 @@ function PredictionCard({
 }: {
   final?: StoredSettlement;
   fixture: WorldCupFixture;
+  form?: Record<string, FormResult[]>;
   now: number | null;
   prediction?: MatchPrediction;
   onPredictedChange: (fixtureId: number, predicted: boolean) => void;
@@ -1119,6 +1153,7 @@ function PredictionCard({
       <div className="pc-panel">
         <div className="pc-teams" data-saved={justSaved ? "true" : undefined}>
           <TeamSide
+            form={form?.[fixture.homeTeam]}
             href={`/match/${fixture.fixtureId}`}
             iso={homeIso}
             name={fixture.homeTeam}
@@ -1198,6 +1233,7 @@ function PredictionCard({
           </div>
 
           <TeamSide
+            form={form?.[fixture.awayTeam]}
             href={`/match/${fixture.fixtureId}`}
             iso={awayIso}
             name={fixture.awayTeam}
@@ -1234,6 +1270,10 @@ function PredictionsFeed({
   scores: Record<number, LiveScore>;
 }) {
   const [showPast, setShowPast] = useState(false);
+  const formByTeam = useMemo(
+    () => buildTeamForm(fixtures, scores),
+    [fixtures, scores],
+  );
 
   // Fixture ids with a saved scoreline: the predictions prop (localStorage,
   // lands after mount) is the base; live edits from a card's score boxes are
@@ -1311,6 +1351,7 @@ function PredictionsFeed({
             <PredictionCard
               final={finals[String(fixture.fixtureId)]}
               fixture={fixture}
+              form={formByTeam}
               key={fixture.fixtureId}
               now={now}
               onPredictedChange={handlePredictedChange}

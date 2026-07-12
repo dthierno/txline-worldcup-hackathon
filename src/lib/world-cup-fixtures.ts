@@ -93,6 +93,14 @@ export const txlineWorldCupFixtures: WorldCupFixture[] = [
     stage: "Quarter-finals",
   },
   {
+    fixtureId: 18218149,
+    fixtureGroup: "World Cup > Quarter-finals",
+    homeTeam: "Spain",
+    awayTeam: "Belgium",
+    kickoffUtc: "2026-07-10T19:00:00.000Z",
+    stage: "Quarter-finals",
+  },
+  {
     fixtureId: 18222446,
     fixtureGroup: "World Cup > Quarter-finals",
     homeTeam: "Argentina",

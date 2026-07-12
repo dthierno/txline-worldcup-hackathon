@@ -2866,3 +2866,8 @@ dt {
 .pc-scores-ended {
   transform: translateY(-15px);
 }
+
+/* Unknown form slot (match history not covered by TxLINE devnet). */
+.pc-u {
+  background: rgba(255, 255, 255, 0.14);
+}
