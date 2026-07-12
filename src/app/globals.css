@@ -3046,7 +3046,7 @@ dt {
 .pred-day-toggle {
   align-items: center;
   background: #141419;
-  border: 1px solid #23232b;
+  border: none;
   border-radius: 16px;
   color: inherit;
   cursor: pointer;
@@ -3055,11 +3055,11 @@ dt {
   margin-bottom: 12px;
   padding: 11px 16px;
   text-align: left;
-  transition: border-color 0.18s ease;
+  transition: background 0.18s ease;
   width: 100%;
 }
 .pred-day-toggle:hover {
-  border-color: #3a3a44;
+  background: #1a1a21;
 }
 .pred-day-chevron {
   color: var(--muted-foreground);
