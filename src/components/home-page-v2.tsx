@@ -1331,9 +1331,13 @@ function PredictionCard({
                     <span className="pc-ft-score">{ftScore[1]}</span>
                   </span>
                 ) : null}
-                {prediction && final && (exactHit || winnerHit) ? (
+                {prediction && final && (exactHit || winnerHit || final.totalPoints > 0) ? (
                   <span className="pc-why">
-                    {exactHit ? "Exact score!" : "Right winner"}
+                    {exactHit
+                      ? "Exact score!"
+                      : winnerHit
+                        ? "Right winner"
+                        : "Good calls!"}
                   </span>
                 ) : null}
               </>
