@@ -2860,3 +2860,9 @@ dt {
 .pc-ft-dash {
   color: var(--muted-foreground);
 }
+
+/* Ended cards: the FT line hangs below the boxes without reserving space, so
+   lift the group to optically center boxes + FT within the card. */
+.pc-scores-ended {
+  transform: translateY(-15px);
+}

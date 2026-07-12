@@ -1139,7 +1139,7 @@ function PredictionCard({
           </Link>
           */}
 
-          <div className="pc-scores">
+          <div className={`pc-scores${ended ? " pc-scores-ended" : ""}`}>
             {ended ? (
               <>
                 <span className="pc-livebox pc-final-box">
