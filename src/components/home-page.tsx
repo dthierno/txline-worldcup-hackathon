@@ -1205,12 +1205,16 @@ function PredictionCard({
                 <span className="pc-livebox">
                   {prediction ? prediction.awayGoals : "–"}
                 </span>
-                <span className="pc-ftline">
-                  <span className="pc-live-dot" aria-hidden="true" />
-                  <span className="pc-livebar-min">{matchMinute}</span>
-                  <span className="pc-ft-score">{liveHome}</span>
-                  <span className="pc-ft-dash">-</span>
-                  <span className="pc-ft-score">{liveAway}</span>
+                <span className="pc-ftline pc-live-stack">
+                  <span className="pc-live-row">
+                    <span className="pc-ft-score">{liveHome}</span>
+                    <span className="pc-ft-dash">-</span>
+                    <span className="pc-ft-score">{liveAway}</span>
+                  </span>
+                  <span className="pc-live-row">
+                    <span className="pc-live-dot" aria-hidden="true" />
+                    <span className="pc-livebar-min">{matchMinute}</span>
+                  </span>
                 </span>
               </>
             ) : locked ? (

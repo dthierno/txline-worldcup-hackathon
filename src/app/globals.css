@@ -2871,3 +2871,15 @@ dt {
 .pc-u {
   background: rgba(255, 255, 255, 0.14);
 }
+
+/* Live subline: score on top, pulsing minute below. */
+.pc-live-stack {
+  flex-direction: column;
+  gap: 3px;
+}
+.pc-live-row {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
