@@ -1534,54 +1534,58 @@ function PredictionsFeed({
   ].sort((left, right) => right.points - left.points);
 
   return (
-    <>
-      {mainGames.length > 0 ? (
-        toGroups(mainGames).map(renderGroup)
-      ) : (
-        <p className="muted">No upcoming matches right now.</p>
-      )}
+    <div className="pred-layout">
+      <div className="pred-col-main">
+        {mainGames.length > 0 ? (
+          toGroups(mainGames).map(renderGroup)
+        ) : (
+          <p className="muted">No upcoming matches right now.</p>
+        )}
 
-      {pastGames.length > 0 ? (
-        <div className="pred-past">
-          <button
-            aria-expanded={showPast}
-            className="pred-past-toggle"
-            onClick={() => setShowPast((value) => !value)}
-            type="button"
-          >
-            <span>Past results</span>
-            <span className="pred-past-count">{pastGames.length}</span>
-            <HugeiconsIcon
-              icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
-              strokeWidth={2}
-            />
-          </button>
-          {showPast ? toGroups(pastGames).map(renderGroup) : null}
-        </div>
-      ) : null}
+        {pastGames.length > 0 ? (
+          <div className="pred-past">
+            <button
+              aria-expanded={showPast}
+              className="pred-past-toggle"
+              onClick={() => setShowPast((value) => !value)}
+              type="button"
+            >
+              <span>Past results</span>
+              <span className="pred-past-count">{pastGames.length}</span>
+              <HugeiconsIcon
+                icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
+                strokeWidth={2}
+              />
+            </button>
+            {showPast ? toGroups(pastGames).map(renderGroup) : null}
+          </div>
+        ) : null}
+      </div>
 
-      <h3 className="gt-section-title">Local league · demo rivals</h3>
-      <ol className="pred-board">
-        {leaderboard.map((player, index) => (
-          <li
-            className={`pred-row${player.you ? " pred-you" : ""}`}
-            key={player.name}
-          >
-            <span className="pred-rank">{index + 1}</span>
-            <span className="pred-player">
-              {player.name}
-              {player.you ? "" : " · sim"}
-            </span>
-            <span className="pred-points">{player.points} pts</span>
-          </li>
-        ))}
-      </ol>
-      <p className="muted">
-        Prototype league stored on this device. Rival scores are simulated;
-        your points and live scores come from TxLINE. Form strips show each
-        team's real last five tournament results.
-      </p>
-    </>
+      <aside className="pred-col-side">
+        <h3 className="gt-section-title">Local league · demo rivals</h3>
+        <ol className="pred-board">
+          {leaderboard.map((player, index) => (
+            <li
+              className={`pred-row${player.you ? " pred-you" : ""}`}
+              key={player.name}
+            >
+              <span className="pred-rank">{index + 1}</span>
+              <span className="pred-player">
+                {player.name}
+                {player.you ? "" : " · sim"}
+              </span>
+              <span className="pred-points">{player.points} pts</span>
+            </li>
+          ))}
+        </ol>
+        <p className="muted">
+          Prototype league stored on this device. Rival scores are simulated;
+          your points and live scores come from TxLINE. Form strips show each
+          team's real last five tournament results.
+        </p>
+      </aside>
+    </div>
   );
 }
 

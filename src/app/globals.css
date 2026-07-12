@@ -3011,3 +3011,29 @@ dt {
   border-bottom-left-radius: 3px;
   border-top-left-radius: 3px;
 }
+
+/* v2: prediction cards in one left column, leaderboard on the right. */
+.pred-layout {
+  align-items: start;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.pred-col-main .pred-grid {
+  grid-template-columns: 1fr;
+}
+.pred-col-side {
+  position: sticky;
+  top: 20px;
+}
+.pred-col-side .gt-section-title {
+  margin-top: 4px;
+}
+@media (max-width: 900px) {
+  .pred-layout {
+    grid-template-columns: 1fr;
+  }
+  .pred-col-side {
+    position: static;
+  }
+}
