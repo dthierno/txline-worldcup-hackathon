@@ -475,15 +475,34 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   );
   const substitutions = extractSubstitutionEvents(combinedUpdates);
   const redCardedPlayerIds = new Set<number>();
+  // Live yellow-card counts per player, deduped by TxLINE event id (one real
+  // booking can emit several feed records).
+  const yellowEventsByPlayer = new Map<number, Set<number | string>>();
 
   for (const update of combinedUpdates) {
-    if (
-      update.action === "red_card" &&
-      typeof update.data?.PlayerId === "number"
-    ) {
+    if (typeof update.data?.PlayerId !== "number") {
+      continue;
+    }
+
+    if (update.action === "red_card") {
       redCardedPlayerIds.add(update.data.PlayerId);
     }
+
+    if (update.action === "yellow_card") {
+      const events =
+        yellowEventsByPlayer.get(update.data.PlayerId) ?? new Set();
+
+      events.add(update.eventId ?? `seq-${update.seq}`);
+      yellowEventsByPlayer.set(update.data.PlayerId, events);
+    }
   }
+
+  const yellowCardCounts = new Map<number, number>(
+    [...yellowEventsByPlayer.entries()].map(([playerId, events]) => [
+      playerId,
+      events.size,
+    ]),
+  );
   const callTeam = (participant?: number) =>
     participant === 1
       ? fixture.homeTeam
@@ -905,8 +924,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       <LineupsSection
         goals={goals}
         lineups={details.lineups}
+        playerStats={details.score?.data?.playerStats}
         redCards={redCardedPlayerIds}
         substitutions={substitutions}
+        yellowCards={yellowCardCounts}
       />
         </div>
 
@@ -1729,13 +1750,17 @@ function OddsBoardView({
 function LineupsSection({
   goals,
   lineups,
+  playerStats,
   redCards,
   substitutions,
+  yellowCards,
 }: {
   goals: GoalEvent[];
   lineups: ApiResult<NormalizedLineups> | null;
+  playerStats?: TxlineScoreData["playerStats"];
   redCards: Set<number>;
   substitutions: SubstitutionEvent[];
+  yellowCards: Map<number, number>;
 }) {
   const teams = lineups?.data?.teams;
   const goalCounts = new Map<number, number>();
@@ -1745,6 +1770,30 @@ function LineupsSection({
       goalCounts.set(goal.playerId, (goalCounts.get(goal.playerId) ?? 0) + 1);
     }
   }
+
+  // TxLINE's post-match PlayerStats summary is authoritative; the live feed
+  // heuristics (goal windows, card records) cover the match while it runs.
+  const statLine = (playerId?: number) =>
+    playerId !== undefined ? playerStats?.[String(playerId)] : undefined;
+  const goalMarks = (playerId?: number) => {
+    const count =
+      statLine(playerId)?.goals ??
+      (playerId !== undefined ? goalCounts.get(playerId) : undefined) ??
+      0;
+
+    return count > 0 ? ` ${"⚽".repeat(count)}` : "";
+  };
+  const yellowMarks = (playerId?: number) => {
+    const count =
+      statLine(playerId)?.yellowCards ??
+      (playerId !== undefined ? yellowCards.get(playerId) : undefined) ??
+      0;
+
+    return count > 0 ? ` ${"🟨".repeat(count)}` : "";
+  };
+  const hasRed = (playerId?: number) =>
+    (statLine(playerId)?.redCards ?? 0) > 0 ||
+    (playerId !== undefined && redCards.has(playerId));
 
   const subOnMinutes = new Map<number, string>();
   const subOffMinutes = new Map<number, string>();
@@ -1768,12 +1817,9 @@ function LineupsSection({
       ) : null}
       {player.number ? `#${player.number} ` : ""}
       {player.name}
-      {typeof player.playerId === "number" && goalCounts.has(player.playerId)
-        ? ` ${"⚽".repeat(goalCounts.get(player.playerId) ?? 1)}`
-        : ""}
-      {typeof player.playerId === "number" && redCards.has(player.playerId)
-        ? " 🟥"
-        : ""}
+      {goalMarks(player.playerId)}
+      {yellowMarks(player.playerId)}
+      {hasRed(player.playerId) ? " 🟥" : ""}
       {typeof player.playerId === "number" &&
       subOffMinutes.has(player.playerId) ? (
         <span className="sub-off">

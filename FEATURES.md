@@ -252,6 +252,30 @@ https://github.com/txodds/tx-on-chain. Full endpoint list:
 - Still absent: players/ratings/participants/competitions endpoints — **no
   ratings in the API** remains true in v1.5.6.
 
+### Re-checked 2026-07-12: PlayerStats discovered (now used)
+
+Spec still v1.5.6 on devnet, same 19 paths (prod txline.txodds.com serves
+older v1.5.2 — devnet is ahead). No new endpoints, but a schema dig found
+**`PlayerStats`** (`SoccerFixturePlayerStats` in the spec), which the feed
+really populates and we had missed:
+
+- **Where**: on the **`game_finalised` record only** (StatusId 100), in both
+  the scores snapshot and the updates feed. Post-match summary — it never
+  appears mid-match, so live views still need the per-event heuristics.
+- **Shape**: `PlayerStats.Participant1|Participant2` → `{ [playerId]:
+  { goals, shots, ownGoals, penaltyAttempts, penaltyGoals, yellowCards,
+  redCards } }` (only non-zero fields present). Verified on ARG-SUI
+  18222446: Embolo `418624 = {yellowCards:1, redCards:1}`, Ndoye
+  `10092684 = {goals:1}` — matches the real match exactly.
+- **Wired in**: `normalizeScoreSnapshot` extracts it into
+  `score.playerStats` (flat `playerId → PlayerStatLine` map); the v2 match
+  page lineups use it as the authoritative post-match source for ⚽ goals,
+  🟨 yellows and 🟥 reds, with the live feed records (`yellow_card` /
+  `red_card` actions, deduped by event id) covering the match while it runs.
+- **Assists**: the `Assists` / `AssistConfirmed` schema fields are
+  **basketball-only** (`BasketballScore` / `BasketballUpdateReference`) —
+  soccer still has no assist data; the lineups footnote stays true.
+
 ## Ops gotchas (memory-backed)
 
 - `npm run build` while `next dev` runs **wedges the dev server** (shared

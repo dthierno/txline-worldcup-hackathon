@@ -35,6 +35,9 @@ export type NormalizedTxlineScore = {
   participant1IsHome: boolean;
   // Which participant (1|2) has the ball, from live possession-phase records.
   possession?: number;
+  // Authoritative per-player stats keyed by PlayerId, from the PlayerStats
+  // block TxLINE attaches to the game_finalised record (post-match only).
+  playerStats?: Record<string, PlayerStatLine>;
   // Per-half splits decoded from TxLINE's period stat banks (1000s = first
   // half, 3000s = second half); present when any bank key is set.
   halfStats?: {
@@ -57,6 +60,18 @@ export type TxlineHalfLine = {
 
 export type NormalizedTxlineScoreUpdate = NormalizedTxlineScore & {
   id: string;
+};
+
+// One player's line in TxLINE's post-match PlayerStats summary (only
+// non-zero fields are present in the feed).
+export type PlayerStatLine = {
+  goals?: number;
+  ownGoals?: number;
+  penaltyAttempts?: number;
+  penaltyGoals?: number;
+  redCards?: number;
+  shots?: number;
+  yellowCards?: number;
 };
 
 export type NormalizedTxlineOddsMarket = {
@@ -235,6 +250,52 @@ export function normalizeScoreSnapshot(raw: unknown): NormalizedTxlineScore {
     homeYellowCards: statMap.get(homeBase + 2) ?? 0,
     participant,
     participant1IsHome,
+    ...(() => {
+      // Authoritative per-player summary: TxLINE attaches PlayerStats to the
+      // game_finalised record only, so search every snapshot entry for it.
+      const entries = Array.isArray(raw) ? raw : [latestEntry];
+      const carrier = entries.find(
+        (entry) =>
+          entry &&
+          typeof entry === "object" &&
+          "PlayerStats" in (entry as Record<string, unknown>),
+      ) as Record<string, unknown> | undefined;
+      const block = readRecord(carrier, "PlayerStats");
+
+      if (!block) return {};
+
+      const playerStats: Record<string, PlayerStatLine> = {};
+
+      for (const side of ["Participant1", "Participant2"]) {
+        const sideMap = readRecord(block, side);
+
+        for (const [playerId, line] of Object.entries(sideMap ?? {})) {
+          if (line && typeof line === "object") {
+            const stats: PlayerStatLine = {};
+
+            for (const field of [
+              "goals",
+              "ownGoals",
+              "penaltyAttempts",
+              "penaltyGoals",
+              "redCards",
+              "shots",
+              "yellowCards",
+            ] as const) {
+              const value = (line as Record<string, unknown>)[field];
+
+              if (typeof value === "number") {
+                stats[field] = value;
+              }
+            }
+
+            playerStats[playerId] = stats;
+          }
+        }
+      }
+
+      return Object.keys(playerStats).length ? { playerStats } : {};
+    })(),
     possession: readNumber(latestEntry, "Possession"),
     raw,
     seq: readNumber(latestEntry, "Seq"),

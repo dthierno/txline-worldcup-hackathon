@@ -33,6 +33,20 @@ export type TxlineScoreData = {
   homeYellowCards: number;
   participant?: number;
   participant1IsHome: boolean;
+  // Authoritative per-player stats keyed by PlayerId (goals, cards,
+  // penalties), attached by TxLINE to the game_finalised record only.
+  playerStats?: Record<
+    string,
+    {
+      goals?: number;
+      ownGoals?: number;
+      penaltyAttempts?: number;
+      penaltyGoals?: number;
+      redCards?: number;
+      shots?: number;
+      yellowCards?: number;
+    }
+  >;
   possession?: number;
   seq?: number;
 };
