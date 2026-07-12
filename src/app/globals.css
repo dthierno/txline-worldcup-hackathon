@@ -3069,3 +3069,16 @@ dt {
 .pred-day-toggle[data-panel-open] .pred-day-chevron {
   rotate: 180deg;
 }
+
+/* v2: quieter day headers - the cards are the focus. */
+.pred-day-toggle .pred-day-name {
+  font-size: 0.92em;
+  font-weight: 600;
+}
+.pred-day-toggle .pred-day-ic {
+  height: 15px;
+  width: 15px;
+}
+.pred-day-toggle .pred-day-count {
+  font-size: 0.8em;
+}
