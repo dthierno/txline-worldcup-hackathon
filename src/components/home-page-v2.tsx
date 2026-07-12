@@ -1156,7 +1156,7 @@ function PredictionCard({
         : Math.floor((now - new Date(fixture.kickoffUtc).getTime()) / 60_000);
   const matchMinute =
     score?.statusId === 3
-      ? "HT"
+      ? "Halftime"
       : typeof score?.clockSeconds === "number"
         ? formatLiveMinute(score.clockSeconds, score.statusId)
         : clockMin >= 90
