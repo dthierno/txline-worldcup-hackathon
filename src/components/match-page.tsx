@@ -68,6 +68,7 @@ import {
   loadGoalCalls,
   loadPrediction,
   loadSettlements,
+  removeSettlement,
   saveGoalCall,
   savePrediction,
   saveSettlement,
@@ -260,10 +261,28 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
       (update) => update.action === "game_finalised",
     );
   }, [details.historicalUpdates, details.updates, streamUpdates]);
+  // A match can outlive the 4h kickoff window (delays, long extra time):
+  // the feed's StatusId is authoritative for "still being played".
+  const feedInPlay = useMemo(() => {
+    const baseUpdates = details.historicalUpdates?.data?.length
+      ? details.historicalUpdates.data
+      : details.updates?.data ?? [];
+    let statusId = 0;
+
+    for (const update of [...baseUpdates, ...streamUpdates].sort(
+      (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+    )) {
+      if (typeof update.statusId === "number") {
+        statusId = update.statusId;
+      }
+    }
+
+    return statusId >= 2 && statusId <= 9;
+  }, [details.historicalUpdates, details.updates, streamUpdates]);
   const liveStreamEligible = Boolean(
     fixture &&
       now !== null &&
-      isPotentiallyLive(fixture, now) &&
+      (isPotentiallyLive(fixture, now) || feedInPlay) &&
       !feedFinished,
   );
 
@@ -398,7 +417,10 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   const formattedState = formatGameState(displayScore?.gameState);
   const displayState =
     feedFinished ||
-    (isPastFixture(fixture) && !liveStreamEligible && displayScore)
+    (isPastFixture(fixture) &&
+      !liveStreamEligible &&
+      displayScore &&
+      !feedInPlay)
       ? "Finished"
       : feedStatusId > 10
         ? "Penalties"
@@ -1498,6 +1520,12 @@ function PredictionSection({
   // without refetching every fixture's replay.
   useEffect(() => {
     if (!settlement?.final || !outcome) {
+      // A stored settlement for a match that is not actually finished is
+      // bogus (e.g. saved mid-match by an older build) - heal it.
+      if (outcome && settlement && !settlement.final) {
+        removeSettlement(fixture.fixtureId);
+      }
+
       return;
     }
 

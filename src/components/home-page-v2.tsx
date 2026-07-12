@@ -218,7 +218,13 @@ export function HomePageV2() {
   // Highest event seq already folded per fixture, so each poll only pulls new
   // events (see the `since` cursor on the updates route).
   const lastSeqRef = useRef<Record<number, number>>({});
+  // Latest folded scores, readable from the poll interval without re-arming it.
+  const scoresRef = useRef<Record<number, LiveScore>>({});
   const now = useNow();
+
+  useEffect(() => {
+    scoresRef.current = scores;
+  }, [scores]);
 
   // Live scores from TxLINE for any in-play fixture, polled while the match is
   // inside its live window. We read the *updates* feed (not the snapshot):
@@ -228,8 +234,12 @@ export function HomePageV2() {
     let cancelled = false;
 
     const load = () => {
-      const liveFixtures = fixtures.filter((fixture) =>
-        isPotentiallyLive(fixture, Date.now()),
+      // Poll while inside the kickoff window OR while the feed still says
+      // in play (delayed matches outlive the 4h heuristic).
+      const liveFixtures = fixtures.filter(
+        (fixture) =>
+          isPotentiallyLive(fixture, Date.now()) ||
+          statusInPlay(scoresRef.current[fixture.fixtureId]?.statusId),
       );
 
       liveFixtures.forEach((fixture) => {
@@ -1116,11 +1126,13 @@ function PredictionCard({
   const live = inPlay;
   const locked = now !== null && isPredictionLocked(fixture, now);
   // Match over: feed status, a stored settlement, or a past fixture that the
-  // feed no longer reports as in play.
-  const ended =
-    statusEnded(score?.statusId) ||
-    Boolean(final) ||
-    (isPastFixture(fixture) && !inPlay);
+  // feed no longer reports as in play. A feed that says "in play" vetoes
+  // everything - a settlement cannot exist for an unfinished match.
+  const ended = statusInPlay(score?.statusId)
+    ? false
+    : statusEnded(score?.statusId) ||
+      Boolean(final) ||
+      (isPastFixture(fixture) && !inPlay);
   const ftScore: [number, number] | null = (() => {
     const fromSettlement = final?.finalScore?.match(/^(\d+)-(\d+)$/);
 

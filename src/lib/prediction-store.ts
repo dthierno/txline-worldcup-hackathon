@@ -52,6 +52,16 @@ export function saveSettlement(settlement: StoredSettlement): void {
   });
 }
 
+// Heal bogus settlements (e.g. one saved mid-match by an older build).
+export function removeSettlement(fixtureId: number): void {
+  const all = loadSettlements();
+
+  if (all[String(fixtureId)]) {
+    delete all[String(fixtureId)];
+    writeJsonRecord(SETTLEMENTS_KEY, all);
+  }
+}
+
 // Live goal-call answers, keyed by fixture then by the raise event key.
 export function loadGoalCalls(
   fixtureId: number,
