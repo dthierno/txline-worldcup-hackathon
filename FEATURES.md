@@ -215,7 +215,15 @@ one `LiveUiCall` shape (adding a kind = extractor + mapping):
 - Historical replay preferred over snapshot for finished games (snapshot can
   be stale, e.g. 0-1 vs real 0-3). Never display snapshot finals on home.
   **The historical endpoint returns 0 records until `game_finalised`** — a
-  just-ended match still comes from `scores/updates`.
+  just-ended match still comes from `scores/updates`. Replays are purged
+  after ~3 weeks (June 11-17 group games are gone).
+- **Full tournament history is recoverable**: sweeping
+  `fixtures/updates/{epochDay}/{hourOfDay}` (epoch days ~20615+) discovers
+  every WC fixture ever carried; `scores/historical` then yields finals.
+  Result: `src/lib/world-cup-results.ts` (75 matches, June 18 onward) —
+  powers the real form dots and the FT lines on past cards. Re-run the
+  sweep (scratchpad txline-history-sweep.mjs pattern) to refresh after new
+  rounds.
 
 ### Official API surface (spec v1.5.6 — discovered 2026-07-11)
 
