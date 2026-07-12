@@ -1453,7 +1453,7 @@ function PredictionsFeed({
             <span className="pred-rank">{index + 1}</span>
             <span className="pred-player">
               {player.name}
-              {player.you ? "" : " · sim"}
+              {player.you ? "" : " · simulated"}
             </span>
             <span className="pred-points">{player.points} pts</span>
           </li>

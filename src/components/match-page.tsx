@@ -475,7 +475,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         ? call.voided
           ? "Not announced"
           : "Open"
-        : `${call.minutes} min added`,
+        : `${call.minutes} minutes added`,
       question: `Added time (half ${call.half}): over or under 3.5 minutes?`,
       resolved: call.resolved,
       seq: call.seq,
