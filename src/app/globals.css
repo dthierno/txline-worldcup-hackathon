@@ -3483,3 +3483,137 @@ dt {
   font-weight: 600;
   margin-bottom: 2px;
 }
+
+/* Venue & conditions card (match page rail), after the FotMob reference. */
+.mp2-venue-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+.mp2-venue-pin {
+  align-items: center;
+  background: #141419;
+  border-radius: 50%;
+  color: var(--muted-foreground);
+  display: flex;
+  flex-shrink: 0;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+.mp2-venue-pin svg {
+  height: 19px;
+  width: 19px;
+}
+.mp2-venue-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mp2-venue-name {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+.mp2-venue-sub {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.mp2-venue-row {
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 13px;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+.mp2-venue-row svg {
+  height: 16px;
+  width: 16px;
+}
+.mp2-venue-row-value {
+  color: #fff;
+  font-weight: 600;
+  margin-left: auto;
+}
+.mp2-venue-row > svg {
+  flex-shrink: 0;
+}
+.mp2-venue-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-right: 18px;
+}
+.mp2-venue-stat-label {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.mp2-venue-stat-value {
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+/* Attendance fill gauge: thin track with the percentage riding its edge. */
+.mp2-venue-gauge {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  display: flex;
+  flex: 1;
+  height: 5px;
+  margin-left: auto;
+  max-width: 110px;
+  position: relative;
+}
+.mp2-venue-gauge-fill {
+  background: var(--won);
+  border-radius: 999px;
+  display: block;
+  height: 100%;
+}
+.mp2-venue-gauge-text {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  position: absolute;
+  right: 0;
+  top: -17px;
+}
+.mp2-venue-weather {
+  align-items: center;
+  background: #141419;
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+.mp2-venue-weather-label {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+}
+.mp2-venue-weather-label svg {
+  height: 16px;
+  width: 16px;
+}
+.mp2-venue-weather-value {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 9px;
+}
+.mp2-venue-weather-value svg {
+  color: #fbbf24;
+  height: 26px;
+  width: 26px;
+}

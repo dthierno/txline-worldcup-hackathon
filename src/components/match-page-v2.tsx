@@ -4,8 +4,11 @@ import Link from "next/link";
 import {
   Calendar03Icon,
   FootballIcon,
+  FootballPitchIcon,
   Location01Icon,
   SunCloud02Icon,
+  TemperatureIcon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
@@ -1045,6 +1048,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         </div>
 
         <aside className="mp2-side">
+      <VenueWeatherCard />
       <PredictionSection
         key={fixture.fixtureId}
         calls={extractSettleableCalls(combinedUpdates)}
@@ -1688,6 +1692,83 @@ function MomentumSection({
   );
 }
 
+// Venue & conditions card at the top of the rail, rebuilt 1:1 from the
+// FotMob reference: venue name + location, capacity / attendance with a
+// fill gauge, surface, and a weather strip with temperature + condition.
+function VenueWeatherCard() {
+  const venue = {
+    attendance: "64,478",
+    capacity: "74,916",
+    condition: "Cloudy",
+    fillPct: 86,
+    location: "Miami Gardens, Florida, United States",
+    name: "Miami Stadium",
+    surface: "Grass",
+    temperature: "31\u00b0C",
+  };
+
+  return (
+    <section aria-label="Venue and conditions" className="card mp2-venue">
+      <div className="mp2-venue-head">
+        <span aria-hidden className="mp2-venue-pin">
+          <HugeiconsIcon icon={Location01Icon} strokeWidth={1.8} />
+        </span>
+        <span className="mp2-venue-names">
+          <span className="mp2-venue-name">{venue.name}</span>
+          <span className="mp2-venue-sub">{venue.location}</span>
+        </span>
+      </div>
+      <div className="mp2-venue-row">
+        <HugeiconsIcon aria-hidden icon={UserGroupIcon} strokeWidth={1.8} />
+        <span className="mp2-venue-stat">
+          <span className="mp2-venue-stat-label">Capacity</span>
+          <span className="mp2-venue-stat-value">{venue.capacity}</span>
+        </span>
+        <span className="mp2-venue-stat">
+          <span className="mp2-venue-stat-label">Attendance</span>
+          <span className="mp2-venue-stat-value">{venue.attendance}</span>
+        </span>
+        <span className="mp2-venue-gauge">
+          <span
+            className="mp2-venue-gauge-fill"
+            style={{ width: `${venue.fillPct}%` }}
+          />
+          <span className="mp2-venue-gauge-text">{venue.fillPct}%</span>
+        </span>
+      </div>
+      <div className="mp2-venue-row">
+        <HugeiconsIcon
+          aria-hidden
+          icon={FootballPitchIcon}
+          strokeWidth={1.8}
+        />
+        <span className="mp2-venue-stat">
+          <span className="mp2-venue-stat-label">Surface</span>
+          <span className="mp2-venue-stat-value">{venue.surface}</span>
+        </span>
+      </div>
+      <div className="mp2-venue-weather">
+        <span className="mp2-venue-weather-label">
+          <HugeiconsIcon
+            aria-hidden
+            icon={TemperatureIcon}
+            strokeWidth={1.8}
+          />
+          Weather conditions
+        </span>
+        <span className="mp2-venue-weather-value" title={venue.condition}>
+          {venue.temperature}
+          <HugeiconsIcon
+            aria-hidden
+            icon={SunCloud02Icon}
+            strokeWidth={1.8}
+          />
+        </span>
+      </div>
+    </section>
+  );
+}
+
 // Named CSS colors cover the jersey values TxLINE scouts report ("red",
 // "aqua"); anything unparseable still reads fine as text.
 function MatchInfoSection({
@@ -1702,24 +1783,6 @@ function MatchInfoSection({
   }
 
   const rows: Array<{ label: string; swatch?: string; value: string }> = [];
-
-  if (info.venueType) {
-    rows.push({
-      label: "Venue",
-      value:
-        info.venueType === "neutral"
-          ? "Neutral ground"
-          : info.venueType.charAt(0).toUpperCase() + info.venueType.slice(1),
-    });
-  }
-
-  if (info.weather) {
-    rows.push({ label: "Conditions", value: info.weather });
-  }
-
-  if (info.pitch) {
-    rows.push({ label: "Pitch", value: info.pitch });
-  }
 
   if (info.homeJersey) {
     rows.push({
