@@ -862,6 +862,51 @@ function answerIndex(answer: string): number {
   return Number(answer);
 }
 
+// Short synthesized two-tone chime announcing a new live call (no audio
+// asset; Web Audio only). Browsers block audio before the first user gesture
+// on the page - fail silently then, the popup itself is the signal.
+let chimeContext: AudioContext | null = null;
+let lastChimeKey: string | null = null;
+
+function playCallChime(key: string) {
+  // One ring per call, even if the dialog remounts (StrictMode, re-renders).
+  if (lastChimeKey === key) {
+    return;
+  }
+
+  lastChimeKey = key;
+
+  try {
+    chimeContext ??= new AudioContext();
+
+    if (chimeContext.state === "suspended") {
+      void chimeContext.resume();
+    }
+
+    const now = chimeContext.currentTime;
+    const tones: Array<[frequency: number, startOffset: number]> = [
+      [880, 0],
+      [1318.5, 0.12],
+    ];
+
+    for (const [frequency, startOffset] of tones) {
+      const oscillator = chimeContext.createOscillator();
+      const gain = chimeContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, now + startOffset);
+      gain.gain.linearRampToValueAtTime(0.1, now + startOffset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + 0.4);
+      oscillator.connect(gain).connect(chimeContext.destination);
+      oscillator.start(now + startOffset);
+      oscillator.stop(now + startOffset + 0.45);
+    }
+  } catch {
+    // Audio unavailable or blocked - stay silent.
+  }
+}
+
 function CallPromptDialog({
   call,
   onAnswer,
@@ -873,6 +918,11 @@ function CallPromptDialog({
 }) {
   const [remaining, setRemaining] = useState(CALL_WINDOW_MS);
   const callKey = call.key;
+
+  // Ring once per call prompt.
+  useEffect(() => {
+    playCallChime(callKey);
+  }, [callKey]);
 
   useEffect(() => {
     const start = Date.now();
