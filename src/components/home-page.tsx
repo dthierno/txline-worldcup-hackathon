@@ -1174,7 +1174,9 @@ function PredictionCard({
           </Link>
           */}
 
-          <div className={`pc-scores${ended ? " pc-scores-ended" : ""}`}>
+          <div
+            className={`pc-scores${ended || live ? " pc-scores-ended" : ""}`}
+          >
             {ended ? (
               <>
                 <span className="pc-livebox pc-final-box">
@@ -1202,6 +1204,13 @@ function PredictionCard({
                 </span>
                 <span className="pc-livebox">
                   {prediction ? prediction.awayGoals : "–"}
+                </span>
+                <span className="pc-ftline">
+                  <span className="pc-live-dot" aria-hidden="true" />
+                  <span className="pc-livebar-min">{matchMinute}</span>
+                  <span className="pc-ft-score">{liveHome}</span>
+                  <span className="pc-ft-dash">-</span>
+                  <span className="pc-ft-score">{liveAway}</span>
                 </span>
               </>
             ) : locked ? (
@@ -1240,17 +1249,6 @@ function PredictionCard({
           />
         </div>
 
-        {live ? (
-          <div className="pc-livebar">
-            <span className="pc-live-dot" aria-hidden="true" />
-            <span className="pc-livebar-min">{matchMinute}</span>
-            <span className="pc-livebar-score">
-              {liveHome}
-              <span className="pc-livebar-dash">–</span>
-              {liveAway}
-            </span>
-          </div>
-        ) : null}
       </div>
     </div>
   );
