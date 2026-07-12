@@ -276,6 +276,36 @@ really populates and we had missed:
   **basketball-only** (`BasketballScore` / `BasketballUpdateReference`) —
   soccer still has no assist data; the lineups footnote stays true.
 
+## Non-TxLINE data source: FIFA.com highlights (match page demo)
+
+The `/demo/match/[fixtureId]` page shows official match highlights, sourced
+live from FIFA.com's own (undocumented, public) content API — chosen over
+broadcaster-YouTube links because those are **geo-locked to the viewer's
+country** (a Canadian TSN highlight won't play elsewhere), whereas FIFA's are
+global. No API key, no auth, `access-control-allow-origin: *`, and a plain
+server-side `fetch` with a browser UA passes Akamai.
+
+- **Resolve** our fixture → FIFA match via the calendar
+  `api.fifa.com/api/v3/calendar/matches?idCompetition=17&idSeason=285023&count=400`
+  (competition 17 = World Cup, season 285023 = 2026). Match on the
+  order-independent team pair, disambiguated by nearest kickoff date. Calendar
+  is cached in-module (1h TTL) — it's static for the tournament.
+- **Videos** `cxm-api.fifa.com/fifaplusweb/api/sections/matchdetails/videos?locale=en&competitionId=17&seasonId=285023&stageId={stage}&matchId={match}`
+  returns `vodVideosBaseCarousel.items[]`: `title`, `readMorePageUrl`
+  (→ `fifa.com/en/watch/{id}`), `image.src` (thumbnail), `publishDate`,
+  `subTitle`. Standard highlights = `videoSubcategory === "Highlights"`; the
+  International Sign Language variant has "(IS)" in the title (surfaced as a
+  secondary link). Empty items = not published yet ("pending" state).
+- **Code**: `lib/fifa-highlights.ts` (resolver + fetch), route
+  `app/api/fifa/highlights/route.ts` (`?home&away&kickoff`), consumed by
+  `MatchMediaSection` in `match-page-v2.tsx`. Fully dynamic — new matches'
+  highlights appear automatically once FIFA publishes (a few hours post-match).
+- **Regional partner clip** (the extra FotMob card above): no public feed, so
+  curated per-fixture in `lib/match-media.ts` (`matchClips`).
+- **Caveat**: FIFA's content API is undocumented/unofficial — it can change
+  without notice. Thumbnails are hotlinked from `digitalhub.fifa.com`; a strict
+  CSP (e.g. a published Artifact) would block them.
+
 ## Ops gotchas (memory-backed)
 
 - `npm run build` while `next dev` runs **wedges the dev server** (shared

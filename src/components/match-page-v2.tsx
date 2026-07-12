@@ -121,10 +121,7 @@ import {
   type SettleableCall,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
-import {
-  fallbackOfficialHighlights,
-  matchMedia,
-} from "@/lib/match-media";
+import { matchClips } from "@/lib/match-media";
 import { teamFlag, teamGlow } from "@/lib/team-visuals";
 import {
   txlineWorldCupFixtures,
@@ -976,6 +973,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           awayTeam={fixture.awayTeam}
           fixtureId={fixture.fixtureId}
           homeTeam={fixture.homeTeam}
+          kickoffUtc={fixture.kickoffUtc}
         />
       ) : null}
       <section className="card" aria-labelledby="stats-heading">
@@ -1703,23 +1701,79 @@ function MomentumSection({
   );
 }
 
-// Highlight media cards, rebuilt from the FotMob reference: a partner clip
-// (full-bleed thumbnail, title + "Highlights" label below) and an official
-// highlights card (header + thumbnail with a play overlay). Curated links
-// win; other finished matches fall back to a YouTube highlights search.
+type FifaHighlight = {
+  publishDate?: string;
+  subtitle?: string;
+  thumbnail?: string;
+  title: string;
+  url: string;
+};
+
+type FifaHighlightsResponse = {
+  accessible: FifaHighlight | null;
+  official: FifaHighlight | null;
+  status: "published" | "pending" | "not-found";
+};
+
+function PlayBadge() {
+  return (
+    <span aria-hidden className="mp2-official-play">
+      <svg fill="none" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" fill="rgba(0,0,0,0.55)" r="24" />
+        <path
+          d="M20 16.5v15a1 1 0 0 0 1.53.85l11.5-7.5a1 1 0 0 0 0-1.7l-11.5-7.5A1 1 0 0 0 20 16.5Z"
+          fill="#fff"
+        />
+      </svg>
+    </span>
+  );
+}
+
+// Highlight media cards, from the FotMob reference: an optional regional
+// partner clip (curated) and the official highlights card - powered live by
+// FIFA.com's own content API, so a match's real highlights (thumbnail + a
+// fifa.com/watch link) appear automatically once FIFA publishes them, and
+// show a "not published yet" state until then. Mirrors FIFA's own site: the
+// standard highlights, plus a sign-language (IS) link when available.
 function MatchMediaSection({
   awayTeam,
   fixtureId,
   homeTeam,
+  kickoffUtc,
 }: {
   awayTeam: string;
   fixtureId: number;
   homeTeam: string;
+  kickoffUtc: string;
 }) {
-  const media = matchMedia[fixtureId];
-  const clip = media?.clip;
-  const official =
-    media?.official ?? fallbackOfficialHighlights(homeTeam, awayTeam);
+  const clip = matchClips[fixtureId];
+  const [fifa, setFifa] = useState<FifaHighlightsResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({
+      away: awayTeam,
+      home: homeTeam,
+      kickoff: kickoffUtc,
+    });
+
+    fetch(`/api/fifa/highlights?${params.toString()}`)
+      .then((response) => response.json())
+      .then((data: FifaHighlightsResponse) => {
+        if (!cancelled) setFifa(data);
+      })
+      .catch(() => {
+        if (!cancelled)
+          setFifa({ accessible: null, official: null, status: "not-found" });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [awayTeam, homeTeam, kickoffUtc]);
+
+  const official = fifa?.official ?? null;
+  const loading = fifa === null;
 
   return (
     <div className="mp2-media">
@@ -1738,36 +1792,48 @@ function MatchMediaSection({
           </div>
         </a>
       ) : null}
-      <a
-        className="card mp2-official"
-        href={official.url}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        <div className="mp2-official-head">
-          <h3 className="mp2-official-title">Official highlights</h3>
-          <span className="mp2-official-source">{official.source}</span>
-        </div>
-        <div className="mp2-official-thumb">
-          {official.thumbnail ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={official.thumbnail} />
-          ) : (
-            <span className="mp2-official-placeholder" aria-hidden>
-              {homeTeam} v {awayTeam}
+
+      {official ? (
+        <a
+          className="card mp2-official"
+          href={official.url}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <div className="mp2-official-head">
+            <h3 className="mp2-official-title">Official highlights</h3>
+            <span className="mp2-official-source">FIFA.com</span>
+          </div>
+          <div className="mp2-official-thumb">
+            {official.thumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img alt="" src={official.thumbnail} />
+            ) : (
+              <span className="mp2-official-placeholder" aria-hidden>
+                {homeTeam} v {awayTeam}
+              </span>
+            )}
+            <PlayBadge />
+          </div>
+          {fifa?.accessible ? (
+            <span className="mp2-official-foot">
+              Sign-language version available
             </span>
-          )}
-          <span aria-hidden className="mp2-official-play">
-            <svg fill="none" viewBox="0 0 48 48">
-              <circle cx="24" cy="24" fill="rgba(0,0,0,0.55)" r="24" />
-              <path
-                d="M20 16.5v15a1 1 0 0 0 1.53.85l11.5-7.5a1 1 0 0 0 0-1.7l-11.5-7.5A1 1 0 0 0 20 16.5Z"
-                fill="#fff"
-              />
-            </svg>
-          </span>
+          ) : null}
+        </a>
+      ) : (
+        <div className="card mp2-official mp2-official-empty">
+          <div className="mp2-official-head">
+            <h3 className="mp2-official-title">Official highlights</h3>
+            <span className="mp2-official-source">FIFA.com</span>
+          </div>
+          <div className="mp2-official-thumb">
+            <span className="mp2-official-placeholder">
+              {loading ? "Checking FIFA…" : "Not published yet"}
+            </span>
+          </div>
         </div>
-      </a>
+      )}
     </div>
   );
 }

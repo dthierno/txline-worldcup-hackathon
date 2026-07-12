@@ -3724,3 +3724,17 @@ dt {
 .mp2-official:hover .mp2-official-play svg {
   transform: scale(1.08);
 }
+
+/* FIFA highlights: sign-language footnote + empty ("not published") state. */
+.mp2-official-foot {
+  color: var(--muted-foreground);
+  display: block;
+  font-size: 12px;
+  padding: 10px 18px 13px;
+}
+.mp2-official-empty {
+  cursor: default;
+}
+.mp2-official-empty:hover {
+  background: #101014;
+}
