@@ -951,24 +951,36 @@ function ScoreStepper({
   );
 }
 
-// Rounded-hexagon points badge shown over a settled prediction.
-function PointsBadge({ points }: { points: number }) {
+// Rounded-hexagon points badge: green for a settled prediction, grey when
+// the fan never made one (points left on the table).
+function PointsBadge({ muted, points }: { muted?: boolean; points: number }) {
+  const gradientId = muted ? "pc-badge-fill-muted" : "pc-badge-fill";
+
   return (
     <span
-      aria-label={`${points} points earned`}
+      aria-label={
+        muted ? "No prediction made - 0 points" : `${points} points earned`
+      }
       className="pc-points-badge"
       role="img"
     >
       <svg aria-hidden="true" fill="none" viewBox="0 0 12 12">
         <defs>
-          <linearGradient id="pc-badge-fill" x1="0" x2="12" y1="12" y2="0">
-            <stop offset="0" stopColor="#2f9e44" />
-            <stop offset="1" stopColor="#a3e635" />
-          </linearGradient>
+          {muted ? (
+            <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
+              <stop offset="0" stopColor="#3a3a42" />
+              <stop offset="1" stopColor="#71717c" />
+            </linearGradient>
+          ) : (
+            <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
+              <stop offset="0" stopColor="#2f9e44" />
+              <stop offset="1" stopColor="#a3e635" />
+            </linearGradient>
+          )}
         </defs>
         <path
           d="M4.9 0.28a2.2 2.2 0 0 1 2.2 0l3.5 1.95c0.68 0.38 1.1 1.07 1.1 1.82v3.9c0 0.75-0.42 1.44-1.1 1.82l-3.5 1.95a2.2 2.2 0 0 1-2.2 0l-3.5-1.95a2.1 2.1 0 0 1-1.1-1.82v-3.9c0-0.75 0.42-1.44 1.1-1.82z"
-          fill="url(#pc-badge-fill)"
+          fill={`url(#${gradientId})`}
         />
       </svg>
       <span className="pc-points-num">{points}</span>
@@ -1195,8 +1207,14 @@ function PredictionCard({
                 <span className="pc-livebox pc-final-box">
                   {prediction ? prediction.homeGoals : "-"}
                 </span>
-                {prediction && final ? (
-                  <PointsBadge points={final.totalPoints} />
+                {(prediction && final) || !prediction ? (
+                  // No prediction made: the badge still shows, greyed with
+                  // 0 - points left on the table. Predicted-but-unsettled
+                  // stays blank until settlement (a match-page visit).
+                  <PointsBadge
+                    muted={!prediction}
+                    points={final?.totalPoints ?? 0}
+                  />
                 ) : null}
                 <span className="pc-livebox pc-final-box">
                   {prediction ? prediction.awayGoals : "-"}
