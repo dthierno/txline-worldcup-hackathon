@@ -7,6 +7,7 @@ import {
   ArrowUp01Icon,
   CalendarAddIcon,
   ChampionIcon,
+  FireIcon,
   FootballIcon,
   StarIcon,
   TargetIcon,
@@ -21,6 +22,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tabs,
   TabsContent,
@@ -556,6 +558,7 @@ export function HomePageV2() {
             finals={mounted ? finals : {}}
             fixtures={[...pastGames, ...upcomingGames]}
             now={now}
+            odds={odds}
             predictions={mounted ? predictions : {}}
             scores={mounted ? scores : {}}
           />
@@ -1442,20 +1445,32 @@ function PredictionCard({
   );
 }
 
+type FeedFilter = "all" | "big" | "live" | "open";
+
+const FEED_FILTER_EMPTY: Record<FeedFilter, string> = {
+  all: "No upcoming matches right now.",
+  big: "No big games coming up right now.",
+  live: "No matches are live right now.",
+  open: "Nothing left to predict — you have picked every open match.",
+};
+
 function PredictionsFeed({
   finals,
   fixtures,
   now,
+  odds,
   predictions,
   scores,
 }: {
   finals: Record<string, StoredSettlement>;
   fixtures: WorldCupFixture[];
   now: number | null;
+  odds: Record<number, string[]>;
   predictions: Record<string, MatchPrediction>;
   scores: Record<number, LiveScore>;
 }) {
   const [showPast, setShowPast] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
   const formByTeam = useMemo(
     () => buildTeamForm(fixtures, scores),
     [fixtures, scores],
@@ -1490,11 +1505,48 @@ function PredictionsFeed({
     now !== null &&
     now - new Date(fixture.kickoffUtc).getTime() < RECENT_WINDOW_MS;
 
+  // "Big game" = a late knockout round, or a genuinely close matchup by the
+  // TxLINE closing 1X2 odds (neither side a clear favourite).
+  const isBigGame = (fixture: WorldCupFixture) => {
+    const stage = fixtureStage(fixture);
+
+    if (stage === "Semi-final" || stage === "Final" || stage === "Third place") {
+      return true;
+    }
+
+    const board = odds[fixture.fixtureId];
+
+    if (!board) return false;
+
+    const home = Number.parseFloat(board[0]);
+    const away = Number.parseFloat(board[2]);
+
+    return Math.max(home, away) / Math.min(home, away) <= 1.65;
+  };
+
+  const matchesFilter = (fixture: WorldCupFixture) => {
+    switch (feedFilter) {
+      case "live":
+        return statusInPlay(scores[fixture.fixtureId]?.statusId);
+      case "big":
+        return isBigGame(fixture);
+      case "open":
+        return (
+          !isPredicted(fixture) &&
+          !(now !== null && isPredictionLocked(fixture, now))
+        );
+      default:
+        return true;
+    }
+  };
+
   // Main = live + upcoming + recently finished. Older finished games drop
-  // into the collapsed history, newest first.
+  // into the collapsed history, newest first. The filter pills only narrow
+  // this main feed; past results keep showing everything.
   const mainGames = fixtures.filter(
     (fixture) =>
-      !isPastFixture(fixture) || isLive(fixture) || isRecent(fixture),
+      (!isPastFixture(fixture) || isLive(fixture) || isRecent(fixture)) &&
+      matchesFilter(fixture),
   );
   const pastGames = fixtures
     .filter(
@@ -1599,12 +1651,37 @@ function PredictionsFeed({
   return (
     <div className="pred-layout">
       <div className="pred-col-main">
+        <ToggleGroup
+          aria-label="Filter matches"
+          className="pred-filter-row"
+          onValueChange={(value) => {
+            setFeedFilter((value[0] as FeedFilter | undefined) ?? "all");
+          }}
+          value={[feedFilter]}
+          variant="outline"
+        >
+          <ToggleGroupItem className="pred-filter-pill" value="all">
+            All
+          </ToggleGroupItem>
+          <ToggleGroupItem className="pred-filter-pill" value="live">
+            <span aria-hidden className="pred-filter-dot" />
+            Live
+          </ToggleGroupItem>
+          <ToggleGroupItem className="pred-filter-pill" value="big">
+            <HugeiconsIcon icon={FireIcon} strokeWidth={2} />
+            Big games
+          </ToggleGroupItem>
+          <ToggleGroupItem className="pred-filter-pill" value="open">
+            To predict
+          </ToggleGroupItem>
+        </ToggleGroup>
+
         {mainGames.length > 0 ? (
           toGroups(mainGames).map((group) =>
             renderGroup(group, { collapsible: true }),
           )
         ) : (
-          <p className="muted">No upcoming matches right now.</p>
+          <p className="muted">{FEED_FILTER_EMPTY[feedFilter]}</p>
         )}
 
         {pastGames.length > 0 ? (
