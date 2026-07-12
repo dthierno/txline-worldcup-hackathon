@@ -4,14 +4,7 @@ import Link from "next/link";
 import { FootballIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -47,7 +40,6 @@ import {
   formatDate,
   formatGameState,
   formatMinute,
-  formatScore,
   formatUtcTime,
   getDisplayScore,
   getDisplayUpdates,
@@ -705,6 +697,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
+  const hadExtraTime = combinedUpdates.some(
+    (update) =>
+      update.statusId === 7 || update.statusId === 8 || update.statusId === 9,
+  );
   const heroTeam = (side: "away" | "home") => {
     const iso = side === "home" ? homeIso : awayIso;
     const name = side === "home" ? fixture.homeTeam : fixture.awayTeam;
@@ -737,52 +733,154 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       </div>
     );
   };
-  const heroGoal = (goal: GoalEvent) => (
-    <li key={goal.seq}>
-      {(goal.playerId !== undefined
-        ? playerDirectory.get(goal.playerId)?.name
-        : undefined) ??
-        (goal.scoringSide === "home" ? fixture.homeTeam : fixture.awayTeam)}{" "}
-      {formatMinute(goal.clockSeconds) || "—"}
-    </li>
-  );
+  // Scorers grouped FotMob-style: one line per player, minutes joined
+  // ("Bellingham 45+2', 93'"), stoppage-time minutes capped per period.
+  const heroGoalLines = (side: "away" | "home") => {
+    const lines = new Map<string, string[]>();
+
+    for (const goal of goals) {
+      if (goal.scoringSide !== side) continue;
+
+      const name =
+        (goal.playerId !== undefined
+          ? playerDirectory.get(goal.playerId)?.name
+          : undefined) ??
+        (side === "home" ? fixture.homeTeam : fixture.awayTeam);
+      const minute =
+        goal.clockSeconds !== undefined
+          ? formatLiveMinute(goal.clockSeconds, goal.statusId)
+          : "—";
+
+      lines.set(name, [...(lines.get(name) ?? []), minute]);
+    }
+
+    return [...lines.entries()].map(([name, minutes]) => (
+      <li key={name}>
+        {name} {minutes.join(", ")}
+      </li>
+    ));
+  };
   const clockRunning = matchClock?.running === true && !finished;
   // Before kickoff the snapshot is a meaningless 0-0; the hero shows the
   // kickoff time instead and the stats section waits for the match.
   const notStarted =
     displayState === "Not started" || displayState === "Scheduled";
+  const kickoff = new Date(fixture.kickoffUtc);
+  const heroInfo = [
+    `${new Intl.DateTimeFormat("en", {
+      day: "numeric",
+      month: "long",
+      timeZone: "UTC",
+      weekday: "short",
+    }).format(kickoff)} · ${formatUtcTime(kickoff.getTime())} UTC`,
+    ...(matchInfo?.venueType === "neutral" ? ["Neutral ground"] : []),
+    ...(matchInfo?.weather ? [matchInfo.weather] : []),
+  ];
 
   return (
     <main className="mp2">
-      <div className="mp2-back">
-        <Link className="mp2-back-link" href="/">
-          <span aria-hidden>←</span> Back to games
-        </Link>
-      </div>
-
-      <header
-        className="mp2-hero"
-        style={
-          {
-            "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
-            "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
-          } as CSSProperties
-        }
-      >
+      <header className="mp2-hero">
         <h1 className="sr-only">
           {fixture.homeTeam} vs {fixture.awayTeam}
         </h1>
-        <div className="pc-head">
-          <span className="pc-head-ic" aria-hidden="true">
-            <HugeiconsIcon
-              className="pc-ball"
-              icon={FootballIcon}
-              strokeWidth={2}
-            />
-          </span>
-          <span className="pc-comp">{formatCompetition(fixture)}</span>
-        </div>
-        <div className="pc-panel mp2-hero-panel">
+        {/* Decorative banner artwork: brand-coloured gradient washes and arc
+            swooshes over near-black, FotMob-style. */}
+        <svg
+          aria-hidden
+          className="mp2-hero-bg"
+          fill="none"
+          preserveAspectRatio="xMidYMid slice"
+          viewBox="0 0 1040 260"
+        >
+          <rect fill="#17171c" height="260" width="1040" />
+          <rect fill="url(#mp2bg-blue)" height="260" width="1040" />
+          <rect fill="url(#mp2bg-green)" height="260" width="1040" />
+          <path
+            d="M64 128 L196 128 C270 128 330 62 330 -20 L198 -20 C124 -20 64 46 64 128 Z"
+            fill="url(#mp2bg-red)"
+          />
+          <path
+            d="M46 128 L178 128 C252 128 312 62 312 -20 L180 -20 C106 -20 46 46 46 128 Z"
+            fill="url(#mp2bg-red2)"
+          />
+          <defs>
+            <radialGradient
+              cx="0"
+              cy="0"
+              gradientTransform="translate(620 -110) rotate(99) scale(300 820)"
+              gradientUnits="userSpaceOnUse"
+              id="mp2bg-blue"
+              r="1"
+            >
+              <stop stopColor="#0044ff" stopOpacity="0.6" />
+              <stop offset="1" stopColor="#17171c" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient
+              cx="0"
+              cy="0"
+              gradientTransform="translate(120 260) rotate(-45) scale(340 340)"
+              gradientUnits="userSpaceOnUse"
+              id="mp2bg-green"
+              r="1"
+            >
+              <stop stopColor="#4ade80" stopOpacity="0.35" />
+              <stop offset="1" stopColor="#17171c" stopOpacity="0" />
+            </radialGradient>
+            <linearGradient
+              gradientUnits="userSpaceOnUse"
+              id="mp2bg-red"
+              x1="330"
+              x2="210"
+              y1="-60"
+              y2="110"
+            >
+              <stop stopColor="#fa3d3d" />
+              <stop offset="1" stopColor="#17171c" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient
+              gradientUnits="userSpaceOnUse"
+              id="mp2bg-red2"
+              x1="290"
+              x2="140"
+              y1="-90"
+              y2="120"
+            >
+              <stop stopColor="#fa3d3d" />
+              <stop offset="1" stopColor="#17171c" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="mp2-hero-content">
+          <div className="mp2-hero-top">
+            <Link className="mp2-hero-back" href="/">
+              <span aria-hidden className="mp2-hero-back-circle">
+                <svg fill="none" viewBox="0 0 18 18">
+                  <path
+                    d="M11 3.5 5.5 9l5.5 5.5"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </span>
+              Matches
+            </Link>
+            <span className="mp2-hero-comp">
+              <HugeiconsIcon
+                className="mp2-hero-comp-ic"
+                icon={FootballIcon}
+                strokeWidth={2}
+              />
+              {formatCompetition(fixture).replace(" > ", " · ")}
+            </span>
+            <span aria-hidden />
+          </div>
+          <ul className="mp2-hero-info">
+            {heroInfo.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
           <div className="mp2-hero-grid">
             {heroTeam("home")}
             <div className="mp2-hero-center">
@@ -797,51 +895,49 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               ) : (
                 <div className="mp2-hero-when">
                   <span className="mp2-hero-time">
-                    {formatUtcTime(new Date(fixture.kickoffUtc).getTime())}
+                    {formatUtcTime(kickoff.getTime())}
                   </span>
                   <span className="mp2-hero-date">
                     {new Intl.DateTimeFormat("en", {
                       day: "numeric",
                       month: "long",
                       timeZone: "UTC",
-                    }).format(new Date(fixture.kickoffUtc))}{" "}
+                    }).format(kickoff)}{" "}
                     · UTC
                   </span>
                 </div>
               )}
-              <div className="mp2-hero-status">
-                {clockRunning ? (
-                  <span aria-hidden className="pc-live-dot" />
-                ) : null}
-                <span
-                  className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
-                >
-                  {displayState}
+              {finished ? (
+                <span className="mp2-hero-reason">
+                  {hadExtraTime ? "After extra time" : "Full time"}
                 </span>
-                {clockLabel &&
-                liveStreamEligible &&
-                clockLabel !== displayState ? (
-                  <span className="mp2-clock">{clockLabel}</span>
-                ) : null}
-              </div>
+              ) : notStarted ? null : (
+                <div className="mp2-hero-status">
+                  {clockRunning ? (
+                    <span aria-hidden className="pc-live-dot" />
+                  ) : null}
+                  <span
+                    className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
+                  >
+                    {displayState}
+                  </span>
+                  {clockLabel &&
+                  liveStreamEligible &&
+                  clockLabel !== displayState ? (
+                    <span className="mp2-clock">{clockLabel}</span>
+                  ) : null}
+                </div>
+              )}
             </div>
             {heroTeam("away")}
           </div>
           {goals.length ? (
             <div className="mp2-hero-goals">
-              <ul className="mp2-goal-list home">
-                {goals
-                  .filter((goal) => goal.scoringSide === "home")
-                  .map(heroGoal)}
-              </ul>
+              <ul className="mp2-goal-list home">{heroGoalLines("home")}</ul>
               <span aria-hidden className="mp2-hero-ball">
                 ⚽
               </span>
-              <ul className="mp2-goal-list away">
-                {goals
-                  .filter((goal) => goal.scoringSide === "away")
-                  .map(heroGoal)}
-              </ul>
+              <ul className="mp2-goal-list away">{heroGoalLines("away")}</ul>
             </div>
           ) : null}
         </div>
@@ -912,12 +1008,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
       <MomentumSection
         awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
-        extraTime={combinedUpdates.some(
-          (update) =>
-            update.statusId === 7 ||
-            update.statusId === 8 ||
-            update.statusId === 9,
-        )}
+        extraTime={hadExtraTime}
         fixture={fixture}
         goals={goals}
         homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}

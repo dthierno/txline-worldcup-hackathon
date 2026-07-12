@@ -3177,40 +3177,131 @@ dt {
   border: none;
   color: var(--muted-foreground);
 }
-/* Hero: the prediction card grown into a page header - same chevron artwork
-   band + dark panel with per-team colour glows (pc-head / pc-panel). */
+/* Hero: FotMob-style match banner - decorative gradient artwork behind a
+   top bar (back link + competition), an info row, the score header and
+   grouped scorer lines. */
 .mp2-hero {
-  background:
-    url("/card-header.png") top center / cover no-repeat,
-    #0d0d13;
+  background: #17171c;
   border-radius: 24px;
   overflow: hidden;
-  padding: 4px;
+  position: relative;
 }
-.mp2-hero-panel {
-  padding: 30px 18px 26px;
+.mp2-hero-bg {
+  height: 100%;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+.mp2-hero-content {
+  padding: 14px 18px 24px;
+  position: relative;
+  z-index: 1;
+}
+.mp2-hero-top {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto 1fr;
+}
+.mp2-hero-back {
+  align-items: center;
+  color: #fff;
+  display: inline-flex;
+  font-size: 13.5px;
+  font-weight: 600;
+  gap: 9px;
+  justify-self: start;
+  text-decoration: none;
+}
+.mp2-hero-back:hover {
+  text-decoration: underline;
+}
+.mp2-hero-back-circle {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+.mp2-hero-back-circle svg {
+  height: 15px;
+  width: 15px;
+}
+.mp2-hero-comp {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 7px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.mp2-hero-comp-ic {
+  background: #000;
+  border-radius: 50%;
+  box-sizing: content-box;
+  color: #fbbf24;
+  height: 14px;
+  padding: 4px;
+  width: 14px;
+}
+.mp2-hero-info {
+  color: rgba(255, 255, 255, 0.62);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 6px 14px;
+  justify-content: center;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.mp2-hero-info li:not(:first-child)::before {
+  content: "·";
+  margin-right: 14px;
+  opacity: 0.5;
 }
 .mp2-hero-grid {
   align-items: center;
   display: grid;
   gap: 8px;
   grid-template-columns: 1fr auto 1fr;
+  margin-top: 22px;
   position: relative;
   z-index: 1;
 }
 .mp2-hero-team {
   align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
 }
+.mp2-hero-team.home {
+  flex-direction: row-reverse;
+  justify-self: end;
+}
+.mp2-hero-team.away {
+  justify-self: start;
+}
 .mp2-hero-flag {
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
-  height: 64px;
+  height: 46px;
   object-fit: cover;
-  width: 64px;
+  width: 46px;
+}
+@media (max-width: 640px) {
+  .mp2-hero-team,
+  .mp2-hero-team.home {
+    flex-direction: column;
+    gap: 9px;
+    justify-self: center;
+  }
 }
 .mp2-hero-flag-tbd {
   background: #23232b;
@@ -3230,18 +3321,23 @@ dt {
   align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 10px;
+  gap: 9px;
+  padding: 0 22px;
 }
 .mp2-hero-score {
   align-items: center;
   color: #fff;
   display: flex;
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 700;
-  gap: 14px;
+  gap: 12px;
   letter-spacing: 0.02em;
   line-height: 1;
+}
+.mp2-hero-reason {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 600;
 }
 .mp2-hero-score-dash {
   color: rgba(255, 255, 255, 0.35);
