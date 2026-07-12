@@ -1132,6 +1132,14 @@ function PredictionCard({
                 <span className="pc-livebox pc-final-box">
                   {prediction ? prediction.awayGoals : "-"}
                 </span>
+                {ftScore ? (
+                  <span className="pc-ftline">
+                    <span className="pc-ft-tag">FT</span>
+                    <span className="pc-ft-score">{ftScore[0]}</span>
+                    <span className="pc-ft-dash">-</span>
+                    <span className="pc-ft-score">{ftScore[1]}</span>
+                  </span>
+                ) : null}
               </>
             ) : live ? (
               <>
@@ -1177,14 +1185,6 @@ function PredictionCard({
           />
         </div>
 
-        {ended && ftScore ? (
-          <div className="pc-ftline">
-            <span className="pc-ft-tag">FT</span>
-            <span className="pc-ft-score">{ftScore[0]}</span>
-            <span className="pc-ft-dash">-</span>
-            <span className="pc-ft-score">{ftScore[1]}</span>
-          </div>
-        ) : null}
         {live ? (
           <div className="pc-livebar">
             <span className="pc-live-dot" aria-hidden="true" />

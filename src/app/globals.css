@@ -2845,7 +2845,11 @@ dt {
   font-weight: 700;
   gap: 5px;
   justify-content: center;
-  margin-top: 10px;
+  left: 50%;
+  position: absolute;
+  top: calc(100% + 4px);
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 .pc-ft-tag {
   color: var(--muted-foreground);
