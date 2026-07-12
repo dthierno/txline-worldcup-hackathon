@@ -3300,3 +3300,15 @@ dt {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+/* Momentum chart (v2 match page): split area chart in the team colours. */
+.mmt-chart {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+.mmt-chart .mmt-tick {
+  fill: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

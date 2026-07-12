@@ -879,7 +879,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         )}
       </section>
 
-      <MomentumSection fixture={fixture} momentum={momentum} />
+      <MomentumSection
+        awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
+        fixture={fixture}
+        goals={goals}
+        homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
+        momentum={momentum}
+      />
 
       <LineupsSection
         goals={goals}
@@ -1255,60 +1261,208 @@ export function GoalCallsSection({
   );
 }
 
-// Attack momentum per 5-minute interval, home pressure rising above the
-// midline and away pressure hanging below it (FotMob-style, original render).
+// Catmull-Rom -> cubic bezier, for a smooth broadcast-style curve through
+// the momentum points.
+function smoothPath(points: Array<[number, number]>): string {
+  if (points.length < 2) return "";
+
+  let d = `M${points[0][0]},${points[0][1]}`;
+
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+
+    d += `C${c1x.toFixed(2)},${c1y.toFixed(2)},${c2x.toFixed(2)},${c2y.toFixed(2)},${p2[0]},${p2[1]}`;
+  }
+
+  return d;
+}
+
+// Attack momentum as a split area chart: net pressure per 5-minute bucket
+// swings above the midline in the home colour and below it in the away
+// colour, with dotted period separators and ball markers on goals
+// (FotMob-style, hand-rolled SVG - no chart library).
 function MomentumSection({
+  awayColor,
   fixture,
+  goals,
+  homeColor,
   momentum,
 }: {
+  awayColor: string;
   fixture: WorldCupFixture;
+  goals: GoalEvent[];
+  homeColor: string;
   momentum: MomentumBucket[];
 }) {
   if (momentum.length < 2) {
     return null;
   }
 
+  const W = 660;
+  const PLOT_H = 168;
+  const AXIS_H = 22;
+  const H = PLOT_H + AXIS_H;
+  const PAD_X = 8;
+  const PAD_Y = 16;
+  const mid = PLOT_H / 2;
+  const maxMinute = momentum[momentum.length - 1].startMinute + 5;
+  const extraTime = maxMinute > 92;
   const peak = Math.max(
     1,
     ...momentum.map((bucket) =>
-      Math.max(bucket.homePressure, bucket.awayPressure),
+      Math.abs(bucket.homePressure - bucket.awayPressure),
     ),
   );
+  const x = (minute: number) =>
+    PAD_X + (Math.min(minute, maxMinute) / maxMinute) * (W - 2 * PAD_X);
+  const y = (net: number) => mid - (net / peak) * (mid - PAD_Y);
+  const points: Array<[number, number]> = [
+    [x(0), mid],
+    ...momentum.map(
+      (bucket): [number, number] => [
+        Number(x(bucket.startMinute + 2.5).toFixed(2)),
+        Number(y(bucket.homePressure - bucket.awayPressure).toFixed(2)),
+      ],
+    ),
+    [x(maxMinute), mid],
+  ];
+  const curve = smoothPath(points);
+  const area = `${curve}L${x(maxMinute)},${mid}L${x(0)},${mid}Z`;
+  const gradientId = `mmt-split-${fixture.fixtureId}`;
+  const separators = [
+    ...(maxMinute > 45 ? [45] : []),
+    ...(extraTime ? [90] : []),
+  ];
+  const ticks: Array<{ anchor: string; label: string; minute: number }> = [
+    { anchor: "start", label: "0'", minute: 0 },
+    ...(maxMinute > 45 ? [{ anchor: "middle", label: "HT", minute: 45 }] : []),
+    ...(extraTime ? [{ anchor: "middle", label: "FT", minute: 90 }] : []),
+    {
+      anchor: "end",
+      label: extraTime ? "AET" : "FT",
+      minute: maxMinute,
+    },
+  ];
 
   return (
     <section className="card" aria-labelledby="momentum-heading">
       <h2 id="momentum-heading">Momentum</h2>
-      <div
-        className="momentum-chart"
+      <svg
+        aria-label={`Attack momentum: ${fixture.homeTeam} above the line, ${fixture.awayTeam} below`}
+        className="mmt-chart"
         role="img"
-        aria-label={`Attack momentum in 5-minute periods: ${fixture.homeTeam} above the line, ${fixture.awayTeam} below`}
+        viewBox={`0 0 ${W} ${H}`}
       >
-        {momentum.map((bucket) => (
-          <div
-            className="momentum-col"
-            key={bucket.startMinute}
-            title={`${bucket.startMinute}-${bucket.startMinute + 5}' · ${fixture.homeTeam} ${bucket.homePressure}, ${fixture.awayTeam} ${bucket.awayPressure}`}
+        <defs>
+          <linearGradient
+            gradientUnits="userSpaceOnUse"
+            id={gradientId}
+            x1="0"
+            x2="0"
+            y1="0"
+            y2={PLOT_H}
           >
-            <div className="momentum-half top">
-              <div
-                className="momentum-bar home"
-                style={{ height: `${(bucket.homePressure / peak) * 100}%` }}
-              />
-            </div>
-            <div className="momentum-half bottom">
-              <div
-                className="momentum-bar away"
-                style={{ height: `${(bucket.awayPressure / peak) * 100}%` }}
-              />
-            </div>
-          </div>
+            <stop offset={mid / PLOT_H} stopColor={homeColor} />
+            <stop offset={mid / PLOT_H} stopColor={awayColor} />
+          </linearGradient>
+        </defs>
+        <line
+          stroke="rgba(255, 255, 255, 0.08)"
+          x1={PAD_X}
+          x2={W - PAD_X}
+          y1={mid}
+          y2={mid}
+        />
+        {separators.map((minute) => (
+          <line
+            key={minute}
+            stroke="rgba(255, 255, 255, 0.16)"
+            strokeDasharray="0.1 8"
+            strokeLinecap="round"
+            strokeWidth="2.5"
+            x1={x(minute)}
+            x2={x(minute)}
+            y1={4}
+            y2={PLOT_H - 4}
+          />
         ))}
-      </div>
+        <path d={area} fill={`url(#${gradientId})`} fillOpacity="0.85" />
+        <path
+          d={curve}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth="1.5"
+        />
+        {momentum.map((bucket) => (
+          <rect
+            fill="transparent"
+            height={PLOT_H}
+            key={bucket.startMinute}
+            width={x(bucket.startMinute + 5) - x(bucket.startMinute)}
+            x={x(bucket.startMinute)}
+            y={0}
+          >
+            <title>
+              {`${bucket.startMinute}-${bucket.startMinute + 5}' · ${fixture.homeTeam} ${bucket.homePressure}, ${fixture.awayTeam} ${bucket.awayPressure}`}
+            </title>
+          </rect>
+        ))}
+        {goals.map((goal) => {
+          const gx = x((goal.clockSeconds ?? 0) / 60);
+          const gy = goal.scoringSide === "home" ? 11 : PLOT_H - 11;
+
+          return (
+            <g key={goal.seq}>
+              <circle
+                cx={gx}
+                cy={gy}
+                fill="#101014"
+                r="10"
+                stroke="rgba(255, 255, 255, 0.18)"
+              />
+              <text
+                dominantBaseline="central"
+                fontSize="11"
+                textAnchor="middle"
+                x={gx}
+                y={gy + 0.5}
+              >
+                ⚽
+              </text>
+            </g>
+          );
+        })}
+        {ticks.map((tick) => (
+          <text
+            className="mmt-tick"
+            key={tick.label + tick.minute}
+            textAnchor={tick.anchor}
+            x={x(tick.minute)}
+            y={PLOT_H + 16}
+          >
+            {tick.label}
+          </text>
+        ))}
+      </svg>
       <p className="momentum-legend muted">
-        <span className="momentum-dot home" /> {fixture.homeTeam}
-        <span className="momentum-dot away" /> {fixture.awayTeam} — attack
-        pressure from TxLINE possession phases, shots and corners, per 5
-        minutes.
+        <span
+          className="momentum-dot"
+          style={{ backgroundColor: homeColor }}
+        />{" "}
+        {fixture.homeTeam}
+        <span
+          className="momentum-dot"
+          style={{ backgroundColor: awayColor }}
+        />{" "}
+        {fixture.awayTeam} — net attack pressure from TxLINE possession
+        phases, shots and corners, per 5 minutes. Balls mark goals.
       </p>
     </section>
   );
