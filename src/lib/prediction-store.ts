@@ -8,6 +8,7 @@ const PREDICTIONS_KEY = "fan-forecast.predictions.v1";
 const SETTLEMENTS_KEY = "fan-forecast.settlements.v1";
 const GOAL_CALLS_KEY = "fan-forecast.goalcalls.v1";
 const FIXTURES_KEY = "fan-forecast.fixtures.v1";
+const RESULTS_KEY = "fan-forecast.results.v1";
 
 export const GOAL_CALL_POINTS = 2;
 
@@ -72,6 +73,25 @@ export function saveGoalCall(
   writeJsonRecord(GOAL_CALLS_KEY, {
     ...all,
     [String(fixtureId)]: { ...(all[String(fixtureId)] ?? {}), [callKey]: answer },
+  });
+}
+
+export type StoredResult = {
+  awayGoals: number;
+  homeGoals: number;
+  statusId?: number;
+};
+
+// Final scores this device saw a match end with, so reloads know a fixture is
+// over before the first feed poll returns (no LIVE flash on ended matches).
+export function loadStoredResults(): Record<string, StoredResult> {
+  return readJsonRecord<StoredResult>(RESULTS_KEY);
+}
+
+export function saveStoredResult(fixtureId: number, result: StoredResult): void {
+  writeJsonRecord(RESULTS_KEY, {
+    ...loadStoredResults(),
+    [String(fixtureId)]: result,
   });
 }
 

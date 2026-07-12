@@ -45,6 +45,8 @@ import {
   cacheFixtures,
   loadCachedFixtures,
   loadPrediction,
+  loadStoredResults,
+  saveStoredResult,
   loadPredictions,
   loadSettlements,
   savePrediction,
@@ -198,7 +200,18 @@ export function HomePage() {
     loadSettlements(),
   );
   const [odds, setOdds] = useState<Record<number, string[]>>({});
-  const [scores, setScores] = useState<Record<number, LiveScore>>({});
+  // Seeded with the final scores this device already saw, so ended matches
+  // render as finished immediately instead of flashing LIVE until the first
+  // feed poll returns.
+  const [scores, setScores] = useState<Record<number, LiveScore>>(() => {
+    const stored: Record<number, LiveScore> = {};
+
+    for (const [id, result] of Object.entries(loadStoredResults())) {
+      stored[Number(id)] = result;
+    }
+
+    return stored;
+  });
   // Highest event seq already folded per fixture, so each poll only pulls new
   // events (see the `since` cursor on the updates route).
   const lastSeqRef = useRef<Record<number, number>>({});
@@ -253,6 +266,12 @@ export function HomePage() {
               }),
               base,
             );
+
+            // Remember ended results so the next page load renders the card
+            // as finished immediately (idempotent localStorage write).
+            if (statusEnded(folded.statusId)) {
+              saveStoredResult(id, folded);
+            }
 
             return { ...prev, [id]: folded };
           });
@@ -399,7 +418,7 @@ export function HomePage() {
             now={now}
             odds={odds}
             predictions={mounted ? predictions : {}}
-            scores={scores}
+            scores={mounted ? scores : {}}
           />
         </TabsContent>
         <TabsContent value="predictions">
@@ -408,7 +427,7 @@ export function HomePage() {
             fixtures={[...pastGames, ...upcomingGames]}
             now={now}
             predictions={mounted ? predictions : {}}
-            scores={scores}
+            scores={mounted ? scores : {}}
           />
         </TabsContent>
         <TabsContent value="knockout">

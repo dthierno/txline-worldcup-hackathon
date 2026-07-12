@@ -2847,7 +2847,7 @@ dt {
   justify-content: center;
   left: 50%;
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 9px);
   transform: translateX(-50%);
   white-space: nowrap;
 }
