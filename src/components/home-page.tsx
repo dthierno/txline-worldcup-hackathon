@@ -100,6 +100,22 @@ const teamIso: Record<string, string> = {
   SWE: "se", USA: "us",
 };
 
+// Real final scores of already-played fixtures (home-away), for devices that
+// never saw the match live: settlements and the live-score fold take
+// precedence when present.
+const KNOWN_FINALS: Record<number, [number, number]> = {
+  18185036: [0, 3], // Canada - Morocco
+  18188721: [0, 1], // Paraguay - France
+  18187298: [1, 2], // Brazil - Norway
+  18192996: [2, 3], // Mexico - England
+  18198205: [0, 1], // Portugal - Spain
+  18193785: [1, 4], // USA - Belgium
+  18202701: [3, 2], // Argentina - Egypt
+  18202783: [0, 0], // Switzerland - Colombia
+  18209181: [2, 0], // France - Morocco
+  18213979: [1, 2], // Norway - England
+};
+
 function team(code: string): BracketTeam {
   return { code, iso: teamIso[code] };
 }
@@ -871,13 +887,40 @@ function ScoreStepper({
   );
 }
 
+// Rounded-hexagon points badge shown over a settled prediction.
+function PointsBadge({ points }: { points: number }) {
+  return (
+    <span
+      aria-label={`${points} points earned`}
+      className="pc-points-badge"
+      role="img"
+    >
+      <svg aria-hidden="true" fill="none" viewBox="0 0 12 12">
+        <defs>
+          <linearGradient id="pc-badge-fill" x1="0" x2="12" y1="12" y2="0">
+            <stop offset="0" stopColor="#2f9e44" />
+            <stop offset="1" stopColor="#a3e635" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M4.9 0.28a2.2 2.2 0 0 1 2.2 0l3.5 1.95c0.68 0.38 1.1 1.07 1.1 1.82v3.9c0 0.75-0.42 1.44-1.1 1.82l-3.5 1.95a2.2 2.2 0 0 1-2.2 0l-3.5-1.95a2.1 2.1 0 0 1-1.1-1.82v-3.9c0-0.75 0.42-1.44 1.1-1.82z"
+          fill="url(#pc-badge-fill)"
+        />
+      </svg>
+      <span className="pc-points-num">{points}</span>
+    </span>
+  );
+}
+
 function PredictionCard({
+  final,
   fixture,
   now,
   prediction,
   onPredictedChange,
   score,
 }: {
+  final?: StoredSettlement;
   fixture: WorldCupFixture;
   now: number | null;
   prediction?: MatchPrediction;
@@ -900,6 +943,25 @@ function PredictionCard({
       : now !== null && isPotentiallyLive(fixture, now);
   const live = inPlay;
   const locked = now !== null && isPredictionLocked(fixture, now);
+  // Match over: feed status, a stored settlement, or a past fixture that the
+  // feed no longer reports as in play.
+  const ended =
+    statusEnded(score?.statusId) ||
+    Boolean(final) ||
+    (isPastFixture(fixture) && !inPlay);
+  const ftScore: [number, number] | null = (() => {
+    const fromSettlement = final?.finalScore?.match(/^(\d+)-(\d+)$/);
+
+    if (fromSettlement) {
+      return [Number(fromSettlement[1]), Number(fromSettlement[2])];
+    }
+
+    if (statusEnded(score?.statusId) && score) {
+      return [score.homeGoals, score.awayGoals];
+    }
+
+    return KNOWN_FINALS[fixture.fixtureId] ?? null;
+  })();
   // Real live score from TxLINE; 0–0 until the feed reports goals.
   const liveHome = score?.homeGoals ?? 0;
   const liveAway = score?.awayGoals ?? 0;
@@ -1059,7 +1121,19 @@ function PredictionCard({
           */}
 
           <div className="pc-scores">
-            {live ? (
+            {ended ? (
+              <>
+                <span className="pc-livebox pc-final-box">
+                  {prediction ? prediction.homeGoals : "-"}
+                </span>
+                {prediction && final ? (
+                  <PointsBadge points={final.totalPoints} />
+                ) : null}
+                <span className="pc-livebox pc-final-box">
+                  {prediction ? prediction.awayGoals : "-"}
+                </span>
+              </>
+            ) : live ? (
               <>
                 <span className="pc-livebox">
                   {prediction ? prediction.homeGoals : "–"}
@@ -1103,6 +1177,14 @@ function PredictionCard({
           />
         </div>
 
+        {ended && ftScore ? (
+          <div className="pc-ftline">
+            <span className="pc-ft-tag">FT</span>
+            <span className="pc-ft-score">{ftScore[0]}</span>
+            <span className="pc-ft-dash">-</span>
+            <span className="pc-ft-score">{ftScore[1]}</span>
+          </div>
+        ) : null}
         {live ? (
           <div className="pc-livebar">
             <span className="pc-live-dot" aria-hidden="true" />
@@ -1208,6 +1290,7 @@ function PredictionsFeed({
         <div className="pred-grid">
           {group.matches.map((fixture) => (
             <PredictionCard
+              final={finals[String(fixture.fixtureId)]}
               fixture={fixture}
               key={fixture.fixtureId}
               now={now}
