@@ -1525,21 +1525,6 @@ function PredictionsFeed({
     (total, settlement) => total + (settlement.totalPoints ?? 0),
     0,
   );
-  const settledEntries = Object.values(finals).sort((left, right) =>
-    left.settledAt < right.settledAt ? -1 : 1,
-  );
-  const hits = settledEntries.filter(
-    (settlement) => settlement.totalPoints > 0,
-  ).length;
-  let streak = 0;
-
-  for (let index = settledEntries.length - 1; index >= 0; index -= 1) {
-    if (settledEntries[index].totalPoints > 0) {
-      streak += 1;
-    } else {
-      break;
-    }
-  }
 
   const leaderboard = [
     { name: "You", points: settledPoints, you: true },
@@ -1550,30 +1535,6 @@ function PredictionsFeed({
 
   return (
     <>
-      <div className="sum-strip">
-        <div className="sum-cell">
-          <b>{Object.keys(predictions).length}</b>
-          <span>Predictions</span>
-        </div>
-        <div className="sum-cell">
-          <b>{settledPoints}</b>
-          <span>Points</span>
-        </div>
-        <div className="sum-cell">
-          <b>
-            {hits}/{settledEntries.length}
-          </b>
-          <span>Hits</span>
-        </div>
-        <div className="sum-cell">
-          <b>
-            {streak}
-            {streak > 1 ? " 🔥" : ""}
-          </b>
-          <span>Streak</span>
-        </div>
-      </div>
-
       {mainGames.length > 0 ? (
         toGroups(mainGames).map(renderGroup)
       ) : (
