@@ -85,6 +85,7 @@ import {
 import {
   GOAL_CALL_POINTS,
   isPredictionLocked,
+  settleGoalCallPoints,
   cacheFixtures,
   loadCachedFixtures,
   loadGoalCalls,
@@ -107,6 +108,7 @@ import {
   extractMatchInfo,
   extractMomentum,
   extractPenaltyEvents,
+  extractSettleableCalls,
   extractSubstitutionEvents,
   formatLiveMinute,
   formatMatchPhase,
@@ -116,6 +118,7 @@ import {
   type MomentumBucket,
   type NormalizedLineups,
   type OddsBoard,
+  type SettleableCall,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
 import { teamFlag, teamGlow } from "@/lib/team-visuals";
@@ -934,6 +937,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         <aside className="mp2-side">
       <PredictionSection
         key={fixture.fixtureId}
+        calls={extractSettleableCalls(combinedUpdates)}
         fixture={fixture}
         lineups={details.lineups?.data ?? null}
         now={now}
@@ -1923,12 +1927,14 @@ function LineupsSection({
 }
 
 function PredictionSection({
+  calls,
   fixture,
   lineups,
   now,
   odds1x2,
   outcome,
 }: {
+  calls: SettleableCall[];
   fixture: WorldCupFixture;
   lineups: NormalizedLineups | null;
   now: number | null;
@@ -1950,9 +1956,14 @@ function PredictionSection({
     saved && outcome
       ? settlePrediction(saved, outcome, fixture)
       : null;
+  const settledCallPoints = mounted
+    ? settleGoalCallPoints(calls, loadGoalCalls(fixture.fixtureId))
+    : 0;
 
   // Persist the settled result so the home screen leaderboard can show points
-  // without refetching every fixture's replay.
+  // without refetching every fixture's replay. The stored total is markets
+  // PLUS live-call points - what the fan earned during the match must not
+  // vanish at the final whistle.
   useEffect(() => {
     if (!settlement?.final || !outcome) {
       // A stored settlement for a match that is not actually finished is
@@ -1964,13 +1975,18 @@ function PredictionSection({
       return;
     }
 
+    const callPoints = settleGoalCallPoints(
+      calls,
+      loadGoalCalls(fixture.fixtureId),
+    );
+    const totalPoints = settlement.totalPoints + callPoints;
     const finalScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
     const existing = loadSettlements()[String(fixture.fixtureId)];
 
     if (
       existing &&
       existing.finalScore === finalScore &&
-      existing.totalPoints === settlement.totalPoints
+      existing.totalPoints === totalPoints
     ) {
       return;
     }
@@ -1979,9 +1995,9 @@ function PredictionSection({
       finalScore,
       fixtureId: fixture.fixtureId,
       settledAt: new Date().toISOString(),
-      totalPoints: settlement.totalPoints,
+      totalPoints,
     });
-  }, [fixture.fixtureId, outcome, settlement]);
+  }, [calls, fixture.fixtureId, outcome, settlement]);
 
   if (!mounted || now === null) {
     return (
@@ -2189,9 +2205,13 @@ function PredictionSection({
             </tbody>
           </table>
           <p>
-            Total: {settlement.totalPoints} point(s)
-            {settlement.final ? "" : " so far"}. Settled deterministically from
-            the TxLINE score data shown above.
+            Total: {settlement.totalPoints + settledCallPoints} point(s)
+            {settlement.final ? "" : " so far"}
+            {settledCallPoints > 0
+              ? ` - ${settlement.totalPoints} from markets + ${settledCallPoints} from live calls`
+              : ""}
+            . Settled deterministically from the TxLINE score data shown
+            above.
           </p>
         </>
       ) : (

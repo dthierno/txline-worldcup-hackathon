@@ -658,6 +658,61 @@ export function extractSubstitutionEvents(
   );
 }
 
+// A live micro-call reduced to what settlement needs: its storage key, the
+// correct answer index once resolved, and whether it was voided. Grading
+// rules MUST match the match page's live-call list, so answered calls score
+// identically during the match and at settlement.
+export type SettleableCall = {
+  correctIndex?: 0 | 1;
+  key: string;
+  resolved: boolean;
+  voided?: boolean;
+};
+
+export function extractSettleableCalls(
+  updates: Parameters<typeof extractGoalCalls>[0] &
+    Parameters<typeof extractCornerCalls>[0] &
+    Parameters<typeof extractAddedTimeCalls>[0] &
+    Parameters<typeof extractPenaltyEvents>[0],
+): SettleableCall[] {
+  return [
+    ...extractGoalCalls(updates).map((call) => ({
+      correctIndex: call.resolved
+        ? ((call.stood ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      resolved: call.resolved,
+    })),
+    ...extractCornerCalls(updates).map((call) => ({
+      correctIndex:
+        call.winner === 1
+          ? (0 as const)
+          : call.winner === 2
+            ? (1 as const)
+            : undefined,
+      key: call.key,
+      resolved: call.resolved,
+      voided: call.voided,
+    })),
+    ...extractAddedTimeCalls(updates).map((call) => ({
+      correctIndex: call.resolved
+        ? (((call.minutes ?? 0) > 3.5 ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      resolved: call.resolved,
+      voided: call.voided,
+    })),
+    ...extractPenaltyEvents(updates).map((call) => ({
+      correctIndex: call.outcome
+        ? ((call.outcome === "scored" ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      resolved: call.resolved,
+      voided: call.voided,
+    })),
+  ];
+}
+
 export function extractGoalCalls(
   updates: Array<{
     action?: string;

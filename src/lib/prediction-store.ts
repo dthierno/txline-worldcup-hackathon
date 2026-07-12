@@ -19,6 +19,46 @@ export type GoalCallAnswer = {
   answeredAt: string;
 };
 
+// Grade a fan's stored live-call answers against the resolved calls. Used by
+// BOTH the live match page and settlement (match page + home auto-settle),
+// so points earned during the match survive into the stored total.
+export function settleGoalCallPoints(
+  calls: Array<{
+    correctIndex?: 0 | 1;
+    key: string;
+    resolved: boolean;
+    voided?: boolean;
+  }>,
+  answers: Record<string, GoalCallAnswer>,
+): number {
+  const answerIndex = (answer: string): number => {
+    if (answer === "goal") return 0;
+    if (answer === "no_goal") return 1;
+
+    return Number(answer);
+  };
+
+  return calls.reduce((total, call) => {
+    const answer = answers[call.key];
+
+    if (
+      !call.resolved ||
+      call.voided ||
+      !answer ||
+      call.correctIndex === undefined
+    ) {
+      return total;
+    }
+
+    return (
+      total +
+      (answerIndex(answer.answer) === call.correctIndex
+        ? GOAL_CALL_POINTS
+        : 0)
+    );
+  }, 0);
+}
+
 export type StoredSettlement = {
   finalScore: string;
   fixtureId: number;

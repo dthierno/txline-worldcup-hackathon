@@ -51,6 +51,7 @@ import {
 import {
   applyScoutCorrections,
   extractGoals,
+  extractSettleableCalls,
   formatLiveMinute,
   type NormalizedLineups,
   type NormalizedTxlineScore,
@@ -59,6 +60,7 @@ import {
   isPredictionLocked,
   cacheFixtures,
   loadCachedFixtures,
+  loadGoalCalls,
   loadPrediction,
   loadStoredResults,
   saveStoredResult,
@@ -66,6 +68,7 @@ import {
   loadSettlements,
   savePrediction,
   saveSettlement,
+  settleGoalCallPoints,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -419,11 +422,17 @@ export function HomePage() {
           awayTeam: fixture.awayTeam,
           homeTeam: fixture.homeTeam,
         });
+        // Points earned on live calls during the match count too - grade the
+        // stored answers against the same corrected feed.
+        const callPoints = settleGoalCallPoints(
+          extractSettleableCalls(updates),
+          loadGoalCalls(id),
+        );
         const stored: StoredSettlement = {
           finalScore: `${outcome.homeGoals}-${outcome.awayGoals}`,
           fixtureId: id,
           settledAt: new Date().toISOString(),
-          totalPoints: settlement.totalPoints,
+          totalPoints: settlement.totalPoints + callPoints,
         };
 
         saveSettlement(stored);

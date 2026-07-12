@@ -63,6 +63,7 @@ import {
 import {
   GOAL_CALL_POINTS,
   isPredictionLocked,
+  settleGoalCallPoints,
   cacheFixtures,
   loadCachedFixtures,
   loadGoalCalls,
@@ -85,6 +86,7 @@ import {
   extractMatchInfo,
   extractMomentum,
   extractPenaltyEvents,
+  extractSettleableCalls,
   extractSubstitutionEvents,
   formatLiveMinute,
   formatMatchPhase,
@@ -94,6 +96,7 @@ import {
   type MomentumBucket,
   type NormalizedLineups,
   type OddsBoard,
+  type SettleableCall,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
 import {
@@ -805,6 +808,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
 
       <PredictionSection
         key={fixture.fixtureId}
+        calls={extractSettleableCalls(combinedUpdates)}
         fixture={fixture}
         lineups={details.lineups?.data ?? null}
         now={now}
@@ -1517,12 +1521,14 @@ function LineupsSection({
 }
 
 function PredictionSection({
+  calls,
   fixture,
   lineups,
   now,
   odds1x2,
   outcome,
 }: {
+  calls: SettleableCall[];
   fixture: WorldCupFixture;
   lineups: NormalizedLineups | null;
   now: number | null;
@@ -1558,13 +1564,18 @@ function PredictionSection({
       return;
     }
 
+    const callPoints = settleGoalCallPoints(
+      calls,
+      loadGoalCalls(fixture.fixtureId),
+    );
+    const totalPoints = settlement.totalPoints + callPoints;
     const finalScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
     const existing = loadSettlements()[String(fixture.fixtureId)];
 
     if (
       existing &&
       existing.finalScore === finalScore &&
-      existing.totalPoints === settlement.totalPoints
+      existing.totalPoints === totalPoints
     ) {
       return;
     }
@@ -1573,9 +1584,9 @@ function PredictionSection({
       finalScore,
       fixtureId: fixture.fixtureId,
       settledAt: new Date().toISOString(),
-      totalPoints: settlement.totalPoints,
+      totalPoints,
     });
-  }, [fixture.fixtureId, outcome, settlement]);
+  }, [calls, fixture.fixtureId, outcome, settlement]);
 
   if (!mounted || now === null) {
     return (
