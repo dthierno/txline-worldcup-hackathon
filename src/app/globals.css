@@ -3095,3 +3095,208 @@ dt {
   padding: 2px 9px;
   white-space: nowrap;
 }
+
+/* v2 match page (/demo/match): the match page rebuilt with the homepage
+   design language - see DESIGN.md. Sections reuse .card but go borderless
+   with the homepage's surface + radius steps. */
+.mp2 .card {
+  background: #101014;
+  border: none;
+  border-radius: 20px;
+  padding: 20px 22px;
+}
+.mp2 section.card {
+  margin-top: 14px;
+}
+.mp2 .card > h2 {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.mp2-back {
+  margin: 4px 0 14px;
+}
+/* Hero: the prediction card grown into a page header - same chevron artwork
+   band + dark panel with per-team colour glows (pc-head / pc-panel). */
+.mp2-hero {
+  background:
+    url("/card-header.png") top center / cover no-repeat,
+    #0d0d13;
+  border-radius: 24px;
+  overflow: hidden;
+  padding: 4px;
+}
+.mp2-hero-panel {
+  padding: 30px 18px 26px;
+}
+.mp2-hero-grid {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto 1fr;
+  position: relative;
+  z-index: 1;
+}
+.mp2-hero-team {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.mp2-hero-flag {
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  height: 64px;
+  object-fit: cover;
+  width: 64px;
+}
+.mp2-hero-flag-tbd {
+  background: #23232b;
+  display: block;
+}
+.mp2-hero-name {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-hero-center {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 10px;
+}
+.mp2-hero-score {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  font-size: 44px;
+  font-weight: 700;
+  gap: 14px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.mp2-hero-score-dash {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 30px;
+}
+.mp2-hero-time {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+}
+.mp2-hero-status {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.mp2-status-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+.mp2-status-pill.live {
+  background: #10321d;
+  color: var(--won);
+}
+.mp2-clock {
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+/* Scorers under the score, split per side like a broadcast graphic. */
+.mp2-hero-goals {
+  color: var(--muted-foreground);
+  display: grid;
+  font-size: 12px;
+  gap: 12px;
+  grid-template-columns: 1fr auto 1fr;
+  margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+.mp2-hero-ball {
+  font-size: 12px;
+  padding-top: 1px;
+}
+.mp2-goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mp2-goal-list.home {
+  text-align: right;
+}
+/* Two-column body mirroring the homepage predictions layout; the odds /
+   feed / verification sections span the full width below. */
+.mp2-layout {
+  align-items: start;
+  display: grid;
+  gap: 0 28px;
+  grid-template-columns: minmax(0, 620px) minmax(0, 1fr);
+  margin-top: 14px;
+}
+.mp2-main > section.card:first-child {
+  margin-top: 0;
+}
+.mp2-side > section.card:first-child {
+  margin-top: 0;
+}
+.mp2-main-wide {
+  grid-column: 1 / -1;
+}
+/* Long live-call histories scroll inside the rail instead of stretching it. */
+.mp2-side .call-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+@media (max-width: 900px) {
+  .mp2-layout {
+    grid-template-columns: 1fr;
+  }
+  .mp2-side > section.card:first-child {
+    margin-top: 14px;
+  }
+}
+/* Thin, quiet scrollbars on the page's internal scrollers. */
+.mp2 .feed-scroll,
+.mp2-side .call-list {
+  scrollbar-color: #2a2a33 transparent;
+  scrollbar-width: thin;
+}
+.mp2 .feed-scroll::-webkit-scrollbar,
+.mp2-side .call-list::-webkit-scrollbar {
+  width: 6px;
+}
+.mp2 .feed-scroll::-webkit-scrollbar-thumb,
+.mp2-side .call-list::-webkit-scrollbar-thumb {
+  background: #2a2a33;
+  border-radius: 999px;
+}
+.mp2-hero-when {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mp2-hero-date {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

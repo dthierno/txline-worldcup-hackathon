@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { FootballIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -96,6 +105,7 @@ import {
   type OddsBoard,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
+import { teamFlag, teamGlow } from "@/lib/team-visuals";
 import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
@@ -658,87 +668,162 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       : []),
   ];
 
-  return (
-    <main>
-      <Button nativeButton={false} render={<Link href="/" />} variant="outline">
-        Back to games
-      </Button>
+  const homeIso = teamFlag(fixture.homeTeam);
+  const awayIso = teamFlag(fixture.awayTeam);
+  const heroTeam = (side: "away" | "home") => {
+    const iso = side === "home" ? homeIso : awayIso;
+    const name = side === "home" ? fixture.homeTeam : fixture.awayTeam;
+    const reds =
+      (side === "home"
+        ? displayScore?.homeRedCards
+        : displayScore?.awayRedCards) ?? 0;
 
-      <header className="match-header card">
-        <p className="match-meta">{formatCompetition(fixture)}</p>
-        <h1>
-          {fixture.homeTeam}
-          {(displayScore?.homeRedCards ?? 0) > 0 ? (
-            <span className="h1-reds" role="img" aria-label="red card">
-              {" "}
-              {"🟥".repeat(displayScore?.homeRedCards ?? 0)}
-            </span>
-          ) : null}{" "}
-          vs {fixture.awayTeam}
-          {(displayScore?.awayRedCards ?? 0) > 0 ? (
-            <span className="h1-reds" role="img" aria-label="red card">
-              {" "}
-              {"🟥".repeat(displayScore?.awayRedCards ?? 0)}
-            </span>
-          ) : null}
-        </h1>
-        {displayScore ? (
-          <p className="match-score">{formatScore(displayScore)}</p>
+    return (
+      <div className={`mp2-hero-team ${side}`}>
+        {iso ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt=""
+            className="mp2-hero-flag"
+            src={`https://flagcdn.com/w160/${iso}.png`}
+          />
         ) : (
-          <p className="match-meta">{formatScore(displayScore)}</p>
+          <span className="mp2-hero-flag mp2-hero-flag-tbd" />
         )}
-        {goals.length ? (
-          <div>
-            {goals.map((goal) => (
-              <p className="match-meta" key={goal.seq}>
-                ⚽ {formatMinute(goal.clockSeconds) || "—"}{" "}
-                {(goal.playerId !== undefined
-                  ? playerDirectory.get(goal.playerId)?.name
-                  : undefined) ??
-                  (goal.scoringSide === "home"
-                    ? fixture.homeTeam
-                    : fixture.awayTeam)}{" "}
-                ({goal.homeGoals}-{goal.awayGoals})
-              </p>
-            ))}
-          </div>
-        ) : null}
-        <p>
-          <span className={`badge${liveStreamEligible ? " live" : ""}`}>
-            {displayState}
-          </span>
-          {clockLabel && liveStreamEligible && clockLabel !== displayState ? (
-            <span className="match-clock">{clockLabel}</span>
+        <span className="mp2-hero-name">
+          {name}
+          {reds > 0 ? (
+            <span className="h1-reds" role="img" aria-label="red card">
+              {" "}
+              {"🟥".repeat(reds)}
+            </span>
           ) : null}
-        </p>
-        <p className="match-meta">
-          Kickoff {formatDate(fixture.kickoffUtc)} UTC - Fixture #
-          {fixture.fixtureId}
-        </p>
-        {detailsLoading ? (
-          <p className="match-meta">Loading TxLINE details...</p>
-        ) : null}
-        {liveStreamEligible ? (
-          <p className="match-meta">
-            Live stream:{" "}
-            {streamStatus === "connected"
-              ? `connected - ${streamUpdates.length} live record(s) for this fixture so far`
-              : streamStatus === "unavailable"
-                ? "stream unavailable, showing snapshot and replay data"
-                : "connecting to TxLINE score stream..."}
-          </p>
-        ) : null}
-        <p className="match-meta">Score source: {scoreSource}</p>
-        {replayUpdates?.data?.length ? (
-          <p className="match-meta">
-            Displayed score uses the latest TxLINE update when it is newer than
-            the snapshot.
-          </p>
-        ) : null}
+        </span>
+      </div>
+    );
+  };
+  const heroGoal = (goal: GoalEvent) => (
+    <li key={goal.seq}>
+      {(goal.playerId !== undefined
+        ? playerDirectory.get(goal.playerId)?.name
+        : undefined) ??
+        (goal.scoringSide === "home" ? fixture.homeTeam : fixture.awayTeam)}{" "}
+      {formatMinute(goal.clockSeconds) || "—"}
+    </li>
+  );
+  const clockRunning = matchClock?.running === true && !finished;
+  // Before kickoff the snapshot is a meaningless 0-0; the hero shows the
+  // kickoff time instead and the stats section waits for the match.
+  const notStarted =
+    displayState === "Not started" || displayState === "Scheduled";
+
+  return (
+    <main className="mp2">
+      <div className="mp2-back">
+        <Button
+          nativeButton={false}
+          render={<Link href="/" />}
+          variant="outline"
+        >
+          Back to games
+        </Button>
+      </div>
+
+      <header
+        className="mp2-hero"
+        style={
+          {
+            "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
+            "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
+          } as CSSProperties
+        }
+      >
+        <h1 className="sr-only">
+          {fixture.homeTeam} vs {fixture.awayTeam}
+        </h1>
+        <div className="pc-head">
+          <span className="pc-head-ic" aria-hidden="true">
+            <HugeiconsIcon
+              className="pc-ball"
+              icon={FootballIcon}
+              strokeWidth={2}
+            />
+          </span>
+          <span className="pc-comp">{formatCompetition(fixture)}</span>
+        </div>
+        <div className="pc-panel mp2-hero-panel">
+          <div className="mp2-hero-grid">
+            {heroTeam("home")}
+            <div className="mp2-hero-center">
+              {displayScore && !notStarted ? (
+                <div className="mp2-hero-score" aria-label="Score">
+                  <span>{displayScore.homeGoals}</span>
+                  <span aria-hidden className="mp2-hero-score-dash">
+                    -
+                  </span>
+                  <span>{displayScore.awayGoals}</span>
+                </div>
+              ) : (
+                <div className="mp2-hero-when">
+                  <span className="mp2-hero-time">
+                    {formatUtcTime(new Date(fixture.kickoffUtc).getTime())}
+                  </span>
+                  <span className="mp2-hero-date">
+                    {new Intl.DateTimeFormat("en", {
+                      day: "numeric",
+                      month: "long",
+                      timeZone: "UTC",
+                    }).format(new Date(fixture.kickoffUtc))}{" "}
+                    · UTC
+                  </span>
+                </div>
+              )}
+              <div className="mp2-hero-status">
+                {clockRunning ? (
+                  <span aria-hidden className="pc-live-dot" />
+                ) : null}
+                <span
+                  className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
+                >
+                  {displayState}
+                </span>
+                {clockLabel &&
+                liveStreamEligible &&
+                clockLabel !== displayState ? (
+                  <span className="mp2-clock">{clockLabel}</span>
+                ) : null}
+              </div>
+            </div>
+            {heroTeam("away")}
+          </div>
+          {goals.length ? (
+            <div className="mp2-hero-goals">
+              <ul className="mp2-goal-list home">
+                {goals
+                  .filter((goal) => goal.scoringSide === "home")
+                  .map(heroGoal)}
+              </ul>
+              <span aria-hidden className="mp2-hero-ball">
+                ⚽
+              </span>
+              <ul className="mp2-goal-list away">
+                {goals
+                  .filter((goal) => goal.scoringSide === "away")
+                  .map(heroGoal)}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       </header>
 
+      <div className="mp2-layout">
+        <div className="mp2-main">
       <section className="card" aria-labelledby="stats-heading">
         <h2 id="stats-heading">Stats</h2>
+        {notStarted ? (
+          <p className="muted">Stats appear once the match kicks off.</p>
+        ) : (
+        <>
         <div className="stat-teams" aria-hidden="true">
           <span>{fixture.homeTeam}</span>
           <span>{fixture.awayTeam}</span>
@@ -790,11 +875,11 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             events; fouls are free kicks conceded to the opponent.
           </p>
         ) : null}
+        </>
+        )}
       </section>
 
       <MomentumSection fixture={fixture} momentum={momentum} />
-
-      <MatchInfoSection fixture={fixture} info={matchInfo} />
 
       <LineupsSection
         goals={goals}
@@ -802,7 +887,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         redCards={redCardedPlayerIds}
         substitutions={substitutions}
       />
+        </div>
 
+        <aside className="mp2-side">
       <PredictionSection
         key={fixture.fixtureId}
         fixture={fixture}
@@ -829,6 +916,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         live={liveStreamEligible}
       />
 
+      <MatchInfoSection fixture={fixture} info={matchInfo} />
+        </aside>
+
+        <div className="mp2-main mp2-main-wide">
       <section className="card" aria-labelledby="odds-heading">
         <h2 id="odds-heading">Odds</h2>
         <p>{details.odds?.data?.marketNote ?? "No odds snapshot available."}</p>
@@ -869,6 +960,34 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               : replayUpdates
         }
       />
+      <section className="card" aria-labelledby="data-heading">
+        <h2 id="data-heading">Data &amp; sources</h2>
+        <p className="muted">
+          Kickoff {formatDate(fixture.kickoffUtc)} UTC - Fixture #
+          {fixture.fixtureId}
+        </p>
+        {detailsLoading ? (
+          <p className="muted">Loading TxLINE details...</p>
+        ) : null}
+        {liveStreamEligible ? (
+          <p className="muted">
+            Live stream:{" "}
+            {streamStatus === "connected"
+              ? `connected - ${streamUpdates.length} live record(s) for this fixture so far`
+              : streamStatus === "unavailable"
+                ? "stream unavailable, showing snapshot and replay data"
+                : "connecting to TxLINE score stream..."}
+          </p>
+        ) : null}
+        <p className="muted">Score source: {scoreSource}</p>
+        {replayUpdates?.data?.length ? (
+          <p className="muted">
+            Displayed score uses the latest TxLINE update when it is newer than
+            the snapshot.
+          </p>
+        ) : null}
+      </section>
+
       <VerificationSection
         displayScore={displayScore}
         finished={finished}
@@ -880,6 +999,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         updates={details.updates}
         validation={details.validation}
       />
+        </div>
+      </div>
     </main>
   );
 }
