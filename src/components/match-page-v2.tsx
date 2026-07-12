@@ -121,6 +121,10 @@ import {
   type SettleableCall,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
+import {
+  fallbackOfficialHighlights,
+  matchMedia,
+} from "@/lib/match-media";
 import { teamFlag, teamGlow } from "@/lib/team-visuals";
 import {
   txlineWorldCupFixtures,
@@ -967,6 +971,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
       <div className="mp2-layout">
         <div className="mp2-main">
+      {finished ? (
+        <MatchMediaSection
+          awayTeam={fixture.awayTeam}
+          fixtureId={fixture.fixtureId}
+          homeTeam={fixture.homeTeam}
+        />
+      ) : null}
       <section className="card" aria-labelledby="stats-heading">
         <h2 id="stats-heading">Stats</h2>
         {notStarted ? (
@@ -1689,6 +1700,75 @@ function MomentumSection({
         phases, shots and corners, per 5 minutes. Balls mark goals.
       </p>
     </section>
+  );
+}
+
+// Highlight media cards, rebuilt from the FotMob reference: a partner clip
+// (full-bleed thumbnail, title + "Highlights" label below) and an official
+// highlights card (header + thumbnail with a play overlay). Curated links
+// win; other finished matches fall back to a YouTube highlights search.
+function MatchMediaSection({
+  awayTeam,
+  fixtureId,
+  homeTeam,
+}: {
+  awayTeam: string;
+  fixtureId: number;
+  homeTeam: string;
+}) {
+  const media = matchMedia[fixtureId];
+  const clip = media?.clip;
+  const official =
+    media?.official ?? fallbackOfficialHighlights(homeTeam, awayTeam);
+
+  return (
+    <div className="mp2-media">
+      {clip ? (
+        <a
+          className="card mp2-clip"
+          href={clip.url}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt={clip.title} className="mp2-clip-thumb" src={clip.thumbnail} />
+          <div className="mp2-clip-head">
+            <h3 className="mp2-clip-title">{clip.title}</h3>
+            <span className="mp2-clip-label">Highlights</span>
+          </div>
+        </a>
+      ) : null}
+      <a
+        className="card mp2-official"
+        href={official.url}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <div className="mp2-official-head">
+          <h3 className="mp2-official-title">Official highlights</h3>
+          <span className="mp2-official-source">{official.source}</span>
+        </div>
+        <div className="mp2-official-thumb">
+          {official.thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" src={official.thumbnail} />
+          ) : (
+            <span className="mp2-official-placeholder" aria-hidden>
+              {homeTeam} v {awayTeam}
+            </span>
+          )}
+          <span aria-hidden className="mp2-official-play">
+            <svg fill="none" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" fill="rgba(0,0,0,0.55)" r="24" />
+              <path
+                d="M20 16.5v15a1 1 0 0 0 1.53.85l11.5-7.5a1 1 0 0 0 0-1.7l-11.5-7.5A1 1 0 0 0 20 16.5Z"
+                fill="#fff"
+              />
+            </svg>
+          </span>
+        </div>
+      </a>
+    </div>
   );
 }
 

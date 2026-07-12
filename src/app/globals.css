@@ -3617,3 +3617,110 @@ dt {
   height: 26px;
   width: 26px;
 }
+
+/* Highlight media cards (match page main column), from the FotMob reference. */
+.mp2-media {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mp2-clip,
+.mp2-official {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  text-decoration: none;
+  transition: background 0.18s ease;
+}
+.mp2-clip:hover,
+.mp2-official:hover {
+  background: #16161c;
+}
+/* Partner clip: full-bleed thumbnail, title + "Highlights" label below. */
+.mp2-clip-thumb {
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+.mp2-clip-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 13px 18px;
+}
+.mp2-clip-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+.mp2-clip:hover .mp2-clip-title {
+  text-decoration: underline;
+}
+.mp2-clip-label {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+}
+/* Official highlights: header above a thumbnail with a play overlay. */
+.mp2-official-head {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 14px 18px 12px;
+}
+.mp2-official-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+.mp2-official-source {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.mp2-official-thumb {
+  aspect-ratio: 16 / 9;
+  position: relative;
+}
+.mp2-official-thumb > img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+.mp2-official-placeholder {
+  align-items: center;
+  background: linear-gradient(135deg, #1b1b22, #0e0e13);
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+.mp2-official-play {
+  align-items: center;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: absolute;
+}
+.mp2-official-play svg {
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
+  height: 52px;
+  transition: transform 0.18s ease;
+  width: 52px;
+}
+.mp2-official:hover .mp2-official-play svg {
+  transform: scale(1.08);
+}
