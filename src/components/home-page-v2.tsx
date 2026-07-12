@@ -1537,13 +1537,8 @@ function PredictionsFeed({
         <TrophyIcon />
         <span className="pred-day-name">{group.label}</span>
         <span className="pred-day-pill">
-          {group.matches.length} game{group.matches.length === 1 ? "" : "s"}
+          {predicted}/{group.matches.length} predicted
         </span>
-        {predicted > 0 ? (
-          <span className="pred-day-pill predicted">
-            {predicted} predicted
-          </span>
-        ) : null}
         {collapsible ? (
           <HugeiconsIcon
             className="pred-day-chevron"
@@ -1654,7 +1649,7 @@ function PredictionsFeed({
         <p className="muted">
           Prototype league stored on this device. Rival scores are simulated;
           your points and live scores come from TxLINE. Form strips show each
-          team's real last five tournament results.
+          team&apos;s real last five tournament results.
         </p>
       </aside>
     </div>

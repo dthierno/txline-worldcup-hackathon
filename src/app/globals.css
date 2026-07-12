@@ -3093,7 +3093,3 @@ dt {
   padding: 2px 9px;
   white-space: nowrap;
 }
-.pred-day-pill.predicted {
-  background: color-mix(in srgb, var(--won) 14%, transparent);
-  color: var(--won);
-}
