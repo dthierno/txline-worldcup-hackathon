@@ -1308,7 +1308,7 @@ function PredictionCard({
           >
             {ended ? (
               <>
-                <span className="pc-livebox pc-final-box">
+                <span className="pc-livebox pc-box-home pc-final-box">
                   {prediction ? prediction.homeGoals : "-"}
                 </span>
                 {(prediction && final) || !prediction ? (
@@ -1320,7 +1320,7 @@ function PredictionCard({
                     points={final?.totalPoints ?? 0}
                   />
                 ) : null}
-                <span className="pc-livebox pc-final-box">
+                <span className="pc-livebox pc-box-away pc-final-box">
                   {prediction ? prediction.awayGoals : "-"}
                 </span>
                 {ftScore ? (
@@ -1339,10 +1339,10 @@ function PredictionCard({
               </>
             ) : live ? (
               <>
-                <span className="pc-livebox">
+                <span className="pc-livebox pc-box-home">
                   {prediction ? prediction.homeGoals : "–"}
                 </span>
-                <span className="pc-livebox">
+                <span className="pc-livebox pc-box-away">
                   {prediction ? prediction.awayGoals : "–"}
                 </span>
                 <span className="pc-ftline pc-live-stack">
@@ -1584,99 +1584,14 @@ function PredictionsFeed({
             onClick={() => setShowPast((value) => !value)}
             type="button"
           >
-            <span>History</span>
+            <span>Past results</span>
             <span className="pred-past-count">{pastGames.length}</span>
             <HugeiconsIcon
               icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
               strokeWidth={2}
             />
           </button>
-          {showPast ? (
-            <ul className="hist-list">
-              {pastGames.map((fixture) => {
-                const id = String(fixture.fixtureId);
-                const prediction = predictions[id];
-                const final = finals[id];
-                const ftMatch = final?.finalScore?.match(/^(\d+)-(\d+)$/);
-                const ft: [number, number] | null = ftMatch
-                  ? [Number(ftMatch[1]), Number(ftMatch[2])]
-                  : KNOWN_FINALS[fixture.fixtureId] ?? null;
-                const exact =
-                  prediction &&
-                  ft &&
-                  prediction.homeGoals === ft[0] &&
-                  prediction.awayGoals === ft[1];
-                const rightWinner =
-                  prediction &&
-                  ft &&
-                  Math.sign(prediction.homeGoals - prediction.awayGoals) ===
-                    Math.sign(ft[0] - ft[1]);
-                const homeIso = teamFlag(fixture.homeTeam);
-                const awayIso = teamFlag(fixture.awayTeam);
-
-                return (
-                  <li className="hist-row" key={fixture.fixtureId}>
-                    <Link
-                      className="hist-main"
-                      href={`/match/${fixture.fixtureId}`}
-                    >
-                      {homeIso ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt=""
-                          className="hist-flag"
-                          src={`https://flagcdn.com/w40/${homeIso}.png`}
-                        />
-                      ) : null}
-                      <span className="hist-team">{fixture.homeTeam}</span>
-                      <span className="hist-ft">
-                        {ft ? `${ft[0]} - ${ft[1]}` : "-"}
-                      </span>
-                      <span className="hist-team away">
-                        {fixture.awayTeam}
-                      </span>
-                      {awayIso ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt=""
-                          className="hist-flag"
-                          src={`https://flagcdn.com/w40/${awayIso}.png`}
-                        />
-                      ) : null}
-                    </Link>
-                    <span className="hist-pick">
-                      {prediction
-                        ? `You: ${prediction.homeGoals}-${prediction.awayGoals}`
-                        : "No pick"}
-                    </span>
-                    <span
-                      className={`hist-chip${
-                        final && final.totalPoints > 0
-                          ? " win"
-                          : prediction
-                            ? " zero"
-                            : " none"
-                      }`}
-                    >
-                      {final
-                        ? final.totalPoints > 0
-                          ? `+${final.totalPoints}${
-                              exact
-                                ? " · Exact"
-                                : rightWinner
-                                  ? " · Winner"
-                                  : ""
-                            }`
-                          : "0"
-                        : prediction
-                          ? "…"
-                          : "— 0"}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
+          {showPast ? toGroups(pastGames).map(renderGroup) : null}
         </div>
       ) : null}
 

@@ -2998,3 +2998,16 @@ dt {
   transform: translateX(-50%);
   white-space: nowrap;
 }
+
+/* v2: settled/live boxes join into one pill, badge riding the seam. */
+.pc-scores-ended {
+  gap: 2px;
+}
+.pc-scores-ended .pc-box-home {
+  border-bottom-right-radius: 3px;
+  border-top-right-radius: 3px;
+}
+.pc-scores-ended .pc-box-away {
+  border-bottom-left-radius: 3px;
+  border-top-left-radius: 3px;
+}
