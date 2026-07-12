@@ -353,8 +353,21 @@ export function HomePage() {
 
     void loadFixtures();
 
+    // New fixtures (e.g. the next knockout round) appear without a manual
+    // refresh: re-check every 5 minutes and whenever the tab regains focus.
+    const timer = setInterval(() => void loadFixtures(), 5 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadFixtures();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
