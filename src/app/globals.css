@@ -3040,32 +3040,6 @@ dt {
   }
 }
 
-/* v2: feed filter pills (shadcn toggle-group) above the day groups. */
-.pred-filter-row {
-  margin-bottom: 16px;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.pred-filter-row::-webkit-scrollbar {
-  display: none;
-}
-.pred-filter-pill {
-  border-radius: 999px;
-  color: var(--muted-foreground);
-  font-size: 13px;
-}
-.pred-filter-pill[aria-pressed="true"] {
-  color: var(--foreground);
-}
-.pred-filter-dot {
-  background: #ef4444;
-  border-radius: 50%;
-  flex-shrink: 0;
-  height: 6px;
-  width: 6px;
-}
-
 /* v2: collapsible main-feed day headers. */
 .pred-day-toggle {
   align-items: center;
