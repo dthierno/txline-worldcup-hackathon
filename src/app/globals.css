@@ -3108,12 +3108,74 @@ dt {
 .mp2 section.card {
   margin-top: 14px;
 }
+/* FotMob-style section titles: plain bold title-case, not shouty. */
 .mp2 .card > h2 {
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 14px;
+  text-transform: none;
+}
+.mp2 .card h3 {
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 .mp2-back {
   margin: 4px 0 14px;
+}
+.mp2-back-link {
+  align-items: center;
+  background: #141419;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 7px;
+  padding: 8px 16px;
+  text-decoration: none;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+.mp2-back-link:hover {
+  background: #1a1a21;
+  color: #fff;
+}
+/* Quieter internals: hairline separators, soft disclosures, calm tables. */
+.mp2 .lineup-list li,
+.mp2 .feed-list li,
+.mp2 .call-list li {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.mp2 .lineup-list li:last-child,
+.mp2 .feed-list li:last-child,
+.mp2 .call-list li:last-child {
+  border-bottom: none;
+}
+.mp2 details {
+  background: #141419;
+  border: none;
+  border-radius: 12px;
+  padding: 11px 16px;
+}
+.mp2 summary {
+  font-size: 13px;
+  font-weight: 600;
+}
+.mp2 th,
+.mp2 td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.mp2 th {
+  font-size: 11px;
+}
+.mp2 .stat-pill.trailing {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: var(--muted-foreground);
 }
 /* Hero: the prediction card grown into a page header - same chevron artwork
    band + dark panel with per-team colour glows (pc-head / pc-panel). */

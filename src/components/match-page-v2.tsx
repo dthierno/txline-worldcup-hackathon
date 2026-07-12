@@ -733,13 +733,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   return (
     <main className="mp2">
       <div className="mp2-back">
-        <Button
-          nativeButton={false}
-          render={<Link href="/" />}
-          variant="outline"
-        >
-          Back to games
-        </Button>
+        <Link className="mp2-back-link" href="/">
+          <span aria-hidden>←</span> Back to games
+        </Link>
       </div>
 
       <header
@@ -947,19 +943,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         <div className="mp2-main mp2-main-wide">
       <section className="card" aria-labelledby="odds-heading">
         <h2 id="odds-heading">Odds</h2>
-        <p>{details.odds?.data?.marketNote ?? "No odds snapshot available."}</p>
-        <p className="muted">
-          Source: {details.odds?.source ?? details.odds?.error ?? "Pending"}
-        </p>
-        {liveOddsNote ? <p>Live from odds stream: {liveOddsNote}</p> : null}
-        {isOddsUpdatesData(details.oddsUpdates?.data) ? (
-          <p>
-            Live odds updates: {details.oddsUpdates.data.count} update records
-            {details.oddsUpdates.data.marketTypes.length
-              ? ` across ${details.oddsUpdates.data.marketTypes.length} market type(s)`
-              : ""}
-            .
+        {!(details.oddsUpdates?.data?.board ??
+        details.oddsUpdates?.data?.closingBoard) ? (
+          <p className="muted">
+            {details.odds?.data?.marketNote ?? "No odds snapshot available."}
           </p>
+        ) : null}
+        {liveOddsNote ? (
+          <p className="muted">Live from odds stream: {liveOddsNote}</p>
         ) : null}
         <OddsBoardView
           board={
@@ -1005,6 +996,17 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           </p>
         ) : null}
         <p className="muted">Score source: {scoreSource}</p>
+        <p className="muted">
+          Odds source:{" "}
+          {details.odds?.source ?? details.odds?.error ?? "Pending"}
+          {isOddsUpdatesData(details.oddsUpdates?.data)
+            ? ` · ${details.oddsUpdates.data.count} live update records${
+                details.oddsUpdates.data.marketTypes.length
+                  ? ` across ${details.oddsUpdates.data.marketTypes.length} market type(s)`
+                  : ""
+              }`
+            : ""}
+        </p>
         {replayUpdates?.data?.length ? (
           <p className="muted">
             Displayed score uses the latest TxLINE update when it is newer than
@@ -2251,44 +2253,33 @@ function UpdatesSection({
 
   return (
     <section className="card" aria-labelledby="updates-heading">
-      <h2 id="updates-heading">Updates</h2>
+      <h2 id="updates-heading">Match feed</h2>
       {displayUpdates.length ? (
-        <>
-          <p className="muted">
-            {displayUpdates.length} match event(s), newest first.
-          </p>
-          <div className="feed-scroll">
-            <ol className="feed-list" reversed>
-              <AnimatePresence initial={false}>
-                {[...displayUpdates].reverse().map((update) => (
-                  <motion.li
-                    key={update.id}
-                    animate={{ opacity: 1, y: 0 }}
-                    initial={{ opacity: 0, y: -14 }}
-                    transition={{ duration: 0.35 }}
-                  >
-                    {update.text}
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </ol>
-          </div>
-        </>
+        <div className="feed-scroll">
+          <ol className="feed-list" reversed>
+            <AnimatePresence initial={false}>
+              {[...displayUpdates].reverse().map((update) => (
+                <motion.li
+                  key={update.id}
+                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: -14 }}
+                  transition={{ duration: 0.35 }}
+                >
+                  {update.text}
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ol>
+        </div>
       ) : (
-        <p>
-          No readable match events yet. TxLINE may still have raw feed records
-          below.
-        </p>
+        <p className="muted">No readable match events yet.</p>
       )}
       <p className="muted">
         Source: {updates?.source ?? updates?.error ?? "Pending"}
+        {updates?.data?.length
+          ? ` · ${updates.data.length} raw records`
+          : ""}
       </p>
-      {updates?.data?.length ? (
-        <details>
-          <summary>Raw TxLINE update count</summary>
-          <p>{updates.data.length} raw update events received.</p>
-        </details>
-      ) : null}
     </section>
   );
 }
