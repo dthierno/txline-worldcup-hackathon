@@ -160,13 +160,32 @@ const scoreUpdates = [
     participant1IsHome: true,
     seq: 8,
   },
+  {
+    action: "red_card",
+    awayCorners: 0,
+    awayGoals: 1,
+    awayRedCards: 1,
+    awayYellowCards: 0,
+    clockSeconds: 5500,
+    data: { PlayerId: 222 },
+    eventId: 88,
+    gameState: "second_half",
+    homeCorners: 0,
+    homeGoals: 0,
+    homeRedCards: 0,
+    homeYellowCards: 0,
+    id: "8b",
+    participant: 2,
+    participant1IsHome: true,
+    seq: 8.5,
+  },
   // Devnet keeps GameState at "scheduled" even here; game_finalised is the
   // authoritative end-of-match signal.
   {
     action: "game_finalised",
     awayCorners: 0,
     awayGoals: 1,
-    awayRedCards: 0,
+    awayRedCards: 1,
     awayYellowCards: 0,
     clockSeconds: 5700,
     gameState: "scheduled",
@@ -404,6 +423,13 @@ describe("MatchPage", () => {
     expect(
       screen.getByText("⚽ 69' Ounahi, Azzedine (0-1)"),
     ).toBeInTheDocument();
+    // Red card: square in the heading next to Morocco, and next to the
+    // player in the lineups.
+    expect(
+      screen.getByRole("heading", { level: 1, name: /France vs Morocco/ })
+        .textContent,
+    ).toContain("🟥");
+    expect(screen.getByText(/Ounahi, Azzedine ⚽ 🟥/)).toBeInTheDocument();
     expect(screen.getByText("Possession (ball in play)")).toBeInTheDocument();
     expect(screen.getByText("Total shots")).toBeInTheDocument();
     expect(screen.getByText(/#8 Ounahi, Azzedine ⚽/)).toBeInTheDocument();
@@ -428,7 +454,7 @@ describe("MatchPage", () => {
     render(<MatchPage fixtureId={999001} />);
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "France vs Spain" }),
+      await screen.findByRole("heading", { level: 1, name: /France vs Spain/ }),
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { level: 2, name: "Your prediction" }),

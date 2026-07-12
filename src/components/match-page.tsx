@@ -451,6 +451,16 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
     ),
   );
   const substitutions = extractSubstitutionEvents(combinedUpdates);
+  const redCardedPlayerIds = new Set<number>();
+
+  for (const update of combinedUpdates) {
+    if (
+      update.action === "red_card" &&
+      typeof update.data?.PlayerId === "number"
+    ) {
+      redCardedPlayerIds.add(update.data.PlayerId);
+    }
+  }
   const callTeam = (participant?: number) =>
     participant === 1
       ? fixture.homeTeam
@@ -657,7 +667,20 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
       <header className="match-header card">
         <p className="match-meta">{formatCompetition(fixture)}</p>
         <h1>
-          {fixture.homeTeam} vs {fixture.awayTeam}
+          {fixture.homeTeam}
+          {(displayScore?.homeRedCards ?? 0) > 0 ? (
+            <span className="h1-reds" role="img" aria-label="red card">
+              {" "}
+              {"🟥".repeat(displayScore?.homeRedCards ?? 0)}
+            </span>
+          ) : null}{" "}
+          vs {fixture.awayTeam}
+          {(displayScore?.awayRedCards ?? 0) > 0 ? (
+            <span className="h1-reds" role="img" aria-label="red card">
+              {" "}
+              {"🟥".repeat(displayScore?.awayRedCards ?? 0)}
+            </span>
+          ) : null}
         </h1>
         {displayScore ? (
           <p className="match-score">{formatScore(displayScore)}</p>
@@ -776,6 +799,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
       <LineupsSection
         goals={goals}
         lineups={details.lineups}
+        redCards={redCardedPlayerIds}
         substitutions={substitutions}
       />
 
@@ -1345,10 +1369,12 @@ function OddsBoardView({
 function LineupsSection({
   goals,
   lineups,
+  redCards,
   substitutions,
 }: {
   goals: GoalEvent[];
   lineups: ApiResult<NormalizedLineups> | null;
+  redCards: Set<number>;
   substitutions: SubstitutionEvent[];
 }) {
   const teams = lineups?.data?.teams;
@@ -1384,6 +1410,9 @@ function LineupsSection({
       {player.name}
       {typeof player.playerId === "number" && goalCounts.has(player.playerId)
         ? ` ${"⚽".repeat(goalCounts.get(player.playerId) ?? 1)}`
+        : ""}
+      {typeof player.playerId === "number" && redCards.has(player.playerId)
+        ? " 🟥"
         : ""}
       {typeof player.playerId === "number" &&
       subOffMinutes.has(player.playerId) ? (
