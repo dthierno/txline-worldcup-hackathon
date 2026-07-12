@@ -3045,7 +3045,7 @@ dt {
   align-items: center;
   background: #141419;
   border: 1px solid #23232b;
-  border-radius: 12px;
+  border-radius: 16px;
   color: inherit;
   cursor: pointer;
   display: flex;
