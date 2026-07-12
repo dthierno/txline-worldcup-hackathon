@@ -1630,7 +1630,6 @@ function PredictionsFeed({
       </div>
 
       <aside className="pred-col-side">
-        <h3 className="gt-section-title">Local league · demo rivals</h3>
         <ol className="pred-board">
           {leaderboard.map((player, index) => (
             <li
