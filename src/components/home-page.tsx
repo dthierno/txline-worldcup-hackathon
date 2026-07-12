@@ -17,6 +17,11 @@ import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -25,7 +30,9 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  buildOutcome,
   fetchJson,
+  fillUnknownStats,
   formatDate,
   isPastFixture,
   isPotentiallyLive,
@@ -34,10 +41,18 @@ import {
   useNow,
   type ApiResult,
   type TxlineStatus,
+  type TxlineUpdateData,
 } from "@/lib/match-shared";
-import { PREDICTION_LINES, type MatchPrediction } from "@/lib/prediction-engine";
 import {
+  PREDICTION_LINES,
+  settlePrediction,
+  type MatchPrediction,
+} from "@/lib/prediction-engine";
+import {
+  applyScoutCorrections,
+  extractGoals,
   formatLiveMinute,
+  type NormalizedLineups,
   type NormalizedTxlineScore,
 } from "@/lib/txline-normalize";
 import {
@@ -50,6 +65,7 @@ import {
   loadPredictions,
   loadSettlements,
   savePrediction,
+  saveSettlement,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -109,6 +125,22 @@ const teamIso: Record<string, string> = {
 const KNOWN_FINALS: Record<number, [number, number]> = Object.fromEntries(
   worldCupResults.map((result) => [result.fixtureId, result.score]),
 );
+
+// Solid trophy for day headers (the free icon set only ships outlines).
+function TrophyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="pred-day-ic"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M6 2h12v6a6 6 0 0 1-4.5 5.81V16.5H16a2 2 0 0 1 2 2V21H6v-2.5a2 2 0 0 1 2-2h2.5v-2.69A6 6 0 0 1 6 8V2z" />
+      <path d="M5 4v4c0 .72.13 1.4.36 2.04A4.5 4.5 0 0 1 1.5 5.5V4H5z" />
+      <path d="M19 4v4c0 .72-.13 1.4-.36 2.04A4.5 4.5 0 0 0 22.5 5.5V4H19z" />
+    </svg>
+  );
+}
 
 function team(code: string): BracketTeam {
   return { code, iso: teamIso[code] };
@@ -188,7 +220,7 @@ export function HomePage() {
   const [predictions] = useState<Record<string, MatchPrediction>>(() =>
     loadPredictions(),
   );
-  const [finals] = useState<Record<string, StoredSettlement>>(() =>
+  const [finals, setFinals] = useState<Record<string, StoredSettlement>>(() =>
     loadSettlements(),
   );
   const [odds, setOdds] = useState<Record<number, string[]>>({});
@@ -316,6 +348,89 @@ export function HomePage() {
       });
     });
   }, [fixtures]);
+
+  // Auto-settle finished predictions right here on the home page: fans should
+  // not have to revisit each match page to collect their points. Uses the
+  // same corrected feed + settlement engine as the match page.
+  const settlingRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const candidates = fixtures
+      .filter((fixture) => {
+        const id = fixture.fixtureId;
+
+        return (
+          predictions[String(id)] !== undefined &&
+          finals[String(id)] === undefined &&
+          KNOWN_FINALS[id] !== undefined &&
+          !settlingRef.current.has(id)
+        );
+      })
+      .slice(0, 4);
+
+    for (const fixture of candidates) {
+      const id = fixture.fixtureId;
+
+      settlingRef.current.add(id);
+      void (async () => {
+        const [historical, lineups] = await Promise.all([
+          fetchJson<TxlineUpdateData[]>(`/api/txline/scores/${id}/historical`),
+          fetchJson<NormalizedLineups>(`/api/txline/scores/${id}/lineups`),
+        ]);
+        let raw = historical.data ?? [];
+
+        if (!raw.length) {
+          raw =
+            (await fetchJson<TxlineUpdateData[]>(
+              `/api/txline/scores/${id}/updates`,
+            ).then((result) => result.data)) ?? [];
+        }
+
+        const updates = applyScoutCorrections(fillUnknownStats(raw));
+
+        if (!updates.some((update) => update.action === "game_finalised")) {
+          return;
+        }
+
+        const latest = [...updates].sort(
+          (left, right) => (right.seq ?? 0) - (left.seq ?? 0),
+        )[0];
+        const firstGoal = extractGoals(updates)[0];
+        const scorerName =
+          firstGoal?.playerId !== undefined
+            ? lineups.data?.teams
+                .flatMap((team) => team.players)
+                .find((player) => player.playerId === firstGoal.playerId)?.name
+            : undefined;
+        const outcome = buildOutcome(
+          latest,
+          true,
+          firstGoal
+            ? { playerId: firstGoal.playerId, scorerName }
+            : null,
+        );
+        const prediction = predictions[String(id)];
+
+        if (!outcome || !prediction) {
+          return;
+        }
+
+        const settlement = settlePrediction(prediction, outcome, {
+          awayTeam: fixture.awayTeam,
+          homeTeam: fixture.homeTeam,
+        });
+        const stored: StoredSettlement = {
+          finalScore: `${outcome.homeGoals}-${outcome.awayGoals}`,
+          fixtureId: id,
+          settledAt: new Date().toISOString(),
+          totalPoints: settlement.totalPoints,
+        };
+
+        saveSettlement(stored);
+        setFinals((previous) => ({ ...previous, [String(id)]: stored }));
+      })();
+    }
+  }, [fixtures, predictions, finals]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1052,6 +1167,16 @@ function PredictionCard({
 
     return KNOWN_FINALS[fixture.fixtureId] ?? null;
   })();
+  const exactHit =
+    prediction &&
+    ftScore &&
+    prediction.homeGoals === ftScore[0] &&
+    prediction.awayGoals === ftScore[1];
+  const winnerHit =
+    prediction &&
+    ftScore &&
+    Math.sign(prediction.homeGoals - prediction.awayGoals) ===
+      Math.sign(ftScore[0] - ftScore[1]);
   // Real live score from TxLINE; 0–0 until the feed reports goals.
   const liveHome = score?.homeGoals ?? 0;
   const liveAway = score?.awayGoals ?? 0;
@@ -1221,7 +1346,7 @@ function PredictionCard({
           >
             {ended ? (
               <>
-                <span className="pc-livebox pc-final-box">
+                <span className="pc-livebox pc-box-home pc-final-box">
                   {prediction ? prediction.homeGoals : "-"}
                 </span>
                 {(prediction && final) || !prediction ? (
@@ -1233,7 +1358,7 @@ function PredictionCard({
                     points={final?.totalPoints ?? 0}
                   />
                 ) : null}
-                <span className="pc-livebox pc-final-box">
+                <span className="pc-livebox pc-box-away pc-final-box">
                   {prediction ? prediction.awayGoals : "-"}
                 </span>
                 {ftScore ? (
@@ -1244,13 +1369,22 @@ function PredictionCard({
                     <span className="pc-ft-score">{ftScore[1]}</span>
                   </span>
                 ) : null}
+                {prediction && final && (exactHit || winnerHit || final.totalPoints > 0) ? (
+                  <span className="pc-why">
+                    {exactHit
+                      ? "Exact score!"
+                      : winnerHit
+                        ? "Right winner"
+                        : "Good calls!"}
+                  </span>
+                ) : null}
               </>
             ) : live ? (
               <>
-                <span className="pc-livebox">
+                <span className="pc-livebox pc-box-home">
                   {prediction ? prediction.homeGoals : "–"}
                 </span>
-                <span className="pc-livebox">
+                <span className="pc-livebox pc-box-away">
                   {prediction ? prediction.awayGoals : "–"}
                 </span>
                 <span className="pc-ftline pc-live-stack">
@@ -1349,13 +1483,24 @@ function PredictionsFeed({
   const isLive = (fixture: WorldCupFixture) =>
     now !== null && isPotentiallyLive(fixture, now);
 
-  // Main = live + not-yet-kicked-off games (what the fan acts on now). Finished
-  // games drop into a collapsed "Past results" section, newest first.
+  // Freshly settled games keep their card in the main feed for ~a day (the
+  // payoff moment), then retire into the compact history below.
+  const RECENT_WINDOW_MS = 27 * 60 * 60 * 1000;
+  const isRecent = (fixture: WorldCupFixture) =>
+    now !== null &&
+    now - new Date(fixture.kickoffUtc).getTime() < RECENT_WINDOW_MS;
+
+  // Main = live + upcoming + recently finished. Older finished games drop
+  // into the collapsed history, newest first.
   const mainGames = fixtures.filter(
-    (fixture) => !isPastFixture(fixture) || isLive(fixture),
+    (fixture) =>
+      !isPastFixture(fixture) || isLive(fixture) || isRecent(fixture),
   );
   const pastGames = fixtures
-    .filter((fixture) => isPastFixture(fixture) && !isLive(fixture))
+    .filter(
+      (fixture) =>
+        isPastFixture(fixture) && !isLive(fixture) && !isRecent(fixture),
+    )
     .sort(
       (left, right) =>
         new Date(right.kickoffUtc).getTime() -
@@ -1379,39 +1524,62 @@ function PredictionsFeed({
     return groups;
   };
 
-  const renderGroup = (group: {
-    label: string;
-    matches: WorldCupFixture[];
-  }) => {
+  const renderGroup = (
+    group: {
+      label: string;
+      matches: WorldCupFixture[];
+    },
+    { collapsible = false }: { collapsible?: boolean } = {},
+  ) => {
     const predicted = group.matches.filter(isPredicted).length;
+    const header = (
+      <>
+        <TrophyIcon />
+        <span className="pred-day-name">{group.label}</span>
+        <span className="pred-day-pill">
+          {predicted}/{group.matches.length} predicted
+        </span>
+        {collapsible ? (
+          <HugeiconsIcon
+            className="pred-day-chevron"
+            icon={ArrowDown01Icon}
+            strokeWidth={2}
+          />
+        ) : null}
+      </>
+    );
+    const grid = (
+      <div className="pred-grid">
+        {group.matches.map((fixture) => (
+          <PredictionCard
+            final={finals[String(fixture.fixtureId)]}
+            fixture={fixture}
+            form={formByTeam}
+            key={fixture.fixtureId}
+            now={now}
+            onPredictedChange={handlePredictedChange}
+            prediction={predictions[String(fixture.fixtureId)]}
+            score={scores[fixture.fixtureId]}
+          />
+        ))}
+      </div>
+    );
 
     return (
       <div className="pred-day-block" key={group.label}>
-        <div className="pred-day">
-          <HugeiconsIcon
-            className="pred-day-ic"
-            icon={ChampionIcon}
-            strokeWidth={2}
-          />
-          <span className="pred-day-name">{group.label}</span>
-          <span className="pred-day-count">
-            {predicted} / {group.matches.length}
-          </span>
-        </div>
-        <div className="pred-grid">
-          {group.matches.map((fixture) => (
-            <PredictionCard
-              final={finals[String(fixture.fixtureId)]}
-              fixture={fixture}
-              form={formByTeam}
-              key={fixture.fixtureId}
-              now={now}
-              onPredictedChange={handlePredictedChange}
-              prediction={predictions[String(fixture.fixtureId)]}
-              score={scores[fixture.fixtureId]}
-            />
-          ))}
-        </div>
+        {collapsible ? (
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="pred-day pred-day-toggle">
+              {header}
+            </CollapsibleTrigger>
+            <CollapsibleContent>{grid}</CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <>
+            <div className="pred-day">{header}</div>
+            {grid}
+          </>
+        )}
       </div>
     );
   };
@@ -1429,54 +1597,61 @@ function PredictionsFeed({
   ].sort((left, right) => right.points - left.points);
 
   return (
-    <>
-      {mainGames.length > 0 ? (
-        toGroups(mainGames).map(renderGroup)
-      ) : (
-        <p className="muted">No upcoming matches right now.</p>
-      )}
+    <div className="pred-layout">
+      <div className="pred-col-main">
+        {mainGames.length > 0 ? (
+          toGroups(mainGames).map((group) =>
+            renderGroup(group, { collapsible: true }),
+          )
+        ) : (
+          <p className="muted">No upcoming matches right now.</p>
+        )}
 
-      {pastGames.length > 0 ? (
-        <div className="pred-past">
-          <button
-            aria-expanded={showPast}
-            className="pred-past-toggle"
-            onClick={() => setShowPast((value) => !value)}
-            type="button"
-          >
-            <span>Past results</span>
-            <span className="pred-past-count">{pastGames.length}</span>
-            <HugeiconsIcon
-              icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
-              strokeWidth={2}
-            />
-          </button>
-          {showPast ? toGroups(pastGames).map(renderGroup) : null}
-        </div>
-      ) : null}
+        {pastGames.length > 0 ? (
+          <div className="pred-past">
+            <button
+              aria-expanded={showPast}
+              className="pred-past-toggle"
+              onClick={() => setShowPast((value) => !value)}
+              type="button"
+            >
+              <span>Past results</span>
+              <span className="pred-past-count">{pastGames.length}</span>
+              <HugeiconsIcon
+                icon={showPast ? ArrowUp01Icon : ArrowDown01Icon}
+                strokeWidth={2}
+              />
+            </button>
+            {showPast
+            ? toGroups(pastGames).map((group) => renderGroup(group))
+            : null}
+          </div>
+        ) : null}
+      </div>
 
-      <h3 className="gt-section-title">Local league</h3>
-      <ol className="pred-board">
-        {leaderboard.map((player, index) => (
-          <li
-            className={`pred-row${player.you ? " pred-you" : ""}`}
-            key={player.name}
-          >
-            <span className="pred-rank">{index + 1}</span>
-            <span className="pred-player">
-              {player.name}
-              {player.you ? "" : " · simulated"}
-            </span>
-            <span className="pred-points">{player.points} pts</span>
-          </li>
-        ))}
-      </ol>
-      <p className="muted">
-        Prototype league stored on this device. Rival scores are simulated;
-        your points and live scores come from TxLINE. Form strips show each
-        team's real last five tournament results.
-      </p>
-    </>
+      <aside className="pred-col-side">
+        <ol className="pred-board">
+          {leaderboard.map((player, index) => (
+            <li
+              className={`pred-row${player.you ? " pred-you" : ""}`}
+              key={player.name}
+            >
+              <span className="pred-rank">{index + 1}</span>
+              <span className="pred-player">
+                {player.name}
+                {player.you ? "" : " · simulated"}
+              </span>
+              <span className="pred-points">{player.points} pts</span>
+            </li>
+          ))}
+        </ol>
+        <p className="muted">
+          Prototype league stored on this device. Rival scores are simulated;
+          your points and live scores come from TxLINE. Form strips show each
+          team&apos;s real last five tournament results.
+        </p>
+      </aside>
+    </div>
   );
 }
 

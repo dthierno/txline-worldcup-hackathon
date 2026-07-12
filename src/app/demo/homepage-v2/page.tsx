@@ -1,7 +1,7 @@
-import { HomePageV2 } from "@/components/home-page-v2";
+import { HomePage } from "@/components/home-page";
 
-// Design sandbox: the home page with the recommended past-predictions
-// improvements applied, for side-by-side comparison with /.
+// Legacy sandbox URL: the v2 improvements tried here were promoted to the
+// real homepage, so this now renders the same page as /.
 export default function HomePageV2Demo() {
-  return <HomePageV2 />;
+  return <HomePage />;
 }
