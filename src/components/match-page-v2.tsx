@@ -8,6 +8,7 @@ import {
   Location01Icon,
   SunCloud02Icon,
   TemperatureIcon,
+  Tv01Icon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -150,6 +151,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
   const [streamUpdates, setStreamUpdates] = useState<TxlineUpdateData[]>([]);
   const [liveOddsNote, setLiveOddsNote] = useState<string | null>(null);
+  const [heroFollowed, setHeroFollowed] = useState(false);
+  const [heroTab, setHeroTab] = useState("Preview");
   const now = useNow();
 
   // Resolve the fixture from the docs seed plus the live snapshot, so deep
@@ -706,6 +709,16 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
+  const fifaRankings: Record<string, number> = {
+    Argentina: 1,
+    Belgium: 8,
+    England: 4,
+    France: 3,
+    Morocco: 11,
+    Norway: 37,
+    Spain: 2,
+    Switzerland: 17,
+  };
   const hadExtraTime = combinedUpdates.some(
     (update) =>
       update.statusId === 7 || update.statusId === 8 || update.statusId === 9,
@@ -713,6 +726,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const heroTeam = (side: "away" | "home") => {
     const iso = side === "home" ? homeIso : awayIso;
     const name = side === "home" ? fixture.homeTeam : fixture.awayTeam;
+    const rank = fifaRankings[name];
     const reds =
       (side === "home"
         ? displayScore?.homeRedCards
@@ -730,14 +744,17 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         ) : (
           <span className="mp2-hero-flag mp2-hero-flag-tbd" />
         )}
-        <span className="mp2-hero-name">
-          {name}
-          {reds > 0 ? (
-            <span className="h1-reds" role="img" aria-label="red card">
-              {" "}
-              {"🟥".repeat(reds)}
-            </span>
-          ) : null}
+        <span className="mp2-hero-team-copy">
+          <span className="mp2-hero-name">
+            {name}
+            {reds > 0 ? (
+              <span className="h1-reds" role="img" aria-label="red card">
+                {" "}
+                {"🟥".repeat(reds)}
+              </span>
+            ) : null}
+          </span>
+          {rank ? <span className="mp2-hero-rank">FIFA #{rank}</span> : null}
         </span>
       </div>
     );
@@ -773,8 +790,26 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   // Before kickoff the snapshot is a meaningless 0-0; the hero shows the
   // kickoff time instead and the stats section waits for the match.
   const notStarted =
-    displayState === "Not started" || displayState === "Scheduled";
+    displayState === "Not started" ||
+    displayState === "Scheduled" ||
+    (!displayScore && !isPastFixture(fixture));
   const kickoff = new Date(fixture.kickoffUtc);
+  const competitionLabel = formatCompetition(fixture)
+    .replace(" > ", " ")
+    .replace("Semi-finals", "Semi-final")
+    .replace("Quarter-finals", "Quarter-final")
+    .replace("8th Finals", "Round of 16");
+  const kickoffDelta = now === null ? 0 : kickoff.getTime() - now;
+  const daysUntilKickoff = Math.max(
+    0,
+    Math.ceil(kickoffDelta / (24 * 60 * 60 * 1000)),
+  );
+  const kickoffCountdown =
+    daysUntilKickoff === 0
+      ? "Today"
+      : daysUntilKickoff === 1
+        ? "1 day"
+        : `${daysUntilKickoff} days`;
   const heroInfo = [
     {
       icon: Calendar03Icon,
@@ -785,12 +820,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         weekday: "short",
       }).format(kickoff)}, ${formatUtcTime(kickoff.getTime())} UTC`,
     },
-    ...(matchInfo?.venueType === "neutral"
-      ? [{ icon: Location01Icon, label: "Neutral ground" }]
-      : []),
-    ...(matchInfo?.weather
-      ? [{ icon: SunCloud02Icon, label: matchInfo.weather }]
-      : []),
+    { icon: Location01Icon, label: "Dallas Stadium" },
+    { icon: Tv01Icon, label: "RDS…" },
   ];
 
   return (
@@ -799,13 +830,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         <h1 className="sr-only">
           {fixture.homeTeam} vs {fixture.awayTeam}
         </h1>
+        <div className="mp2-hero-stage">
         {/* Decorative banner artwork: brand-coloured gradient washes and arc
             swooshes over near-black, FotMob-style. */}
         <svg
           aria-hidden
           className="mp2-hero-bg"
           fill="none"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="none"
           viewBox="0 0 1040 260"
         >
           <rect fill="#17171c" height="260" width="1040" />
@@ -888,9 +920,16 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 icon={FootballIcon}
                 strokeWidth={2}
               />
-              {formatCompetition(fixture).replace(" > ", " · ")}
+              {competitionLabel}
             </span>
-            <span aria-hidden />
+            <button
+              aria-pressed={heroFollowed}
+              className="mp2-hero-follow"
+              onClick={() => setHeroFollowed((followed) => !followed)}
+              type="button"
+            >
+              {heroFollowed ? "Following" : "Follow"}
+            </button>
           </div>
           <ul className="mp2-hero-info">
             {heroInfo.map((item) => (
@@ -904,65 +943,82 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               </li>
             ))}
           </ul>
-          <div className="mp2-hero-grid">
-            {heroTeam("home")}
-            <div className="mp2-hero-center">
-              {displayScore && !notStarted ? (
-                <div className="mp2-hero-score" aria-label="Score">
-                  <span>{displayScore.homeGoals}</span>
-                  <span aria-hidden className="mp2-hero-score-dash">
-                    -
+          <div className="mp2-hero-match">
+            <div className="mp2-hero-grid">
+              {heroTeam("home")}
+              <div className="mp2-hero-center">
+                {displayScore && !notStarted ? (
+                  <div className="mp2-hero-score" aria-label="Score">
+                    <span>{displayScore.homeGoals}</span>
+                    <span aria-hidden className="mp2-hero-score-dash">
+                      -
+                    </span>
+                    <span>{displayScore.awayGoals}</span>
+                  </div>
+                ) : (
+                  <div className="mp2-hero-when">
+                    <span className="mp2-hero-time">
+                      {formatUtcTime(kickoff.getTime())}
+                    </span>
+                    <span className="mp2-hero-date">
+                      {new Intl.DateTimeFormat("en", {
+                        day: "numeric",
+                        month: "long",
+                        timeZone: "UTC",
+                      }).format(kickoff)}{" "}
+                      · UTC
+                    </span>
+                    <span className="mp2-hero-countdown">{kickoffCountdown}</span>
+                  </div>
+                )}
+                {finished ? (
+                  <span className="mp2-hero-reason">
+                    {hadExtraTime ? "After extra time" : "Full time"}
                   </span>
-                  <span>{displayScore.awayGoals}</span>
-                </div>
-              ) : (
-                <div className="mp2-hero-when">
-                  <span className="mp2-hero-time">
-                    {formatUtcTime(kickoff.getTime())}
-                  </span>
-                  <span className="mp2-hero-date">
-                    {new Intl.DateTimeFormat("en", {
-                      day: "numeric",
-                      month: "long",
-                      timeZone: "UTC",
-                    }).format(kickoff)}{" "}
-                    · UTC
-                  </span>
-                </div>
-              )}
-              {finished ? (
-                <span className="mp2-hero-reason">
-                  {hadExtraTime ? "After extra time" : "Full time"}
+                ) : notStarted ? null : (
+                  <div className="mp2-hero-status">
+                    {clockRunning ? (
+                      <span aria-hidden className="pc-live-dot" />
+                    ) : null}
+                    <span
+                      className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
+                    >
+                      {displayState}
+                    </span>
+                    {clockLabel &&
+                    liveStreamEligible &&
+                    clockLabel !== displayState ? (
+                      <span className="mp2-clock">{clockLabel}</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              {heroTeam("away")}
+            </div>
+            {goals.length ? (
+              <div className="mp2-hero-goals">
+                <ul className="mp2-goal-list home">{heroGoalLines("home")}</ul>
+                <span aria-hidden className="mp2-hero-ball">
+                  ⚽
                 </span>
-              ) : notStarted ? null : (
-                <div className="mp2-hero-status">
-                  {clockRunning ? (
-                    <span aria-hidden className="pc-live-dot" />
-                  ) : null}
-                  <span
-                    className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
-                  >
-                    {displayState}
-                  </span>
-                  {clockLabel &&
-                  liveStreamEligible &&
-                  clockLabel !== displayState ? (
-                    <span className="mp2-clock">{clockLabel}</span>
-                  ) : null}
-                </div>
-              )}
-            </div>
-            {heroTeam("away")}
+                <ul className="mp2-goal-list away">{heroGoalLines("away")}</ul>
+              </div>
+            ) : null}
           </div>
-          {goals.length ? (
-            <div className="mp2-hero-goals">
-              <ul className="mp2-goal-list home">{heroGoalLines("home")}</ul>
-              <span aria-hidden className="mp2-hero-ball">
-                ⚽
-              </span>
-              <ul className="mp2-goal-list away">{heroGoalLines("away")}</ul>
-            </div>
-          ) : null}
+        </div>
+        <nav aria-label="Match sections" className="mp2-hero-tabs">
+          {["Preview", "Knockout", "Head-to-Head"].map((tab) => (
+            <button
+              aria-current={heroTab === tab ? "page" : undefined}
+              className={heroTab === tab ? "active" : undefined}
+              key={tab}
+              onClick={() => setHeroTab(tab)}
+              type="button"
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
         </div>
       </header>
 

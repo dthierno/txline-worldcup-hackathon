@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MatchPage } from "@/components/match-page";
+import { MatchPageV2 } from "@/components/match-page-v2";
 
 import Home from "./page";
 
@@ -549,5 +550,40 @@ describe("MatchPage", () => {
     expect(
       screen.getByText(/Odds movement \(1X2\): 2 meaningful change\(s\)/),
     ).toBeInTheDocument();
+  });
+});
+
+describe("MatchPageV2 banner", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockFetch();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders and operates the FotMob-style match header", async () => {
+    const user = userEvent.setup();
+
+    render(<MatchPageV2 fixtureId={18237038} />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "France vs Spain" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("FIFA #3")).toBeInTheDocument();
+    expect(screen.getByText("FIFA #2")).toBeInTheDocument();
+    expect(screen.getAllByText("Dallas Stadium").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Follow" }));
+    expect(screen.getByRole("button", { name: "Following" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Head-to-Head" }));
+    expect(
+      screen.getByRole("button", { name: "Head-to-Head" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 });
