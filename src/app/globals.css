@@ -3172,13 +3172,13 @@ dt {
   border: none;
   color: var(--muted-foreground);
 }
-/* Live FotMob lineup reconstruction. These rules intentionally mirror the
-   measured 64px header/filter bands, 550px team pitch halves and 60px bench
-   rows while keeping the app's existing dark-card shell. */
+/* Live lineup reconstruction. Pitch geometry stays faithful to the reference,
+   while the shell, controls and interaction states use the match page's own
+   layered surfaces and blue/green accent language. */
 .mp2 .card.mp2-lineup-card {
-  background: #1d1d1d;
+  background: #101014;
   border: 0;
-  border-radius: 18px;
+  border-radius: 20px;
   overflow: hidden;
   padding: 0;
 }
@@ -3197,14 +3197,14 @@ dt {
 }
 .mp2-lineup-header {
   align-items: center;
-  background: #262626;
-  border-bottom: 1px solid #2c2c2c;
+  background: #101014;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0;
   display: grid;
   gap: 24px;
   grid-template-columns: 1fr 1fr;
-  height: 64px;
-  padding: 0 16px;
+  height: 70px;
+  padding: 0 18px;
 }
 .mp2-lineup-team-summary {
   align-items: center;
@@ -3218,12 +3218,13 @@ dt {
 }
 .mp2-lineup-team-summary > img,
 .mp2-lineup-team-placeholder {
-  background: #f0f0f0;
+  background: #202027;
   border: 0;
   border-radius: 50%;
-  height: 28px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  height: 30px;
   object-fit: cover;
-  width: 28px;
+  width: 30px;
 }
 .mp2-lineup-team-summary > span:not(.mp2-lineup-team-placeholder) {
   display: grid;
@@ -3231,59 +3232,71 @@ dt {
 }
 .mp2-lineup-team-summary strong {
   color: #fff;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 18px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 19px;
 }
 .mp2-lineup-team-summary small {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 18px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
 }
 .mp2-lineup-filters {
   align-items: center;
-  background: #262626;
-  border-bottom: 1px solid #2c2c2c;
+  background: #101014;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
-  gap: 8px;
-  height: 64px;
+  gap: 6px;
+  height: 58px;
   overflow-x: auto;
-  padding: 0 16px;
+  padding: 0 18px;
   scrollbar-width: none;
 }
 .mp2-lineup-filters::-webkit-scrollbar {
   display: none;
 }
 .mp2 .mp2-lineup-filter-button {
-  background: #2c2c2c;
-  border: 1px solid transparent;
-  border-radius: 16px;
-  color: #fff;
+  background: #191920;
+  border: 0;
+  border-radius: 999px;
+  color: #b7b7c1;
   flex: 0 0 auto;
-  font-size: 14px;
-  font-weight: 500;
-  height: 32px;
-  padding: 0 20px;
-  transition-duration: 0s;
+  font-size: 13px;
+  font-weight: 600;
+  height: 34px;
+  padding: 0 16px;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .mp2 .mp2-lineup-filter-button[aria-pressed="true"] {
-  background: #fff;
-  color: #2c2c2c;
+  background: color-mix(in srgb, var(--won) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--won) 26%, transparent);
+  color: #8aefac;
 }
 .mp2 .mp2-lineup-filter-button:hover:not(:disabled) {
-  background: #2c2c2c;
-  opacity: 0.8;
+  background: #202028;
+  color: #fff;
 }
 .mp2 .mp2-lineup-filter-button[aria-pressed="true"]:hover {
-  background: #fff;
+  background: color-mix(in srgb, var(--won) 18%, transparent);
+  color: #9af4b8;
+}
+.mp2 .mp2-lineup-filter-button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .mp2 .mp2-lineup-filter-button:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 0.38;
 }
 .mp2-lineup-pitch {
-  background: #2c2c2c;
+  background:
+    radial-gradient(circle at 6% 10%, rgba(79, 140, 255, 0.09), transparent 34%),
+    radial-gradient(circle at 94% 90%, rgba(74, 222, 128, 0.07), transparent 36%),
+    #19191f;
   border: 0;
   border-radius: 0;
   display: grid;
@@ -3298,7 +3311,7 @@ dt {
   content: none;
 }
 .mp2-lineup-midfield {
-  background: #252525;
+  background: rgba(255, 255, 255, 0.055);
   height: 100%;
   left: calc(50% - 2px);
   position: absolute;
@@ -3307,7 +3320,7 @@ dt {
   z-index: 0;
 }
 .mp2-lineup-midfield::after {
-  border: 4px solid #252525;
+  border: 4px solid rgba(255, 255, 255, 0.055);
   border-radius: 50%;
   box-sizing: content-box;
   content: "";
@@ -3318,7 +3331,7 @@ dt {
   width: 112px;
 }
 .mp2-lineup-goal {
-  color: #252525;
+  color: rgba(255, 255, 255, 0.055);
   left: -2px;
   position: absolute;
   top: 36%;
@@ -3371,11 +3384,18 @@ dt {
   min-width: 0;
   padding-top: 27px;
   text-align: center;
-  transition-duration: 0s;
+  transition: color 0.18s ease;
 }
 @media (hover: hover) and (pointer: fine) {
-  .mp2-lineup-player:hover {
-    opacity: 0.6;
+  .mp2-lineup-player:hover .mp2-lineup-avatar {
+    box-shadow:
+      0 0 0 2px #19191f,
+      0 0 0 3px color-mix(in srgb, var(--won) 55%, transparent),
+      0 8px 20px rgba(0, 0, 0, 0.28);
+    transform: translateY(-2px) scale(1.045);
+  }
+  .mp2-lineup-player:hover .mp2-lineup-player-name {
+    color: #fff;
   }
 }
 .mp2-lineup-player-marker {
@@ -3386,14 +3406,21 @@ dt {
 }
 .mp2-lineup-avatar {
   align-items: flex-end;
-  background: #4a4a4a;
+  background: #25252d;
   border-radius: 50%;
-  color: #9f9f9f;
+  box-shadow:
+    0 0 0 2px #19191f,
+    0 0 0 3px rgba(255, 255, 255, 0.12),
+    0 5px 14px rgba(0, 0, 0, 0.2);
+  color: #8b8b96;
   display: inline-flex;
   flex: 0 0 auto;
   justify-content: center;
   overflow: hidden;
   position: relative;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .mp2-lineup-avatar > img {
   border-radius: 50%;
@@ -3429,7 +3456,7 @@ dt {
 }
 .mp2-lineup-filter-value {
   align-items: center;
-  background: #fff;
+  background: #f4f4f6;
   border-radius: 12px;
   bottom: 34px;
   color: #2c2c2c;
@@ -3464,26 +3491,26 @@ dt {
 .mp2-lineup-player-name {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  color: #fff;
+  color: #e6e6e9;
   display: -webkit-box;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   height: 32px;
   line-height: 16px;
   margin-top: 12px;
   max-width: 100%;
   overflow: hidden;
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
   padding: 0 2px;
   white-space: normal;
 }
 .mp2-lineup-player-name > span {
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
+  color: var(--muted-foreground);
+  font-weight: 650;
   margin-right: 4px;
 }
 .mp2-lineup-bench {
-  background: #1d1d1d;
+  background: #101014;
   border-radius: 0;
   margin: 0;
   overflow: hidden;
@@ -3491,12 +3518,16 @@ dt {
 }
 .mp2 .card .mp2-lineup-bench > h3 {
   align-items: center;
-  color: #fff;
+  background: #141419;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: #f4f4f6;
   display: flex;
-  font-size: 14px;
-  font-weight: 500;
-  height: 64px;
+  font-size: 13px;
+  font-weight: 650;
+  height: 56px;
   justify-content: center;
+  letter-spacing: 0.01em;
   margin: 0;
 }
 .mp2-lineup-bench-list {
@@ -3511,7 +3542,7 @@ dt {
 }
 .mp2-lineup-bench-player {
   align-items: center;
-  border-bottom: 1px solid #2b2b2b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
   display: flex;
   gap: 16px;
   grid-template-columns: none;
@@ -3519,6 +3550,7 @@ dt {
   min-height: 60px;
   padding: 0;
   position: relative;
+  transition: background 0.18s ease;
 }
 .mp2-lineup-bench-row > .mp2-lineup-bench-player:last-child {
   border-left: 0;
@@ -3532,21 +3564,21 @@ dt {
   min-width: 0;
 }
 .mp2-lineup-bench-copy strong {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 400;
+  color: #f4f4f6;
+  font-size: 13.5px;
+  font-weight: 600;
   line-height: 17px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .mp2-lineup-bench-copy strong > span {
-  color: #9f9f9f;
-  font-weight: 500;
+  color: var(--muted-foreground);
+  font-weight: 650;
   margin-right: 4px;
 }
 .mp2-lineup-bench-copy > span {
-  color: #9f9f9f;
+  color: var(--muted-foreground);
   font-size: 12px;
   line-height: 14px;
 }
@@ -3571,7 +3603,7 @@ dt {
 }
 .mp2-lineup-bench-sub {
   align-items: center;
-  color: #9f9f9f;
+  color: var(--muted-foreground);
   display: flex;
   font-size: 12px;
   font-weight: 500;
@@ -3590,12 +3622,12 @@ dt {
 }
 @container lineup (max-width: 850px) {
   .mp2-lineup-header {
-    display: none;
+    display: grid;
   }
   .mp2-lineup-filters {
-    height: 64px;
-    min-height: 64px;
-    padding: 12px 16px;
+    height: 58px;
+    min-height: 58px;
+    padding: 12px 18px;
   }
   .mp2-lineup-pitch {
     grid-template-columns: 1fr;
@@ -3634,18 +3666,34 @@ dt {
   }
   .mp2-lineup-player {
     flex-basis: 100px;
-    max-width: 84px;
+    max-width: 96px;
   }
   .mp2-lineup-player-name {
-    font-size: 12px;
-    height: 28px;
-    line-height: 14px;
+    font-size: 13px;
+    height: 30px;
+    line-height: 15px;
   }
   .mp2-lineup-bench-row {
     gap: 20px;
   }
 }
 @container lineup (max-width: 520px) {
+  .mp2-lineup-header {
+    gap: 12px;
+    padding: 0 14px;
+  }
+  .mp2-lineup-team-summary {
+    gap: 8px;
+  }
+  .mp2-lineup-team-summary strong {
+    font-size: 13px;
+  }
+  .mp2-lineup-filters {
+    padding-inline: 14px;
+  }
+  .mp2-lineup-player-name {
+    font-size: 12px;
+  }
   .mp2-lineup-bench-list {
     padding: 0 12px;
   }
