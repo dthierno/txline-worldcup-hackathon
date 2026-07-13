@@ -16,6 +16,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
+import { Skiper107 } from "@/components/skiper107";
 import {
   Collapsible,
   CollapsibleContent,
@@ -97,31 +98,6 @@ function statusEnded(statusId?: number) {
   return statusId !== undefined && (statusId === 5 || statusId >= 10);
 }
 
-type BracketTeam = {
-  code: string;
-  iso?: string;
-};
-
-type BracketMatch = {
-  away: BracketTeam;
-  badge?: "FINAL" | "BRONZE-FINAL";
-  date?: string;
-  home: BracketTeam;
-  score?: string;
-  winner?: "home" | "away";
-};
-
-// ISO codes for flagcdn.com images (free flag CDN; FotMob's own assets are
-// proprietary).
-const teamIso: Record<string, string> = {
-  ALG: "dz", ARG: "ar", AUS: "au", AUT: "at", BEL: "be", BIH: "ba",
-  BRA: "br", CAN: "ca", CIV: "ci", COD: "cd", COL: "co", CPV: "cv",
-  CRO: "hr", ECU: "ec", EGY: "eg", ENG: "gb-eng", ESP: "es", FRA: "fr",
-  GER: "de", GHA: "gh", JPN: "jp", MAR: "ma", MEX: "mx", NED: "nl",
-  NOR: "no", PAR: "py", POR: "pt", RSA: "za", SEN: "sn", SUI: "ch",
-  SWE: "se", USA: "us",
-};
-
 // Real final scores of already-played fixtures (home-away), recovered from
 // TxLINE's windowed history endpoints; settlements and the live-score fold
 // take precedence when present.
@@ -144,72 +120,6 @@ function TrophyIcon() {
     </svg>
   );
 }
-
-function team(code: string): BracketTeam {
-  return { code, iso: teamIso[code] };
-}
-
-function match(
-  home: string,
-  away: string,
-  rest: Omit<BracketMatch, "away" | "home"> = {},
-): BracketMatch {
-  return { away: team(away), home: team(home), ...rest };
-}
-
-const leftRound1: BracketMatch[] = [
-  match("GER", "PAR", { score: "1 - 1", winner: "away" }),
-  match("FRA", "SWE", { score: "3 - 0", winner: "home" }),
-  match("RSA", "CAN", { score: "0 - 1", winner: "away" }),
-  match("NED", "MAR", { score: "1 - 1", winner: "away" }),
-  match("POR", "CRO", { score: "2 - 1", winner: "home" }),
-  match("ESP", "AUT", { score: "3 - 0", winner: "home" }),
-  match("USA", "BIH", { score: "2 - 0", winner: "home" }),
-  match("BEL", "SEN", { score: "3 - 2", winner: "home" }),
-];
-
-const leftRound2: BracketMatch[] = [
-  match("PAR", "FRA", { score: "0 - 1", winner: "away" }),
-  match("CAN", "MAR", { score: "0 - 3", winner: "away" }),
-  match("POR", "ESP", { score: "0 - 1", winner: "away" }),
-  match("USA", "BEL", { score: "1 - 4", winner: "away" }),
-];
-
-const leftQuarterFinals: BracketMatch[] = [
-  match("FRA", "MAR", { score: "2 - 0", winner: "home" }),
-  match("ESP", "BEL", { score: "2 - 1", winner: "home" }),
-];
-
-const rightQuarterFinals: BracketMatch[] = [
-  match("NOR", "ENG", { score: "1 - 2", winner: "away" }),
-  match("ARG", "SUI", { date: "Jul 12" }),
-];
-
-const rightRound2: BracketMatch[] = [
-  match("BRA", "NOR", { score: "1 - 2", winner: "away" }),
-  match("MEX", "ENG", { score: "2 - 3", winner: "away" }),
-  match("ARG", "EGY", { score: "3 - 2", winner: "home" }),
-  match("SUI", "COL", { score: "0 - 0", winner: "home" }),
-];
-
-const rightRound1: BracketMatch[] = [
-  match("BRA", "JPN", { score: "2 - 1", winner: "home" }),
-  match("CIV", "NOR", { score: "1 - 2", winner: "away" }),
-  match("MEX", "ECU", { score: "2 - 0", winner: "home" }),
-  match("ENG", "COD", { score: "2 - 1", winner: "home" }),
-  match("ARG", "CPV", { score: "3 - 2", winner: "home" }),
-  match("AUS", "EGY", { score: "1 - 1", winner: "away" }),
-  match("SUI", "ALG", { score: "2 - 0", winner: "home" }),
-  match("COL", "GHA", { score: "1 - 0", winner: "home" }),
-];
-
-const semiFinal1 = match("FRA", "ESP", { date: "Jul 14" });
-const semiFinal2 = match("ENG", "TBD", { date: "Jul 15" });
-const finalMatch = match("WS1", "WS2", { badge: "FINAL", date: "Jul 19" });
-const bronzeFinal = match("LS1", "LS2", {
-  badge: "BRONZE-FINAL",
-  date: "Jul 18",
-});
 
 export function HomePage() {
   const [fixtures, setFixtures] = useState<WorldCupFixture[]>(
@@ -573,7 +483,9 @@ export function HomePage() {
           <h3 className="gt-section-title">Group stage</h3>
           <GroupTables />
           <h3 className="gt-section-title">Bracket</h3>
-          <KnockoutBracket />
+          <div className="flex w-full justify-center">
+            <Skiper107 />
+          </div>
         </TabsContent>
       </Tabs>
     </main>
@@ -1661,112 +1573,5 @@ function PredictionsFeed({
         </p>
       </aside>
     </div>
-  );
-}
-
-function BracketFlag({ team }: { team: BracketTeam }) {
-  return team.iso ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      alt=""
-      className="bk-flag-img"
-      loading="lazy"
-      src={`https://flagcdn.com/w40/${team.iso}.png`}
-    />
-  ) : (
-    <span className="bk-flag-img bk-flag-tbd" aria-hidden="true">
-      🛡️
-    </span>
-  );
-}
-
-function BracketCard({ match }: { match: BracketMatch }) {
-  return (
-    <div className="bk-match">
-      <div className="bk-teams">
-        <div className={`bk-team${match.winner === "away" ? " out" : ""}`}>
-          <BracketFlag team={match.home} />
-          <span className="bk-code">{match.home.code}</span>
-        </div>
-        <div className={`bk-team${match.winner === "home" ? " out" : ""}`}>
-          <BracketFlag team={match.away} />
-          <span className="bk-code">{match.away.code}</span>
-        </div>
-      </div>
-      {match.score ? <div className="bk-score">{match.score}</div> : null}
-      {match.date ? <div className="bk-date">{match.date}</div> : null}
-      {match.badge ? (
-        <div>
-          <span
-            className={`bk-badge ${match.badge === "FINAL" ? "final" : "bronze"}`}
-          >
-            {match.badge}
-          </span>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function BracketColumnList({
-  matches,
-  side,
-}: {
-  matches: BracketMatch[];
-  side: "l" | "r";
-}) {
-  const pairs: BracketMatch[][] = [];
-
-  for (let index = 0; index < matches.length; index += 2) {
-    pairs.push(matches.slice(index, index + 2));
-  }
-
-  return (
-    <div className={`bk-col bk-${side}`}>
-      {pairs.map((pair, pairIndex) => (
-        <div className="bk-pair" key={pairIndex}>
-          {pair.map((entry, index) => (
-            <BracketCard
-              key={`${entry.home.code}-${entry.away.code}-${index}`}
-              match={entry}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function KnockoutBracket() {
-  return (
-    <section className="card knockout-breakout" aria-labelledby="knockout-heading">
-      <h2 id="knockout-heading">Knockout</h2>
-      <div className="knockout-scroll" role="region" aria-label="Knockout bracket">
-        <div className="bk-grid">
-          <BracketColumnList matches={leftRound1} side="l" />
-          <BracketColumnList matches={leftRound2} side="l" />
-          <BracketColumnList matches={leftQuarterFinals} side="l" />
-          <div className="bk-center">
-            <div className="bk-trophy" aria-hidden="true">
-              🏆<span>CHAMPION</span>
-            </div>
-            <div className="bk-final-row">
-              <BracketCard match={semiFinal1} />
-              <BracketCard match={finalMatch} />
-              <BracketCard match={semiFinal2} />
-            </div>
-            <BracketCard match={bronzeFinal} />
-          </div>
-          <BracketColumnList matches={rightQuarterFinals} side="r" />
-          <BracketColumnList matches={rightRound2} side="r" />
-          <BracketColumnList matches={rightRound1} side="r" />
-        </div>
-      </div>
-      <p className="muted">
-        Static sample bracket (FotMob-style). Struck-through teams are
-        eliminated; the France vs Morocco quarter-final score matches the
-        TxLINE result. It is separate from the live TxLINE game data above.
-      </p>
-    </section>
   );
 }

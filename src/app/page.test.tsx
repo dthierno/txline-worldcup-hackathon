@@ -367,12 +367,13 @@ describe("Home", () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: /Knockout/i }));
-    expect(screen.getByText("CHAMPION")).toBeInTheDocument();
-    expect(screen.getByText("FINAL")).toBeInTheDocument();
-    expect(screen.getByText("BRONZE-FINAL")).toBeInTheDocument();
-    // Eliminated teams are struck through; PAR beat GER on the sample data.
-    expect(screen.getByText("GER")).toBeInTheDocument();
-    expect(screen.getAllByText("2 - 0").length).toBeGreaterThan(0);
+    expect(screen.getByText("Round of 32")).toBeInTheDocument();
+    expect(screen.getByText("Round of 16")).toBeInTheDocument();
+    expect(screen.getByText("Quarter-finals")).toBeInTheDocument();
+    expect(screen.getAllByText("South Africa").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Next round" }));
+    expect(screen.getByText("Semi-finals")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Run Demo Replay" }),
     ).not.toBeInTheDocument();
