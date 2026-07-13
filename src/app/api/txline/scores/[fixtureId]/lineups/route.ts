@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { enrichLineupsWithApiFootballImages } from "@/lib/api-football-player-media";
 import { getTxlineConfig } from "@/lib/txline-config";
 import { fetchTxlineLineups } from "@/lib/txline-client";
 
@@ -29,8 +30,16 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   try {
+    const lineups = await fetchTxlineLineups(id);
+    const media = await enrichLineupsWithApiFootballImages(lineups);
+
     return NextResponse.json({
-      data: await fetchTxlineLineups(id),
+      data: media.lineups,
+      media: {
+        configured: media.configured,
+        provider: media.provider,
+        resolved: media.resolved,
+      },
       mode: "txline",
       source: "TxLINE score feed lineups records",
     });

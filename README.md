@@ -29,6 +29,17 @@ TXLINE_API_TOKEN=your_activated_api_token
 
 If the env vars are missing, the app still runs using the TxLINE docs schedule seed and the local demo replay. With `TXLINE_JWT` and `TXLINE_API_TOKEN` present in `.env.local`, the server routes call TxLINE directly without exposing either credential to browser JavaScript.
 
+### Optional player headshots
+
+Lineups can be enriched with current player headshots from API-Football. Add the following server-only values to `.env.local`:
+
+```bash
+API_FOOTBALL_KEY=your_api_football_key
+API_FOOTBALL_ORIGIN=https://v3.football.api-sports.io
+```
+
+The app resolves each national team and its current squad, matches players conservatively using name, age, shirt number, and position, then caches the provider data for seven days. If the key is missing, the quota is exhausted, or a player cannot be matched confidently, the existing silhouette is shown instead. The API key is never sent to browser JavaScript.
+
 If the validator has created `../txline-validation/out/txline-devnet-result.json`,
 import it without printing secrets:
 
@@ -42,6 +53,7 @@ npm run txline:env
 - `GET /api/txline/fixtures` returns TxLINE fixture snapshots when configured, otherwise the docs-backed fixture seed.
 - `GET /api/txline/scores/:fixtureId` returns normalized score stats when configured.
 - `GET /api/txline/scores/:fixtureId/updates` returns normalized score update events when configured.
+- `GET /api/txline/scores/:fixtureId/lineups` returns normalized lineups and optionally enriches them with API-Football player headshots.
 - `GET /api/txline/odds/:fixtureId` returns normalized 1X2 probabilities and available odds markets when configured.
 
 ## Hackathon Demo Flow
