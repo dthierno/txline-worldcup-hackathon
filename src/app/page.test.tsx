@@ -677,5 +677,16 @@ describe("MatchPageV2 banner", () => {
     expect(within(highlights).getByText("Highlights")).toBeInTheDocument();
     expect(highlights.querySelector(".mp2-official-play")).not.toBeNull();
     expect(within(highlights).queryByText("FIFA.com")).not.toBeInTheDocument();
+    expect(screen.getByText("Top stats")).toBeInTheDocument();
+    expect(screen.getByText("Ball possession")).toBeInTheDocument();
+    expect(screen.getByText("Corner kicks")).toBeInTheDocument();
+    expect(document.querySelector(".mp2-stat-bars")).not.toBeNull();
+    expect(
+      screen.getByRole("group", { name: "Starting lineups" }),
+    ).toBeInTheDocument();
+    expect(document.querySelector(".mp2-lineup-pitch")).not.toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Substitutes" }),
+    ).toBeInTheDocument();
   });
 });

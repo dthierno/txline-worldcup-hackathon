@@ -181,7 +181,11 @@ describe("txline client normalizers", () => {
           {
             lineups: [
               {
-                player: { normativeId: 280343, preferredName: "Ounahi, Azzedine" },
+                player: {
+                  dateOfBirth: "2000-04-19",
+                  normativeId: 280343,
+                  preferredName: "Ounahi, Azzedine",
+                },
                 rosterNumber: "8",
                 starter: true,
               },
@@ -213,6 +217,7 @@ describe("txline client normalizers", () => {
     ]);
     expect(lineups?.teams[1].isHome).toBe(false);
     expect(lineups?.teams[1].players[0]).toEqual({
+      dateOfBirth: "2000-04-19",
       name: "Ounahi, Azzedine",
       number: "8",
       playerId: 280343,

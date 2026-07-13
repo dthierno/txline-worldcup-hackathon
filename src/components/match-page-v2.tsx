@@ -656,7 +656,25 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             }`
           : null
       : null;
-  const statRows: Array<{ away: number; home: number; label: string }> = [
+  type MatchStatRow = {
+    away: number;
+    awayDisplay?: string;
+    home: number;
+    homeDisplay?: string;
+    label: string;
+  };
+  const topStatRows: MatchStatRow[] = [
+    ...(possessionHomePct !== null
+      ? [
+          {
+            away: 100 - possessionHomePct,
+            awayDisplay: `${100 - possessionHomePct}%`,
+            home: possessionHomePct,
+            homeDisplay: `${possessionHomePct}%`,
+            label: "Ball possession",
+          },
+        ]
+      : []),
     ...(shots.home + shots.away > 0
       ? [
           { away: shots.away, home: shots.home, label: "Total shots" },
@@ -672,7 +690,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           {
             away: displayScore.awayCorners,
             home: displayScore.homeCorners,
-            label: "Corners",
+            label: "Corner kicks",
           },
           {
             away: displayScore.awayYellowCards,
@@ -686,15 +704,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           },
         ]
       : []),
-    ...(freeKicks.home + freeKicks.away > 0
-      ? [
-          {
-            away: freeKicks.home,
-            home: freeKicks.away,
-            label: "Fouls conceded",
-          },
-        ]
-      : []),
+  ];
+  const attackStatRows: MatchStatRow[] = [
     ...(penaltyCounts.home + penaltyCounts.away > 0
       ? [
           {
@@ -709,12 +720,31 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           { away: throwIns.away, home: throwIns.home, label: "Throw-ins" },
         ]
       : []),
+  ];
+  const defenceStatRows: MatchStatRow[] = [
+    ...(freeKicks.home + freeKicks.away > 0
+      ? [
+          {
+            away: freeKicks.home,
+            home: freeKicks.away,
+            label: "Fouls conceded",
+          },
+        ]
+      : []),
+  ];
+  const goalkeepingStatRows: MatchStatRow[] = [
     ...(goalKicks.home + goalKicks.away > 0
       ? [
           { away: goalKicks.away, home: goalKicks.home, label: "Goal kicks" },
         ]
       : []),
   ];
+  const statSections = [
+    { label: "Top stats", rows: topStatRows },
+    { label: "Attack", rows: attackStatRows },
+    { label: "Defence", rows: defenceStatRows },
+    { label: "Goalkeeping", rows: goalkeepingStatRows },
+  ].filter((section) => section.rows.length > 0);
 
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
@@ -1096,52 +1126,52 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       {finished ? (
         <MatchMediaSection fixtureId={fixture.fixtureId} />
       ) : null}
-      <section className="card" aria-labelledby="stats-heading">
-        <h2 id="stats-heading">Stats</h2>
+      <section className="card mp2-stats-card" aria-labelledby="stats-heading">
+        <h2 className="mp2-stats-title" id="stats-heading">Stats</h2>
         {notStarted ? (
           <p className="muted">Stats appear once the match kicks off.</p>
         ) : (
         <>
-        <div className="stat-teams" aria-hidden="true">
-          <span>{fixture.homeTeam}</span>
-          <span>{fixture.awayTeam}</span>
-        </div>
-        {possessionHomePct !== null ? (
-          <>
-            <p className="stat-title">Possession (ball in play)</p>
-            <div
-              className="possession-duo"
-              role="img"
-              aria-label={`Possession: ${fixture.homeTeam} ${possessionHomePct}%, ${fixture.awayTeam} ${100 - possessionHomePct}%`}
-            >
-              <div
-                className="possession-duo-home"
-                style={{ width: `${Math.min(Math.max(possessionHomePct, 10), 90)}%` }}
-              >
-                <span>{possessionHomePct}%</span>
-              </div>
-              <div className="possession-duo-away">
-                <span>{100 - possessionHomePct}%</span>
-              </div>
-            </div>
-          </>
-        ) : null}
-        {statRows.length ? (
-          <div className="stat-rows">
-            {statRows.map((row) => (
-              <div className="stat-row" key={row.label}>
-                <span
-                  className={`stat-pill${row.home >= row.away ? "" : " trailing"}`}
-                >
-                  {row.home}
-                </span>
-                <span className="stat-label">{row.label}</span>
-                <span
-                  className={`stat-pill away${row.away >= row.home ? "" : " trailing"}`}
-                >
-                  {row.away}
-                </span>
-              </div>
+        {statSections.length ? (
+          <div className="mp2-stat-sections">
+            {statSections.map((section) => (
+              <section className="mp2-stat-section" key={section.label}>
+                <h3 className="mp2-stat-section-title">{section.label}</h3>
+                {section.rows.map((row) => {
+                  const total = row.home + row.away;
+                  const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
+                  const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
+
+                  return (
+                    <div
+                      aria-label={`${row.label}: ${fixture.homeTeam} ${row.homeDisplay ?? row.home}, ${fixture.awayTeam} ${row.awayDisplay ?? row.away}`}
+                      className="mp2-stat-row"
+                      key={row.label}
+                      role="img"
+                    >
+                      <div className="mp2-stat-values">
+                        <span>{row.homeDisplay ?? row.home}</span>
+                        <span>{row.label}</span>
+                        <span>{row.awayDisplay ?? row.away}</span>
+                      </div>
+                      <div className="mp2-stat-bars" aria-hidden="true">
+                        <span className="mp2-stat-track home">
+                          <span
+                            className={row.home > row.away ? "leading" : ""}
+                            style={{ width: `${homeWidth}%` }}
+                          />
+                        </span>
+                        <span className="mp2-stat-track away">
+                          <span
+                            className={row.away > row.home ? "leading" : ""}
+                            style={{ width: `${awayWidth}%` }}
+                          />
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
             ))}
           </div>
         ) : (
@@ -2115,6 +2145,97 @@ function OddsBoardView({
   );
 }
 
+function LineupGoalIcon() {
+  return (
+    <svg aria-hidden="true" height="14" viewBox="0 0 14 14" width="14">
+      <circle cx="7" cy="7" fill="#fff" r="5.25" />
+      <path
+        d="M7 1.17a5.83 5.83 0 1 0 0 11.66A5.83 5.83 0 0 0 7 1.17Zm-.28 1.1.16.55a.35.35 0 0 0 .28.23c.65.1 1.28.29 1.87.58.1.05.21.05.32-.02l.53-.38a4.72 4.72 0 0 1-.68 7.5 4.8 4.8 0 0 1-2 .99l-.13-.4-.03-.11a.35.35 0 0 0-.33-.29 3.68 3.68 0 0 1-1.87-.61.38.38 0 0 0-.39.03l-.4.38a4.72 4.72 0 0 1 2.65-8.45Zm-.7 4.34c.02.11 0 .22-.09.3L4.67 8.1a.29.29 0 0 1-.38.01A3.42 3.42 0 0 1 3.19 7a.25.25 0 0 1-.08-.13c0-.64.17-1.26.49-1.81a.29.29 0 0 1 .2-.14c.38-.15.78-.23 1.18-.23.12 0 .25 0 .38.02.14.01.25.12.27.26l.39 1.64Zm1.65.88c-.03-.16.02-.31.14-.42l1.37-1.22a.3.3 0 0 1 .41 0c.46.25.87.58 1.22.97.08.1.12.21.12.34a3.4 3.4 0 0 1-.58 1.91.57.57 0 0 1-.3.27c-.38.11-.77.16-1.16.16-.17 0-.33-.01-.5-.03a.31.31 0 0 1-.23-.19l-.49-1.79Z"
+        fill="#222"
+      />
+    </svg>
+  );
+}
+
+function LineupCardIcon({ color }: { color: "red" | "yellow" }) {
+  return (
+    <svg aria-hidden="true" height="14" viewBox="0 0 14 14" width="14">
+      <rect
+        fill={color === "red" ? "#e55e5b" : "#ffce2c"}
+        height="10.8"
+        rx="2"
+        width="8.3"
+        x="2.85"
+        y="1.6"
+      />
+    </svg>
+  );
+}
+
+function LineupSubstitutionIcon({ direction }: { direction: "in" | "out" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      height="12"
+      style={{ transform: direction === "in" ? "rotate(180deg)" : undefined }}
+      viewBox="0 0 12 12"
+      width="12"
+    >
+      <path
+        d="M6 .17A5.83 5.83 0 1 1 6 11.83 5.83 5.83 0 0 1 6 .17ZM2.75 6c0 .17.07.33.2.45l2.14 2.1a.53.53 0 0 0 .9-.36.52.52 0 0 0-.17-.38l-.75-.73-.72-.57 1.3.06h3.07a.56.56 0 1 0 0-1.13H5.65l-1.3.06.71-.57.76-.73a.52.52 0 0 0 .17-.38.52.52 0 0 0-.52-.52.55.55 0 0 0-.38.15L2.95 5.55a.6.6 0 0 0-.2.45Z"
+        fill={direction === "in" ? "#33c771" : "#e55e5b"}
+      />
+    </svg>
+  );
+}
+
+function LineupGoalMark() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="mp2-lineup-goal-mark"
+      viewBox="0 0 316 174"
+    >
+      <g fill="currentColor" transform="translate(84.168)">
+        <path d="M57 0h5.907v50.136a5.92 5.92 0 0 0 5.907 5.9H192.85a5.92 5.92 0 0 0 5.907-5.9V0h5.907v50.136a11.84 11.84 0 0 1-11.813 11.8H68.813A11.84 11.84 0 0 1 57 50.136z" transform="translate(-57)" />
+      </g>
+      <path
+        d="M11.813 150.407h90.813a76.778 76.778 0 0 0 110.748 0h90.813A11.839 11.839 0 0 0 316 138.61V0h-5.906v138.61a5.92 5.92 0 0 1-5.907 5.9H11.813a5.92 5.92 0 0 1-5.907-5.9V0H0v138.61a11.84 11.84 0 0 0 11.813 11.797zm193 0a70.761 70.761 0 0 1-93.619 0z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function LineupPlayerAvatar({
+  imageUrl,
+  name,
+  size = 44,
+}: {
+  imageUrl?: string;
+  name: string;
+  size?: 32 | 44;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="mp2-lineup-avatar"
+      style={{ height: size, width: size }}
+    >
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt="" height={size} loading="lazy" src={imageUrl} width={size} />
+      ) : (
+        <svg viewBox="0 0 48 48">
+          <circle cx="24" cy="18" fill="currentColor" r="9" />
+          <path d="M8 45c1.3-10 7-15 16-15s14.7 5 16 15H8Z" fill="currentColor" />
+        </svg>
+      )}
+      <span className="mp2-lineup-avatar-label">{name.charAt(0)}</span>
+    </span>
+  );
+}
+
 function LineupsSection({
   goals,
   lineups,
@@ -2131,6 +2252,9 @@ function LineupsSection({
   yellowCards: Map<number, number>;
 }) {
   const teams = lineups?.data?.teams;
+  const [lineupFilter, setLineupFilter] = useState<
+    "age" | "club" | "season" | "value"
+  >("season");
   const goalCounts = new Map<number, number>();
 
   for (const goal of goals) {
@@ -2143,22 +2267,14 @@ function LineupsSection({
   // heuristics (goal windows, card records) cover the match while it runs.
   const statLine = (playerId?: number) =>
     playerId !== undefined ? playerStats?.[String(playerId)] : undefined;
-  const goalMarks = (playerId?: number) => {
-    const count =
+  const playerGoalCount = (playerId?: number) =>
       statLine(playerId)?.goals ??
       (playerId !== undefined ? goalCounts.get(playerId) : undefined) ??
       0;
-
-    return count > 0 ? ` ${"⚽".repeat(count)}` : "";
-  };
-  const yellowMarks = (playerId?: number) => {
-    const count =
+  const playerYellowCount = (playerId?: number) =>
       statLine(playerId)?.yellowCards ??
       (playerId !== undefined ? yellowCards.get(playerId) : undefined) ??
       0;
-
-    return count > 0 ? ` ${"🟨".repeat(count)}` : "";
-  };
   const hasRed = (playerId?: number) =>
     (statLine(playerId)?.redCards ?? 0) > 0 ||
     (playerId !== undefined && redCards.has(playerId));
@@ -2178,108 +2294,330 @@ function LineupsSection({
     }
   }
 
-  const renderPlayer = (player: NormalizedLineups["teams"][number]["players"][number]) => (
-    <li key={`${player.playerId}-${player.name}`}>
-      {player.position ? (
-        <span className="pos-badge">{player.position}</span>
-      ) : null}
-      {player.number ? `#${player.number} ` : ""}
-      {player.name}
-      {goalMarks(player.playerId)}
-      {yellowMarks(player.playerId)}
-      {hasRed(player.playerId) ? " 🟥" : ""}
-      {typeof player.playerId === "number" &&
-      subOffMinutes.has(player.playerId) ? (
-        <span className="sub-off">
-          {" "}
-          ▼ {subOffMinutes.get(player.playerId) || "sub"}
+  type LineupPlayer = NormalizedLineups["teams"][number]["players"][number];
+  const fullName = (player: LineupPlayer) =>
+    formatPlayerDisplayName(player.name);
+  const pitchName = (player: LineupPlayer) => {
+    const commaIndex = player.name.indexOf(",");
+
+    if (commaIndex > 0) {
+      return player.name.slice(0, commaIndex);
+    }
+
+    const parts = player.name.trim().split(/\s+/);
+    return parts[parts.length - 1] || player.name;
+  };
+  const playerAge = (player: LineupPlayer) => {
+    if (!player.dateOfBirth) return null;
+
+    const birthDate = new Date(player.dateOfBirth);
+
+    if (Number.isNaN(birthDate.getTime())) return null;
+
+    const now = new Date();
+    let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
+    const beforeBirthday =
+      now.getUTCMonth() < birthDate.getUTCMonth() ||
+      (now.getUTCMonth() === birthDate.getUTCMonth() &&
+        now.getUTCDate() < birthDate.getUTCDate());
+
+    if (beforeBirthday) age -= 1;
+
+    return age;
+  };
+  const formation = (players: LineupPlayer[]) => {
+    const starters = players.filter((player) => player.starter);
+    const counts = ["DEF", "MID", "FWD"].map(
+      (position) =>
+        starters.filter((player) => player.position === position).length,
+    );
+
+    return counts.some(Boolean) ? counts.join("-") : "Starting XI";
+  };
+  const pitchRows = (players: LineupPlayer[], isHome: boolean) => {
+    const starters = players.filter((player) => player.starter);
+    const positions = ["GK", "DEF", "MID", "FWD"] as const;
+    const rows = positions
+      .map((position) => ({
+        players: starters.filter((player) => player.position === position),
+        position,
+      }))
+      .filter((row) => row.players.length > 0);
+    const positioned = new Set(rows.flatMap((row) => row.players));
+    const unpositioned = starters.filter((player) => !positioned.has(player));
+
+    if (unpositioned.length) {
+      rows.splice(Math.min(2, rows.length), 0, {
+        players: unpositioned,
+        position: "MID",
+      });
+    }
+
+    return isHome ? rows : [...rows].reverse();
+  };
+  const filterValue = (player: LineupPlayer) => {
+    if (lineupFilter === "age") {
+      return playerAge(player);
+    }
+
+    return null;
+  };
+  const renderPitchEvents = (player: LineupPlayer) => {
+    const goals = playerGoalCount(player.playerId);
+    const yellows = playerYellowCount(player.playerId);
+    const red = hasRed(player.playerId);
+
+    return (
+      <>
+        {goals > 0 ? (
+          <span className="mp2-lineup-event mp2-lineup-event-goal">
+            {Array.from({ length: goals }, (_, index) => (
+              <LineupGoalIcon key={index} />
+            ))}
+          </span>
+        ) : null}
+        {yellows > 0 || red ? (
+          <span className="mp2-lineup-event mp2-lineup-event-card">
+            {yellows > 0 ? <LineupCardIcon color="yellow" /> : null}
+            {red ? <LineupCardIcon color="red" /> : null}
+          </span>
+        ) : null}
+      </>
+    );
+  };
+  const renderPitchPlayer = (player: LineupPlayer, side: "away" | "home") => {
+    const subMinute =
+      typeof player.playerId === "number"
+        ? subOffMinutes.get(player.playerId)
+        : undefined;
+    const value = filterValue(player);
+
+    return (
+      <div
+        aria-label={`${fullName(player)}, number ${player.number ?? "unknown"}${subMinute ? `, substituted at ${subMinute}` : ""}`}
+        className={`mp2-lineup-player ${side}`}
+        key={`${player.playerId}-${player.name}`}
+        role="listitem"
+      >
+        <span className="mp2-lineup-player-marker">
+          <LineupPlayerAvatar
+            imageUrl={player.imageUrl}
+            name={fullName(player)}
+          />
+          {subMinute ? (
+            <span className="mp2-lineup-sub-badge">
+              <span>{subMinute}</span>
+              <LineupSubstitutionIcon direction="out" />
+            </span>
+          ) : null}
+          {value !== null ? (
+            <span className="mp2-lineup-filter-value" title="Age">
+              {value}
+            </span>
+          ) : null}
+          {renderPitchEvents(player)}
         </span>
-      ) : null}
-      {typeof player.playerId === "number" &&
-      subOnMinutes.has(player.playerId) ? (
-        <span className="sub-on">
-          {" "}
-          ▲ {subOnMinutes.get(player.playerId) || "sub"}
+        <span className="mp2-lineup-player-name" title={fullName(player)}>
+          <span>{player.number ?? "—"}</span>
+          {pitchName(player)}
         </span>
-      ) : null}
-    </li>
-  );
+      </div>
+    );
+  };
+  const renderBenchPlayer = (
+    player: LineupPlayer | undefined,
+    side: "away" | "home",
+  ) => {
+    if (!player) {
+      return <span className="mp2-lineup-bench-empty" aria-hidden="true" />;
+    }
+
+    const subMinute =
+      typeof player.playerId === "number"
+        ? subOnMinutes.get(player.playerId)
+        : undefined;
+    const value = filterValue(player);
+    const positionLabel = {
+      DEF: "Defender",
+      FWD: "Attacker",
+      GK: "Keeper",
+      MID: "Midfielder",
+    }[player.position ?? "MID"];
+
+    return (
+      <div className={`mp2-lineup-bench-player ${side}`}>
+        <LineupPlayerAvatar
+          imageUrl={player.imageUrl}
+          name={fullName(player)}
+          size={32}
+        />
+        {value !== null ? (
+          <span className="mp2-lineup-bench-filter-value" title="Age">
+            {value}
+          </span>
+        ) : null}
+        <span className="mp2-lineup-bench-copy">
+          <strong>
+            <span>{player.number ?? "—"}</span>
+            {fullName(player)}
+          </strong>
+          <span>{positionLabel}</span>
+        </span>
+        {subMinute ? (
+          <span className="mp2-lineup-bench-sub">
+            <span>{subMinute}</span>
+            <LineupSubstitutionIcon direction="in" />
+          </span>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
-    <section className="card" aria-labelledby="lineups-heading">
-      <h2 id="lineups-heading">Lineups</h2>
+    <section className="card mp2-lineup-card" aria-labelledby="lineups-heading">
+      <h2 className="mp2-lineup-accessible-title" id="lineups-heading">
+        Lineups
+      </h2>
       {teams?.length ? (
-        <>
-          <div className="lineups-grid">
-            {teams.map((team) => {
-              const teamPlayerIds = new Set(
-                team.players
-                  .map((player) => player.playerId)
-                  .filter((id): id is number => typeof id === "number"),
-              );
-              const teamSubs = substitutions
-                .filter(
-                  (substitution) =>
-                    (substitution.playerInId !== undefined &&
-                      teamPlayerIds.has(substitution.playerInId)) ||
-                    (substitution.playerOutId !== undefined &&
-                      teamPlayerIds.has(substitution.playerOutId)),
-                )
-                .sort(
-                  (left, right) =>
-                    (left.clockSeconds ?? 0) - (right.clockSeconds ?? 0),
-                );
-              const playerName = (id?: number) =>
-                team.players.find((player) => player.playerId === id)?.name ??
-                (id !== undefined ? `player ${id}` : "unknown");
+        (() => {
+            const home = teams.find((team) => team.isHome) ?? teams[0];
+            const away = teams.find((team) => !team.isHome) ?? teams[1];
+
+            if (!home || !away) {
+              return null;
+            }
+
+            const homeIso = teamFlag(home.teamName);
+            const awayIso = teamFlag(away.teamName);
+            const homeBench = home.players.filter((player) => !player.starter);
+            const awayBench = away.players.filter((player) => !player.starter);
+            const wasSubbedOn = (player: LineupPlayer) =>
+              typeof player.playerId === "number" &&
+              subOnMinutes.has(player.playerId);
+            const homeSubstitutes = homeBench.filter(wasSubbedOn);
+            const awaySubstitutes = awayBench.filter(wasSubbedOn);
+            const homeUnused = homeBench.filter((player) => !wasSubbedOn(player));
+            const awayUnused = awayBench.filter((player) => !wasSubbedOn(player));
+            const renderBenchSection = (
+              title: string,
+              homePlayers: LineupPlayer[],
+              awayPlayers: LineupPlayer[],
+            ) => {
+              const rows = Math.max(homePlayers.length, awayPlayers.length);
+
+              if (!rows) return null;
 
               return (
-                <div key={team.teamName}>
-                  <h3>{team.teamName}</h3>
-                  <ul className="lineup-list">
-                    {team.players.filter((player) => player.starter).map(renderPlayer)}
-                  </ul>
-                  {teamSubs.length ? (
-                    <>
-                      <h4 className="sub-heading">Substitutions</h4>
-                      <ul className="lineup-list sub-list">
-                        {teamSubs.map((substitution, index) => (
-                          <li
-                            key={`${substitution.playerInId}-${substitution.playerOutId}-${index}`}
-                          >
-                            {formatMinute(substitution.clockSeconds) || "—"}{" "}
-                            <span className="sub-on">
-                              ▲ {playerName(substitution.playerInId)}
-                            </span>{" "}
-                            <span className="sub-off">
-                              ▼ {playerName(substitution.playerOutId)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : null}
-                  {team.players.some((player) => !player.starter) ? (
-                    <details>
-                      <summary>Bench</summary>
-                      <ul className="lineup-list">
-                        {team.players
-                          .filter((player) => !player.starter)
-                          .map(renderPlayer)}
-                      </ul>
-                    </details>
-                  ) : null}
-                </div>
+                <section className="mp2-lineup-bench" aria-label={title}>
+                  <h3>{title}</h3>
+                  <div className="mp2-lineup-bench-list">
+                    {Array.from({ length: rows }).map((_, index) => (
+                      <div className="mp2-lineup-bench-row" key={index}>
+                        {renderBenchPlayer(homePlayers[index], "home")}
+                        {renderBenchPlayer(awayPlayers[index], "away")}
+                      </div>
+                    ))}
+                  </div>
+                </section>
               );
-            })}
-          </div>
-          <p className="muted">
-            Source: {lineups?.source ?? "TxLINE score feed lineups records"}. ⚽
-            marks goalscorers (one per goal). Substitutions are merged from
-            TxLINE substitution events; TxLINE does not always attach players to
-            every substitution, and provides no assist data.
-          </p>
-        </>
+            };
+
+            return (
+              <div className="mp2-lineup">
+                <div className="mp2-lineup-header">
+                  {[home, away].map((team) => {
+                    const iso = team.isHome ? homeIso : awayIso;
+
+                    return (
+                      <div
+                        className={`mp2-lineup-team-summary ${team.isHome ? "home" : "away"}`}
+                        key={team.teamName}
+                      >
+                        {iso ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            alt=""
+                            src={`https://flagcdn.com/w80/${iso}.png`}
+                          />
+                        ) : (
+                          <span className="mp2-lineup-team-placeholder" />
+                        )}
+                        <span>
+                          <strong>{team.teamName}</strong>
+                          <small>{formation(team.players)}</small>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mp2-lineup-filters" aria-label="Lineup details">
+                  {([
+                    ["season", "Season stats"],
+                    ["value", "Transfer value"],
+                    ["age", "Age"],
+                    ["club", "Club"],
+                  ] as const).map(([value, label]) => {
+                    const supported = value === "age" || value === "season";
+
+                    return (
+                      <Button
+                        aria-pressed={lineupFilter === value}
+                        className="mp2-lineup-filter-button"
+                        disabled={!supported}
+                        key={value}
+                        onClick={() => setLineupFilter(value)}
+                        size="sm"
+                        title={
+                          supported
+                            ? undefined
+                            : `${label} is not supplied by TxLINE`
+                        }
+                        variant={lineupFilter === value ? "secondary" : "ghost"}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <div className="mp2-lineup-pitch" role="group" aria-label="Starting lineups">
+                  <span className="mp2-lineup-goal home" aria-hidden="true">
+                    <LineupGoalMark />
+                  </span>
+                  <span className="mp2-lineup-midfield" aria-hidden="true" />
+                  <span className="mp2-lineup-goal away" aria-hidden="true">
+                    <LineupGoalMark />
+                  </span>
+                  <div className="mp2-lineup-half home" role="list" aria-label={`${home.teamName} starting lineup`}>
+                    {pitchRows(home.players, true).map((row, index) => (
+                      <div className="mp2-lineup-row" key={`${row.position}-${index}`}>
+                        {row.players.map((player) =>
+                          renderPitchPlayer(player, "home"),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mp2-lineup-half away" role="list" aria-label={`${away.teamName} starting lineup`}>
+                    {pitchRows(away.players, false).map((row, index) => (
+                      <div className="mp2-lineup-row" key={`${row.position}-${index}`}>
+                        {row.players.map((player) =>
+                          renderPitchPlayer(player, "away"),
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {renderBenchSection(
+                  "Substitutes",
+                  homeSubstitutes,
+                  awaySubstitutes,
+                )}
+                {renderBenchSection("Bench", homeUnused, awayUnused)}
+              </div>
+            );
+          })()
       ) : (
         <p className="muted">
           No lineups from TxLINE yet:{" "}

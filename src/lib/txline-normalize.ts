@@ -103,6 +103,8 @@ export type TxlineOddsSeriesPoint = {
 export type LineupPosition = "GK" | "DEF" | "MID" | "FWD";
 
 export type NormalizedLineupPlayer = {
+  dateOfBirth?: string;
+  imageUrl?: string;
   name: string;
   number?: string;
   playerId?: number;
@@ -438,6 +440,14 @@ export function extractLineups(records: unknown[]): NormalizedLineups | null {
           const positionId = readNumber(entry, "positionId");
 
           return {
+            dateOfBirth:
+              typeof player?.dateOfBirth === "string"
+                ? player.dateOfBirth
+                : undefined,
+            imageUrl:
+              typeof player?.imageUrl === "string"
+                ? player.imageUrl
+                : undefined,
             name:
               typeof player?.preferredName === "string"
                 ? player.preferredName
