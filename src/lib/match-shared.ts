@@ -204,13 +204,31 @@ export function mergeFixtures(
 
   for (const fixture of liveFixtures) {
     const seed = fixturesById.get(fixture.fixtureId);
+    const liveCompetition = fixture.fixtureGroup
+      .split(">", 1)[0]
+      .trim()
+      .toLowerCase();
+    const liveStage = fixture.stage.trim().toLowerCase();
+    const liveStageIsGeneric =
+      /^\d+$/.test(liveStage) || liveStage === liveCompetition;
+    const seedCompetition = seed?.fixtureGroup
+      .split(">", 1)[0]
+      .trim()
+      .toLowerCase();
+    const seedStage = seed?.stage.trim().toLowerCase();
+    const seedHasSpecificStage = Boolean(
+      seedStage &&
+        !/^\d+$/.test(seedStage) &&
+        seedStage !== seedCompetition,
+    );
 
-    // TxLINE fixture groups can end in a numeric group ID ("World Cup >
-    // 10115675"); prefer the seed's human-readable stage labels when we have
-    // them.
+    // TxLINE can return either a numeric group ID or the generic competition
+    // name as the stage (for example, "World Cup"). Keep a more specific
+    // seeded round such as "Semi-finals" while still taking the live teams,
+    // kickoff, and other fixture fields.
     fixturesById.set(
       fixture.fixtureId,
-      seed && /^\d+$/.test(fixture.stage)
+      seed && liveStageIsGeneric && seedHasSpecificStage
         ? { ...fixture, fixtureGroup: seed.fixtureGroup, stage: seed.stage }
         : fixture,
     );

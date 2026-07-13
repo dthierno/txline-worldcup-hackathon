@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 
 import { MatchPage } from "@/components/match-page";
 import { MatchPageV2 } from "@/components/match-page-v2";
-import { formatKickoffLabel, formatKickoffTime } from "@/lib/match-shared";
+import {
+  formatKickoffLabel,
+  formatKickoffTime,
+  mergeFixtures,
+} from "@/lib/match-shared";
 
 import Home from "./page";
 
@@ -210,6 +214,15 @@ const futureFixture = {
   stage: "Final",
 };
 
+const genericLiveSemiFinal = {
+  awayTeam: "Spain",
+  fixtureGroup: "World Cup > 10115573",
+  fixtureId: 18237038,
+  homeTeam: "France",
+  kickoffUtc: "2026-07-14T19:00:00.000Z",
+  stage: "World Cup",
+};
+
 const lineupsData = {
   teams: [
     {
@@ -252,7 +265,7 @@ function mockFetch() {
 
     if (url.endsWith("/api/txline/fixtures")) {
       return respond({
-        data: [futureFixture],
+        data: [futureFixture, genericLiveSemiFinal],
         source: "TxLINE fixtures snapshot API",
       });
     }
@@ -582,6 +595,22 @@ describe("MatchPageV2 banner", () => {
     ).toBe("July 14");
   });
 
+  it("keeps a specific seeded round when TxLINE returns a generic stage", () => {
+    const seed = {
+      ...genericLiveSemiFinal,
+      fixtureGroup: "World Cup > Semi-finals",
+      stage: "Semi-finals",
+    };
+    const [merged] = mergeFixtures([seed], [genericLiveSemiFinal], {
+      worldCupOnly: false,
+    });
+
+    expect(merged).toMatchObject({
+      fixtureGroup: "World Cup > Semi-finals",
+      stage: "Semi-finals",
+    });
+  });
+
   it("renders and operates the FotMob-style match header", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -607,6 +636,7 @@ describe("MatchPageV2 banner", () => {
     expect((await screen.findAllByText("Azzedine Ounahi")).length).toBeGreaterThan(
       0,
     );
+    expect(screen.getByText("2026 World Cup Semi-final")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Share" }));
     expect(writeText).toHaveBeenCalledWith("http://localhost:3000/");
