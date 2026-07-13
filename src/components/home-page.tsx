@@ -155,6 +155,9 @@ export function HomePage() {
   const lastSeqRef = useRef<Record<number, number>>({});
   // Latest folded scores, readable from the poll interval without re-arming it.
   const scoresRef = useRef<Record<number, LiveScore>>({});
+  // Fixtures that have left the live polling window but are being recovered
+  // from TXLine's historical feed for the bracket.
+  const recoveringResultsRef = useRef<Set<number>>(new Set());
   const now = useNow();
 
   useEffect(() => {
@@ -235,6 +238,58 @@ export function HomePage() {
       clearInterval(timer);
     };
   }, [fixtures]);
+
+  // A visitor may first open the app after a knockout match has disappeared
+  // from the fixtures snapshot and its live polling window. Recover those
+  // final scores from TXLine history so the bracket still advances without
+  // requiring that this device was open during the match.
+  useEffect(() => {
+    const candidates = fixtures
+      .filter((fixture) => {
+        const id = fixture.fixtureId;
+
+        return (
+          new Date(fixture.kickoffUtc).getTime() < Date.now() &&
+          !isPotentiallyLive(fixture, Date.now()) &&
+          KNOWN_FINALS[id] === undefined &&
+          scores[id] === undefined &&
+          !recoveringResultsRef.current.has(id)
+        );
+      })
+      .slice(0, 4);
+
+    for (const fixture of candidates) {
+      const id = fixture.fixtureId;
+
+      recoveringResultsRef.current.add(id);
+      void fetchJson<TxlineUpdateData[]>(
+        `/api/txline/scores/${id}/historical`,
+      ).then((result) => {
+        const updates = applyScoutCorrections(
+          fillUnknownStats(result.data ?? []),
+        );
+        const final = updates
+          .filter((update) => update.action === "game_finalised")
+          .sort((left, right) => (right.seq ?? 0) - (left.seq ?? 0))[0];
+
+        if (final) {
+          const recovered: LiveScore = {
+            awayGoals: final.awayGoals,
+            clockSeconds: final.clockSeconds,
+            homeGoals: final.homeGoals,
+            statusId: final.statusId ?? 100,
+          };
+
+          saveStoredResult(id, recovered);
+          setScores((previous) => ({ ...previous, [id]: recovered }));
+        } else {
+          // Allow the five-minute fixture refresh to try again if the match
+          // had not yet finalised when this request ran.
+          recoveringResultsRef.current.delete(id);
+        }
+      });
+    }
+  }, [fixtures, scores]);
 
   // Decimal 1X2 odds chips for upcoming fixtures (from TxLINE win
   // probabilities; at most four fetches).
@@ -489,7 +544,11 @@ export function HomePage() {
         </TabsContent>
         <TabsContent value="bracket">
           <div className="flex w-full justify-center">
-            <Skiper107 />
+            <Skiper107
+              fixtures={fixtures}
+              now={now}
+              scores={mounted ? scores : {}}
+            />
           </div>
         </TabsContent>
       </Tabs>
