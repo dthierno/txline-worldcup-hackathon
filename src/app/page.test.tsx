@@ -397,6 +397,26 @@ describe("Home", () => {
       screen.getByRole("link", { name: /France vs Morocco/i }),
     ).toHaveAttribute("href", "/match/18209181");
   });
+
+  it("restores the selected home tab after a refresh", async () => {
+    const user = userEvent.setup();
+    const firstVisit = render(<Home />);
+
+    await user.click(screen.getByRole("tab", { name: /Groups/i }));
+    expect(screen.getByText("Group A")).toBeInTheDocument();
+    expect(window.localStorage.getItem("fan-forecast.home-tab.v1")).toBe(
+      "groups",
+    );
+
+    firstVisit.unmount();
+    render(<Home />);
+
+    expect(screen.getByRole("tab", { name: /Groups/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("Group A")).toBeInTheDocument();
+  });
 });
 
 describe("MatchPage", () => {

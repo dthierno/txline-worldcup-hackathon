@@ -29,7 +29,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   buildOutcome,
@@ -106,6 +106,47 @@ const KNOWN_FINALS: Record<number, [number, number]> = Object.fromEntries(
   worldCupResults.map((result) => [result.fixtureId, result.score]),
 );
 
+const HOME_TAB_KEY = "fan-forecast.home-tab.v1";
+const HOME_TAB_EVENT = "fan-forecast:home-tab";
+type HomeTab = "predictions" | "matches" | "groups" | "bracket";
+
+function isHomeTab(value: string | null): value is HomeTab {
+  return ["predictions", "matches", "groups", "bracket"].includes(value ?? "");
+}
+
+function readHomeTab(): HomeTab {
+  try {
+    const stored = window.localStorage.getItem(HOME_TAB_KEY);
+
+    return isHomeTab(stored) ? stored : "predictions";
+  } catch {
+    return "predictions";
+  }
+}
+
+function subscribeHomeTab(onChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === HOME_TAB_KEY) onChange();
+  };
+
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(HOME_TAB_EVENT, onChange);
+
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(HOME_TAB_EVENT, onChange);
+  };
+}
+
+function saveHomeTab(value: HomeTab) {
+  try {
+    window.localStorage.setItem(HOME_TAB_KEY, value);
+    window.dispatchEvent(new Event(HOME_TAB_EVENT));
+  } catch {
+    // Storage may be unavailable in privacy-restricted browser contexts.
+  }
+}
+
 // Solid trophy for day headers (the free icon set only ships outlines).
 function TrophyIcon() {
   return (
@@ -123,6 +164,11 @@ function TrophyIcon() {
 }
 
 export function HomePage() {
+  const activeTab = useSyncExternalStore(
+    subscribeHomeTab,
+    readHomeTab,
+    () => "predictions",
+  );
   const [fixtures, setFixtures] = useState<WorldCupFixture[]>(
     txlineWorldCupFixtures,
   );
@@ -501,7 +547,13 @@ export function HomePage() {
       <StoriesRail />
       */}
 
-      <Tabs className="home-tabs" defaultValue="predictions">
+      <Tabs
+        className="home-tabs"
+        onValueChange={(value) => {
+          if (isHomeTab(value)) saveHomeTab(value);
+        }}
+        value={activeTab}
+      >
         <TabsList className="w-full">
           <TabsTrigger value="predictions">
             <HugeiconsIcon icon={TargetIcon} strokeWidth={2} />
