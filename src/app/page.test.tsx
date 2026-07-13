@@ -376,6 +376,11 @@ describe("Home", () => {
     expect(screen.getByText("Round of 16")).toBeInTheDocument();
     expect(screen.getByText("Quarter-finals")).toBeInTheDocument();
     expect(screen.queryByText("Group A")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "Open Semi-finals: France vs Spain",
+      }),
+    ).toHaveAttribute("href", "/match/18237038");
 
     await user.click(screen.getByRole("button", { name: "Next round" }));
     expect(screen.getByText("Semi-finals")).toBeInTheDocument();

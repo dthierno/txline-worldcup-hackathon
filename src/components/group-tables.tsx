@@ -126,14 +126,18 @@ const GROUPS: { name: string; rows: Row[] }[] = [
 
 export function GroupTables() {
   return (
-    <div className="group-tables">
-      {GROUPS.map((group) => (
-        <div className="gt-card" key={group.name}>
-          <div className="gt-head">{group.name}</div>
+    <div aria-label="World Cup group standings" role="region">
+      <div className="group-tables">
+      {GROUPS.map((group, groupIndex) => (
+        <div className={`gt-card gt-card-${groupIndex % 4}`} key={group.name}>
+          <div className="gt-head">
+            <div className="gt-title">{group.name}</div>
+          </div>
           <table className="gt-table">
             <thead>
               <tr>
                 <th className="gt-team-h">Team</th>
+                <th title="Matches played">MP</th>
                 <th>W</th>
                 <th>D</th>
                 <th>L</th>
@@ -143,7 +147,10 @@ export function GroupTables() {
             </thead>
             <tbody>
               {group.rows.map(([name, iso, w, d, l, gd, pts, adv], index) => (
-                <tr className={adv ? "gt-adv" : undefined} key={name}>
+                <tr
+                  className={adv ? (index >= 2 ? "gt-adv gt-third" : "gt-adv") : undefined}
+                  key={name}
+                >
                   <td className="gt-team">
                     <span className="gt-cell">
                       <span className="gt-pos">{index + 1}</span>
@@ -157,17 +164,19 @@ export function GroupTables() {
                       <span className="gt-name">{name}</span>
                     </span>
                   </td>
+                  <td className="gt-played">{w + d + l}</td>
                   <td>{w}</td>
                   <td className="gt-muted">{d}</td>
                   <td className="gt-muted">{l}</td>
                   <td className="gt-muted">{gd > 0 ? `+${gd}` : gd}</td>
-                  <td className="gt-pts">{pts}</td>
+                  <td className="gt-pts"><span>{pts}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ))}
+      </div>
     </div>
   );
 }

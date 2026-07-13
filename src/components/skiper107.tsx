@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 
@@ -380,16 +381,15 @@ function TeamRow({ side, winner, finished }: { side: MatchSide; winner: boolean;
   );
 }
 
-function MatchCard({ match: game }: { match: Match }) {
+function MatchCard({ match: game, roundName }: { match: Match; roundName: string }) {
   const finished = game.status === "finished";
   const live = game.status === "live";
-  return (
-    <div
-      className={cn(
-        "bracket-match-card h-[124px] w-[250px] rounded-2xl p-4",
-        live && "is-live",
-      )}
-    >
+  const className = cn(
+    "bracket-match-card block h-[124px] w-[250px] rounded-2xl p-4 text-foreground no-underline",
+    live && "is-live",
+  );
+  const content = (
+    <>
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm leading-5 text-muted-foreground">{game.date}</span>
         {finished || live ? (
@@ -413,8 +413,25 @@ function MatchCard({ match: game }: { match: Match }) {
         <TeamRow side={game.home} winner={game.winner === "home"} finished={finished} />
         <TeamRow side={game.away} winner={game.winner === "away"} finished={finished} />
       </div>
-    </div>
+    </>
   );
+
+  if (game.fixtureId) {
+    const home = game.home.team?.name ?? "TBD";
+    const away = game.away.team?.name ?? "TBD";
+
+    return (
+      <Link
+        aria-label={`Open ${roundName}: ${home} vs ${away}`}
+        className={className}
+        href={`/match/${game.fixtureId}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
 
 function yFor(roundIndex: number, matchIndex: number, start: number) {
@@ -537,7 +554,7 @@ export function KnockoutBracket({
           });
         })}
 
-        {cards.map(({ game, ri, mi }) => {
+        {cards.map(({ round, game, ri, mi }) => {
           const visible = ri >= start && ri < start + VISIBLE_COLS;
           return (
             <motion.div
@@ -550,7 +567,7 @@ export function KnockoutBracket({
               }}
               transition={TRANSITION}
             >
-              <MatchCard match={game} />
+              <MatchCard match={game} roundName={round.name} />
             </motion.div>
           );
         })}
