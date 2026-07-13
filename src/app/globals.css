@@ -1863,13 +1863,8 @@ dt {
   background:
     radial-gradient(90% 70% at 0% 0%, rgba(255, 255, 255, 0.04), transparent 60%),
     #141419;
-  border: 1px solid #23232b;
   border-radius: 18px;
   overflow: hidden;
-  transition: border-color 0.18s ease;
-}
-.gt-card:hover {
-  border-color: #3a3a44;
 }
 .gt-head {
   align-items: center;
@@ -1909,6 +1904,9 @@ dt {
 }
 .gt-table tbody tr:first-child td {
   border-top: none;
+}
+.gt-table tbody tr:last-child td {
+  border-bottom: none;
 }
 .gt-table td.gt-team {
   padding-left: 12px;
