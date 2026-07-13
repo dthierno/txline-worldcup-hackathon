@@ -8,6 +8,7 @@ import {
   CalendarAddIcon,
   ChampionIcon,
   FootballIcon,
+  RankingIcon,
   StarIcon,
   TargetIcon,
 } from "@hugeicons/core-free-icons";
@@ -455,9 +456,13 @@ export function HomePage() {
             <HugeiconsIcon icon={FootballIcon} strokeWidth={2} />
             Matches
           </TabsTrigger>
-          <TabsTrigger value="knockout">
+          <TabsTrigger value="groups">
+            <HugeiconsIcon icon={RankingIcon} strokeWidth={2} />
+            Groups
+          </TabsTrigger>
+          <TabsTrigger value="bracket">
             <HugeiconsIcon icon={ChampionIcon} strokeWidth={2} />
-            Knockout
+            Bracket
           </TabsTrigger>
         </TabsList>
         <TabsContent value="matches">
@@ -479,10 +484,10 @@ export function HomePage() {
             scores={mounted ? scores : {}}
           />
         </TabsContent>
-        <TabsContent value="knockout">
-          <h3 className="gt-section-title">Group stage</h3>
+        <TabsContent value="groups">
           <GroupTables />
-          <h3 className="gt-section-title">Bracket</h3>
+        </TabsContent>
+        <TabsContent value="bracket">
           <div className="flex w-full justify-center">
             <Skiper107 />
           </div>

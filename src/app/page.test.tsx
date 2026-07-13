@@ -352,7 +352,7 @@ describe("Home", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the tabbed home with matches and knockout views", async () => {
+  it("renders separate matches, groups, and bracket views", async () => {
     const user = userEvent.setup();
 
     render(<Home />);
@@ -366,11 +366,16 @@ describe("Home", () => {
       screen.getByRole("link", { name: /Canada vs Morocco/i }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: /Knockout/i }));
+    await user.click(screen.getByRole("tab", { name: /Groups/i }));
+    expect(screen.getByText("Group A")).toBeInTheDocument();
+    expect(screen.getAllByText("South Africa").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Round of 32")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Bracket/i }));
     expect(screen.getByText("Round of 32")).toBeInTheDocument();
     expect(screen.getByText("Round of 16")).toBeInTheDocument();
     expect(screen.getByText("Quarter-finals")).toBeInTheDocument();
-    expect(screen.getAllByText("South Africa").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Group A")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Next round" }));
     expect(screen.getByText("Semi-finals")).toBeInTheDocument();

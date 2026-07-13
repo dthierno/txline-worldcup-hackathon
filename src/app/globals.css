@@ -1706,8 +1706,8 @@ dt {
 
 .call-outcome { color: var(--muted-foreground); }
 
-/* Tabs that switch the home feed (Matches / Predictions / Knockout). The tab
-   labels title each section, so hide the now-duplicate section heading. */
+/* Tabs that switch the home feed (Predictions / Matches / Groups / Bracket).
+   Groups and Bracket stay adjacent without competing for the same viewport. */
 .home-tabs {
   /* Match the tab bar's gap to its content with the 18px above it. */
   gap: 18px;
@@ -1722,7 +1722,119 @@ dt {
   font-weight: 500;
 }
 
-/* Group-stage standings tables shown in the Knockout tab. Uses the same
+/* Bracket surface: the same quiet near-black layering, generous radii and
+   state-only colour used by prediction cards and the rest of PredGame. */
+.bracket-shell {
+  background:
+    radial-gradient(70% 42% at -5% 0%, rgba(79, 140, 255, 0.16), transparent 72%),
+    radial-gradient(58% 38% at 105% 100%, rgba(74, 222, 128, 0.09), transparent 72%),
+    #101014;
+  border-radius: 24px;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 28px;
+  position: relative;
+}
+
+.bracket-shell::before {
+  background: linear-gradient(110deg, transparent 10%, rgba(255, 255, 255, 0.025) 48%, transparent 82%);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.bracket-round-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.bracket-nav-button {
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    transform 0.16s ease;
+}
+
+.bracket-nav-button:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.bracket-nav-button:active {
+  transform: scale(0.92);
+}
+
+.bracket-match-card {
+  background: #1a1a21;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  transition:
+    background 0.18s ease,
+    transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.bracket-match-card:hover {
+  background: #202028;
+  transform: translateY(-1px);
+}
+
+.bracket-flag {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.bracket-status {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted-foreground);
+}
+
+.bracket-winner-marker.is-winner {
+  border-right-color: var(--won);
+}
+
+.bracket-entry-line,
+.bracket-connector-feed {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.bracket-connector {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.bracket-footnote {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 700px) {
+  .bracket-shell {
+    border-radius: 20px;
+    padding: 18px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bracket-match-card,
+  .bracket-nav-button {
+    transition: none;
+  }
+}
+
+/* Four peer tabs still fit as one row on narrow phones: labels carry the
+   meaning there, while the decorative icons return once space allows. */
+@media (max-width: 560px) {
+  .home-tabs [data-slot="tabs-trigger"] {
+    font-size: 12px;
+    gap: 0;
+    padding-inline: 6px;
+  }
+
+  .home-tabs [data-slot="tabs-trigger"] svg {
+    display: none;
+  }
+}
+
+/* Group-stage standings tables shown in the Groups tab. Uses the same
    surface / border / accent tokens as the match cards so it reads as one set. */
 .gt-section-title {
   color: #fff;

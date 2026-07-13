@@ -136,7 +136,7 @@ function TeamRow({ side, winner, finished }: { side: MatchSide; winner: boolean;
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt={`${side.team.name} flag`}
-          className="h-5 w-7 rounded-[4px] border border-border/40 object-cover"
+          className="bracket-flag h-5 w-7 rounded-[4px] object-cover"
           draggable={false}
           loading="lazy"
           src={`https://flagcdn.com/w80/${side.team.code}.png`}
@@ -152,7 +152,7 @@ function TeamRow({ side, winner, finished }: { side: MatchSide; winner: boolean;
           {side.score}
         </span>
       ) : null}
-      <span className={cn("border-y-4 border-r-[6px] border-y-transparent border-r-transparent", winner && "border-r-foreground")} />
+      <span className={cn("bracket-winner-marker border-y-4 border-r-[6px] border-y-transparent border-r-transparent", winner && "is-winner")} />
     </div>
   );
 }
@@ -160,11 +160,11 @@ function TeamRow({ side, winner, finished }: { side: MatchSide; winner: boolean;
 function MatchCard({ match: game }: { match: Match }) {
   const finished = game.status === "finished";
   return (
-    <div className="h-[124px] w-[250px] rounded-2xl border border-border/60 bg-muted p-4 transition-colors hover:border-border">
+    <div className="bracket-match-card h-[124px] w-[250px] rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm leading-5 text-muted-foreground">{game.date}</span>
         {finished ? (
-          <span className="rounded-full bg-muted px-2.5 text-xs font-medium leading-5 text-muted-foreground">
+          <span className="bracket-status rounded-full px-2.5 text-xs font-medium leading-5">
             {game.penalties ? "FT (P)" : "FT"}
           </span>
         ) : null}
@@ -204,14 +204,15 @@ export function KnockoutBracket({
   );
 
   return (
-    <div className={cn("w-full max-w-[850px]", className)}>
+    <div className={cn("bracket-shell w-full", className)}>
+      <div className="bracket-viewport mx-auto w-full max-w-[850px]">
       <div className="relative mb-6 h-10 overflow-hidden">
         <button
           type="button"
           aria-label="Previous round"
           disabled={start === 0}
           onClick={() => setStart((value) => Math.max(0, value - 1))}
-          className="absolute left-0 top-0 z-10 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:pointer-events-none"
+          className="bracket-nav-button absolute left-0 top-0 z-10 flex h-10 w-10 items-center justify-center rounded-full text-foreground disabled:pointer-events-none"
         >
           <motion.span animate={{ opacity: start === 0 ? 0 : 1 }} transition={TRANSITION}>
             <ChevronIcon direction="left" />
@@ -222,7 +223,7 @@ export function KnockoutBracket({
           aria-label="Next round"
           disabled={start === maxStart}
           onClick={() => setStart((value) => Math.min(maxStart, value + 1))}
-          className="absolute right-0 top-0 z-10 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted disabled:pointer-events-none"
+          className="bracket-nav-button absolute right-0 top-0 z-10 flex h-10 w-10 items-center justify-center rounded-full text-foreground disabled:pointer-events-none"
         >
           <motion.span animate={{ opacity: start === maxStart ? 0 : 1 }} transition={TRANSITION}>
             <ChevronIcon direction="right" />
@@ -237,17 +238,17 @@ export function KnockoutBracket({
               animate={{ x: 20 + (ri - start) * (CARD_W + GAP_X), opacity: visible ? 1 : 0 }}
               transition={TRANSITION}
             >
-              <span className="text-base font-medium">{round.name}</span>
+              <span className="bracket-round-title text-base font-medium">{round.name}</span>
             </motion.div>
           );
         })}
       </div>
 
-      <motion.div className="relative overflow-hidden" animate={{ height }} transition={TRANSITION}>
+      <motion.div className="bracket-canvas relative overflow-hidden" animate={{ height }} transition={TRANSITION}>
         {rounds[start].matches.map((_, index) => (
           <motion.span
             key={`entry-${index}`}
-            className="absolute left-0 top-0 h-px w-5 bg-border/60"
+            className="bracket-entry-line absolute left-0 top-0 h-px w-5"
             animate={{ y: index * PITCH + CARD_H / 2, opacity: 1 }}
             transition={TRANSITION}
           />
@@ -264,11 +265,11 @@ export function KnockoutBracket({
             return (
               <motion.div
                 key={`connector-${ri}-${index}`}
-                className="absolute left-0 top-0 w-5 rounded-r-xl border-y border-r border-border/60"
+                className="bracket-connector absolute left-0 top-0 w-5 rounded-r-xl border-y border-r"
                 animate={{ x, y: y1, height: Math.max(0, y2 - y1), opacity: visible ? 1 : 0 }}
                 transition={TRANSITION}
               >
-                <span className="absolute left-full top-1/2 h-px w-5 bg-border/60" />
+                <span className="bracket-connector-feed absolute left-full top-1/2 h-px w-5" />
               </motion.div>
             );
           });
@@ -293,11 +294,12 @@ export function KnockoutBracket({
         })}
       </motion.div>
 
-      <div className="mt-10 border-t border-border/60 pt-6">
+      <div className="bracket-footnote mt-10 pt-6">
         <p className="text-sm italic text-muted-foreground">
           All times are in UTC+8 · Current time:{" "}
           <time className="tabular-nums not-italic">Mon, Jul 13, 2026, 12:57:33 AM</time>
         </p>
+      </div>
       </div>
     </div>
   );
