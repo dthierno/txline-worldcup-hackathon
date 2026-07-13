@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { MatchPage } from "@/components/match-page";
 import { MatchPageV2 } from "@/components/match-page-v2";
+import { formatKickoffLabel, formatKickoffTime } from "@/lib/match-shared";
 
 import Home from "./page";
 
@@ -563,23 +564,53 @@ describe("MatchPageV2 banner", () => {
     vi.unstubAllGlobals();
   });
 
+  it("formats upcoming kickoff time and contextual labels", () => {
+    const kickoff = new Date("2026-07-14T19:00:00.000Z");
+
+    expect(formatKickoffTime(kickoff.getTime())).toBe("7:00 PM");
+    expect(
+      formatKickoffLabel(
+        new Date("2026-07-14T01:00:00.000Z"),
+        Date.parse("2026-07-13T23:00:00.000Z"),
+      ),
+    ).toBe("Tomorrow");
+    expect(
+      formatKickoffLabel(kickoff, Date.parse("2026-07-14T10:00:00.000Z")),
+    ).toBe("9h");
+    expect(
+      formatKickoffLabel(kickoff, Date.parse("2026-07-12T10:00:00.000Z")),
+    ).toBe("July 14");
+  });
+
   it("renders and operates the FotMob-style match header", async () => {
     const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
 
     render(<MatchPageV2 fixtureId={18237038} />);
 
     expect(
       screen.getByRole("heading", { level: 1, name: "France vs Spain" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("FIFA #3")).toBeInTheDocument();
-    expect(screen.getByText("FIFA #2")).toBeInTheDocument();
-    expect(screen.getAllByText("Dallas Stadium").length).toBeGreaterThan(0);
-
-    await user.click(screen.getByRole("button", { name: "Follow" }));
-    expect(screen.getByRole("button", { name: "Following" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(screen.getByText("2026 World Cup Semi-final")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Matches" })).toHaveAttribute(
+      "href",
+      "/",
     );
+    expect(screen.queryByText("FIFA #3")).not.toBeInTheDocument();
+    expect(screen.queryByText("FIFA #2")).not.toBeInTheDocument();
+    expect(document.querySelector(".mp2-hero-info")).not.toBeInTheDocument();
+    expect((await screen.findAllByText("Azzedine Ounahi")).length).toBeGreaterThan(
+      0,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Share" }));
+    expect(writeText).toHaveBeenCalledWith("http://localhost:3000/");
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Head-to-Head" }));
     expect(

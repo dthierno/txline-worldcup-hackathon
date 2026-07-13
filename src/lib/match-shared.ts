@@ -266,6 +266,57 @@ export function formatUtcTime(ts: number) {
   }).format(new Date(ts));
 }
 
+export function formatKickoffTime(ts: number) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    hour12: true,
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(ts));
+}
+
+export function formatKickoffLabel(kickoff: Date, now: number | null) {
+  const dateLabel = new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(kickoff);
+
+  if (now === null) {
+    return dateLabel;
+  }
+
+  const nowDate = new Date(now);
+  const nowDay = Date.UTC(
+    nowDate.getUTCFullYear(),
+    nowDate.getUTCMonth(),
+    nowDate.getUTCDate(),
+  );
+  const kickoffDay = Date.UTC(
+    kickoff.getUTCFullYear(),
+    kickoff.getUTCMonth(),
+    kickoff.getUTCDate(),
+  );
+
+  if (kickoffDay - nowDay === 24 * 60 * 60 * 1000) {
+    return "Tomorrow";
+  }
+
+  const delta = kickoff.getTime() - now;
+
+  if (delta > 0 && delta < 24 * 60 * 60 * 1000) {
+    const totalMinutes = Math.max(1, Math.ceil(delta / (60 * 1000)));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return hours > 0
+      ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`
+      : `${minutes}m`;
+  }
+
+  return dateLabel;
+}
+
 export function formatGameState(gameState?: string) {
   const labels: Record<string, string> = {
     ended: "Finished",

@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import {
-  Calendar03Icon,
   FootballIcon,
   FootballPitchIcon,
   Location01Icon,
+  Share08Icon,
   SunCloud02Icon,
   TemperatureIcon,
-  Tv01Icon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -23,7 +22,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   ChartContainer,
   ChartTooltip,
@@ -48,6 +47,8 @@ import {
   formatCompetition,
   formatDate,
   formatGameState,
+  formatKickoffLabel,
+  formatKickoffTime,
   formatMinute,
   formatUtcTime,
   getDisplayScore,
@@ -129,6 +130,19 @@ import {
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
 
+function formatPlayerDisplayName(name: string) {
+  const commaIndex = name.indexOf(",");
+
+  if (commaIndex === -1) {
+    return name;
+  }
+
+  const lastName = name.slice(0, commaIndex).trim();
+  const firstName = name.slice(commaIndex + 1).trim();
+
+  return firstName && lastName ? `${firstName} ${lastName}` : name;
+}
+
 export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const [fixtures, setFixtures] = useState<WorldCupFixture[]>(
     txlineWorldCupFixtures,
@@ -151,7 +165,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
   const [streamUpdates, setStreamUpdates] = useState<TxlineUpdateData[]>([]);
   const [liveOddsNote, setLiveOddsNote] = useState<string | null>(null);
-  const [heroFollowed, setHeroFollowed] = useState(false);
+  const [shareLabel, setShareLabel] = useState("Share");
   const [heroTab, setHeroTab] = useState("Preview");
   const now = useNow();
 
@@ -709,16 +723,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
-  const fifaRankings: Record<string, number> = {
-    Argentina: 1,
-    Belgium: 8,
-    England: 4,
-    France: 3,
-    Morocco: 11,
-    Norway: 37,
-    Spain: 2,
-    Switzerland: 17,
-  };
   const hadExtraTime = combinedUpdates.some(
     (update) =>
       update.statusId === 7 || update.statusId === 8 || update.statusId === 9,
@@ -726,11 +730,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const heroTeam = (side: "away" | "home") => {
     const iso = side === "home" ? homeIso : awayIso;
     const name = side === "home" ? fixture.homeTeam : fixture.awayTeam;
-    const rank = fifaRankings[name];
-    const reds =
-      (side === "home"
-        ? displayScore?.homeRedCards
-        : displayScore?.awayRedCards) ?? 0;
 
     return (
       <div className={`mp2-hero-team ${side}`}>
@@ -745,16 +744,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           <span className="mp2-hero-flag mp2-hero-flag-tbd" />
         )}
         <span className="mp2-hero-team-copy">
-          <span className="mp2-hero-name">
-            {name}
-            {reds > 0 ? (
-              <span className="h1-reds" role="img" aria-label="red card">
-                {" "}
-                {"🟥".repeat(reds)}
-              </span>
-            ) : null}
-          </span>
-          {rank ? <span className="mp2-hero-rank">FIFA #{rank}</span> : null}
+          <span className="mp2-hero-name">{name}</span>
         </span>
       </div>
     );
@@ -767,11 +757,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     for (const goal of goals) {
       if (goal.scoringSide !== side) continue;
 
-      const name =
+      const rawName =
         (goal.playerId !== undefined
           ? playerDirectory.get(goal.playerId)?.name
           : undefined) ??
         (side === "home" ? fixture.homeTeam : fixture.awayTeam);
+      const name = formatPlayerDisplayName(rawName);
       const minute =
         goal.clockSeconds !== undefined
           ? formatLiveMinute(goal.clockSeconds, goal.statusId)
@@ -782,10 +773,62 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
     return [...lines.entries()].map(([name, minutes]) => (
       <li key={name}>
-        {name} {minutes.join(", ")}
+        <span>{name}</span>
+        <span className="mp2-event-time">{minutes.join(", ")}</span>
       </li>
     ));
   };
+  const redCardEvents = combinedUpdates
+    .filter(
+      (update, index, updates) =>
+        update.action === "red_card" &&
+        updates.findIndex(
+          (candidate) =>
+            candidate.action === "red_card" &&
+            (candidate.eventId !== undefined
+              ? candidate.eventId === update.eventId
+              : candidate.data?.PlayerId === update.data?.PlayerId),
+        ) === index,
+    )
+    .map((update) => {
+      const participant1IsHome = update.participant1IsHome !== false;
+      const side =
+        update.participant === 1
+          ? participant1IsHome
+            ? "home"
+            : "away"
+          : participant1IsHome
+            ? "away"
+            : "home";
+      const playerId =
+        typeof update.data?.PlayerId === "number"
+          ? update.data.PlayerId
+          : undefined;
+
+      return {
+        key: update.eventId ?? `red-card-${update.seq}`,
+        minute:
+          update.clockSeconds !== undefined
+            ? formatLiveMinute(update.clockSeconds, update.statusId)
+            : "—",
+        name: formatPlayerDisplayName(
+          (playerId !== undefined
+            ? playerDirectory.get(playerId)?.name
+            : undefined) ??
+            (side === "home" ? fixture.homeTeam : fixture.awayTeam),
+        ),
+        side,
+      };
+    });
+  const heroRedCardLines = (side: "away" | "home") =>
+    redCardEvents
+      .filter((event) => event.side === side)
+      .map((event) => (
+        <li key={event.key}>
+          <span>{event.name}</span>
+          <span className="mp2-event-time">{event.minute}</span>
+        </li>
+      ));
   const clockRunning = matchClock?.running === true && !finished;
   // Before kickoff the snapshot is a meaningless 0-0; the hero shows the
   // kickoff time instead and the stats section waits for the match.
@@ -796,37 +839,39 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const kickoff = new Date(fixture.kickoffUtc);
   const competitionLabel = formatCompetition(fixture)
     .replace(" > ", " ")
+    .replace(/^World Cup\b/, "2026 World Cup")
     .replace("Semi-finals", "Semi-final")
     .replace("Quarter-finals", "Quarter-final")
     .replace("8th Finals", "Round of 16");
-  const kickoffDelta = now === null ? 0 : kickoff.getTime() - now;
-  const daysUntilKickoff = Math.max(
-    0,
-    Math.ceil(kickoffDelta / (24 * 60 * 60 * 1000)),
-  );
-  const kickoffCountdown =
-    daysUntilKickoff === 0
-      ? "Today"
-      : daysUntilKickoff === 1
-        ? "1 day"
-        : `${daysUntilKickoff} days`;
-  const heroInfo = [
-    {
-      icon: Calendar03Icon,
-      label: `${new Intl.DateTimeFormat("en", {
-        day: "numeric",
-        month: "long",
-        timeZone: "UTC",
-        weekday: "short",
-      }).format(kickoff)}, ${formatUtcTime(kickoff.getTime())} UTC`,
-    },
-    { icon: Location01Icon, label: "Dallas Stadium" },
-    { icon: Tv01Icon, label: "RDS…" },
-  ];
+  const kickoffLabel = formatKickoffLabel(kickoff, now);
+  const shareMatch = async () => {
+    const url = window.location.href;
+    const title = `${fixture.homeTeam} vs ${fixture.awayTeam}`;
 
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+
+      if (!navigator.clipboard?.writeText) {
+        setShareLabel("Unavailable");
+        return;
+      }
+
+      await navigator.clipboard.writeText(url);
+      setShareLabel("Copied");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      setShareLabel("Try again");
+    }
+  };
   return (
     <main className="mp2">
-      <header className="mp2-hero">
+      <header className={`mp2-hero${notStarted ? " upcoming" : ""}`}>
         <h1 className="sr-only">
           {fixture.homeTeam} vs {fixture.awayTeam}
         </h1>
@@ -900,7 +945,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         </svg>
         <div className="mp2-hero-content">
           <div className="mp2-hero-top">
-            <Link className="mp2-hero-back" href="/">
+            <Link
+              className={buttonVariants({
+                className: "mp2-hero-back",
+                size: "default",
+                variant: "ghost",
+              })}
+              href="/"
+            >
               <span aria-hidden className="mp2-hero-back-circle">
                 <svg fill="none" viewBox="0 0 18 18">
                   <path
@@ -922,53 +974,57 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               />
               {competitionLabel}
             </span>
-            <button
-              aria-pressed={heroFollowed}
-              className="mp2-hero-follow"
-              onClick={() => setHeroFollowed((followed) => !followed)}
+            <Button
+              className="mp2-hero-action"
+              onClick={shareMatch}
+              size="default"
               type="button"
+              variant="default"
             >
-              {heroFollowed ? "Following" : "Follow"}
-            </button>
+              <HugeiconsIcon aria-hidden icon={Share08Icon} strokeWidth={2} />
+              {shareLabel}
+            </Button>
           </div>
-          <ul className="mp2-hero-info">
-            {heroInfo.map((item) => (
-              <li key={item.label}>
-                <HugeiconsIcon
-                  aria-hidden
-                  icon={item.icon}
-                  strokeWidth={1.8}
-                />
-                {item.label}
-              </li>
-            ))}
-          </ul>
           <div className="mp2-hero-match">
             <div className="mp2-hero-grid">
               {heroTeam("home")}
               <div className="mp2-hero-center">
                 {displayScore && !notStarted ? (
-                  <div className="mp2-hero-score" aria-label="Score">
-                    <span>{displayScore.homeGoals}</span>
-                    <span aria-hidden className="mp2-hero-score-dash">
-                      -
+                  <div className="mp2-hero-score-row">
+                    <span
+                      aria-label={`${displayScore.homeRedCards} red card${displayScore.homeRedCards === 1 ? "" : "s"} for ${fixture.homeTeam}`}
+                      className="mp2-hero-red-cards"
+                      role="img"
+                    >
+                      {Array.from({ length: displayScore.homeRedCards }).map(
+                        (_, index) => (
+                          <span className="mp2-hero-red-card" key={index} />
+                        ),
+                      )}
                     </span>
-                    <span>{displayScore.awayGoals}</span>
+                    <span className="mp2-hero-score" aria-label="Score">
+                      {displayScore.homeGoals} - {displayScore.awayGoals}
+                    </span>
+                    <span
+                      aria-label={`${displayScore.awayRedCards} red card${displayScore.awayRedCards === 1 ? "" : "s"} for ${fixture.awayTeam}`}
+                      className="mp2-hero-red-cards"
+                      role="img"
+                    >
+                      {Array.from({ length: displayScore.awayRedCards }).map(
+                        (_, index) => (
+                          <span className="mp2-hero-red-card" key={index} />
+                        ),
+                      )}
+                    </span>
                   </div>
                 ) : (
                   <div className="mp2-hero-when">
                     <span className="mp2-hero-time">
-                      {formatUtcTime(kickoff.getTime())}
+                      {formatKickoffTime(kickoff.getTime())}
                     </span>
-                    <span className="mp2-hero-date">
-                      {new Intl.DateTimeFormat("en", {
-                        day: "numeric",
-                        month: "long",
-                        timeZone: "UTC",
-                      }).format(kickoff)}{" "}
-                      · UTC
+                    <span className="mp2-hero-kickoff-label">
+                      {kickoffLabel}
                     </span>
-                    <span className="mp2-hero-countdown">{kickoffCountdown}</span>
                   </div>
                 )}
                 {finished ? (
@@ -995,13 +1051,31 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               </div>
               {heroTeam("away")}
             </div>
-            {goals.length ? (
-              <div className="mp2-hero-goals">
-                <ul className="mp2-goal-list home">{heroGoalLines("home")}</ul>
-                <span aria-hidden className="mp2-hero-ball">
-                  ⚽
-                </span>
-                <ul className="mp2-goal-list away">{heroGoalLines("away")}</ul>
+            {goals.length || redCardEvents.length ? (
+              <div className="mp2-hero-events">
+                {goals.length ? (
+                  <div className="mp2-hero-event-row">
+                    <span aria-hidden className="mp2-hero-event-icon">
+                      <svg viewBox="0 0 14 14">
+                        <circle cx="7" cy="7" fill="none" r="6" />
+                        <path d="M7 0a7 7 0 1 0 0 14A7 7 0 0 0 7 0Zm2.8 10.1-.9 1.2-1.5-.4-.4-1.5 1.2-.9 1.6.6v1Zm1.6-4.6.8 1.3-.8 1.3-1.5-.4V6l1.5-.5ZM7 2l1.3 1-.5 1.5H6.2L5.7 3 7 2ZM2.8 6.8l.8-1.3 1.5.5v1.7l-1.5.4-.8-1.3Zm1.4 3.3v-1l1.6-.6 1.2.9-.4 1.5-1.5.4-.9-1.2Z" />
+                      </svg>
+                    </span>
+                    <ul className="mp2-event-list home">{heroGoalLines("home")}</ul>
+                    <ul className="mp2-event-list away">{heroGoalLines("away")}</ul>
+                  </div>
+                ) : null}
+                {redCardEvents.length ? (
+                  <div className="mp2-hero-event-row">
+                    <span aria-hidden className="mp2-hero-event-icon">
+                      <svg viewBox="0 0 10 10">
+                        <path d="M6.82.6H3.18c-.75 0-1.36.62-1.36 1.37v6.06c0 .75.61 1.36 1.36 1.36h3.64c.75 0 1.36-.61 1.36-1.36V1.97C8.18 1.22 7.57.6 6.82.6Z" fill="#dd3636" />
+                      </svg>
+                    </span>
+                    <ul className="mp2-event-list home">{heroRedCardLines("home")}</ul>
+                    <ul className="mp2-event-list away">{heroRedCardLines("away")}</ul>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

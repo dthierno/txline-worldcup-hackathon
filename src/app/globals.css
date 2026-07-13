@@ -3165,12 +3165,12 @@ dt {
    grouped scorer lines. */
 .mp2-hero {
   background: #1a1a1a;
-  border-radius: 14px;
+  border-radius: 24px;
   overflow: hidden;
   position: relative;
 }
 .mp2-hero-stage {
-  min-height: 230px;
+  min-height: 184px;
   overflow: hidden;
   position: relative;
 }
@@ -3183,23 +3183,44 @@ dt {
 }
 .mp2-hero-content {
   box-sizing: border-box;
-  min-height: 230px;
-  padding: 16px 20px 18px;
+  min-height: 184px;
+  padding: 15px 20px 14px;
   position: relative;
   z-index: 1;
 }
+@media (min-width: 641px) {
+  .mp2-hero.upcoming .mp2-hero-content {
+    min-height: 177px;
+  }
+  .mp2-hero.upcoming .mp2-hero-match {
+    margin-top: 27px;
+    min-height: 95px;
+  }
+}
 .mp2-hero-match {
-  margin: 14px -20px -18px;
-  min-height: 119px;
-  padding: 1px 20px 20px;
+  margin: 15px -20px -14px;
+  min-height: 106px;
+  padding: 1px 20px 14px;
 }
 .mp2-hero-top {
   align-items: center;
   display: grid;
   gap: 10px;
   grid-template-columns: 1fr auto 1fr;
+  padding-bottom: 14px;
+  position: relative;
 }
-.mp2-hero-follow {
+.mp2-hero-top::after {
+  background: rgba(255, 255, 255, 0.12);
+  bottom: 0;
+  content: "";
+  height: 1px;
+  left: -20px;
+  position: absolute;
+  right: -20px;
+}
+.mp2-hero-action {
+  align-items: center;
   background: #fff;
   border: none;
   border-radius: 999px;
@@ -3207,49 +3228,68 @@ dt {
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
   justify-self: end;
-  min-width: 72px;
+  min-width: 82px;
   padding: 7px 17px;
   transition:
     background 0.18s ease,
     transform 0.18s ease;
 }
-.mp2-hero-follow:hover {
+.mp2-hero-action:hover {
   background: #ebebeb;
 }
-.mp2-hero-follow:active {
+.mp2-hero-action:active {
   transform: scale(0.96);
 }
-.mp2-hero-follow[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+.mp2-hero-action svg {
+  height: 14px;
+  width: 14px;
 }
 .mp2-hero-back {
   align-items: center;
+  backdrop-filter: blur(8px);
+  background: rgba(5, 7, 10, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
   color: #fff;
   display: inline-flex;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
-  gap: 9px;
+  gap: 7px;
+  height: 32px;
   justify-self: start;
+  padding: 3px 12px 3px 4px;
   text-decoration: none;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
 }
 .mp2-hero-back:hover {
-  text-decoration: underline;
+  background: rgba(5, 7, 10, 0.46);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+  transform: translateX(-1px);
+}
+.mp2-hero-back:active {
+  transform: scale(0.97);
 }
 .mp2-hero-back-circle {
   align-items: center;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
   display: flex;
-  height: 28px;
+  height: 24px;
   justify-content: center;
-  width: 28px;
+  width: 24px;
 }
 .mp2-hero-back-circle svg {
-  height: 15px;
-  width: 15px;
+  height: 14px;
+  width: 14px;
 }
 .mp2-hero-comp {
   align-items: center;
@@ -3265,34 +3305,12 @@ dt {
   height: 19px;
   width: 19px;
 }
-.mp2-hero-info {
-  color: rgba(255, 255, 255, 0.72);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 12px;
-  font-weight: 500;
-  gap: 6px 20px;
-  justify-content: center;
-  list-style: none;
-  margin: 18px 0 0;
-  padding: 0;
-}
-.mp2-hero-info li {
-  align-items: center;
-  display: flex;
-  gap: 7px;
-}
-.mp2-hero-info li svg {
-  height: 15px;
-  opacity: 0.85;
-  width: 15px;
-}
 .mp2-hero-grid {
   align-items: center;
   display: grid;
-  gap: 8px;
+  gap: 20px;
   grid-template-columns: 1fr auto 1fr;
-  margin-top: 25px;
+  margin-top: 16px;
   position: relative;
   z-index: 1;
 }
@@ -3331,7 +3349,7 @@ dt {
 .mp2-hero-name {
   color: #fff;
   display: block;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 500;
   max-width: 100%;
   overflow: hidden;
@@ -3343,58 +3361,72 @@ dt {
   display: block;
   min-width: 0;
 }
-.mp2-hero-rank {
-  color: rgba(255, 255, 255, 0.5);
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  margin-top: 1px;
-  text-align: center;
-}
 .mp2-hero-center {
   align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   min-width: 110px;
   padding: 0 16px;
+  position: relative;
+}
+.mp2-hero-score-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
 }
 .mp2-hero-score {
-  align-items: center;
   color: #fff;
-  display: flex;
-  font-size: 40px;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  gap: 12px;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.015em;
   line-height: 1;
+  min-width: 78px;
+  text-align: center;
 }
 .mp2-hero-reason {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 12px;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 14px;
+  font-weight: 500;
+  position: absolute;
+  top: calc(100% + 4px);
+  white-space: nowrap;
 }
-.mp2-hero-score-dash {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 30px;
+.mp2-hero-red-cards {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  min-width: 10px;
+}
+.mp2-hero-red-card {
+  background: #dd3636;
+  border-radius: 1px;
+  display: block;
+  height: 10px;
+  width: 7px;
 }
 .mp2-hero-time {
   color: #fff;
-  font-size: 27px;
+  font-size: 30px;
   font-weight: 600;
+  line-height: 1;
 }
 .mp2-hero-status {
   align-items: center;
   display: flex;
   gap: 8px;
   justify-content: center;
+  position: absolute;
+  top: calc(100% + 4px);
 }
 .mp2-status-pill {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   padding: 3px 12px;
   white-space: nowrap;
 }
@@ -3409,23 +3441,44 @@ dt {
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
-/* Scorers under the score, split per side like a broadcast graphic. */
-.mp2-hero-goals {
-  color: var(--muted-foreground);
-  display: grid;
-  font-size: 12px;
-  gap: 12px;
-  grid-template-columns: 1fr auto 1fr;
-  margin-top: 20px;
+/* Match events under the score, split per side like FotMob's header. */
+.mp2-hero-events {
+  color: rgba(255, 255, 255, 0.56);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 5px;
+  margin-top: 36px;
   position: relative;
   z-index: 1;
+}
+.mp2-hero-event-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 162px minmax(0, 1fr);
+}
+.mp2-hero-event-icon {
+  align-items: flex-start;
+  display: flex;
+  grid-column: 2;
+  grid-row: 1;
+  height: 12px;
+  justify-content: center;
+  justify-self: center;
+  margin-top: 4px;
+  width: 12px;
+}
+.mp2-hero-event-icon svg {
+  fill: currentColor;
+  height: 12px;
+  width: 12px;
 }
 .mp2-hero-tabs {
   align-items: stretch;
   background: transparent;
   display: flex;
   gap: 34px;
-  height: 64px;
+  height: 54px;
   padding: 0 32px;
   position: relative;
   z-index: 2;
@@ -3455,11 +3508,7 @@ dt {
   inset-inline: 0;
   position: absolute;
 }
-.mp2-hero-ball {
-  font-size: 12px;
-  padding-top: 1px;
-}
-.mp2-goal-list {
+.mp2-event-list {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -3467,8 +3516,28 @@ dt {
   margin: 0;
   padding: 0;
 }
-.mp2-goal-list.home {
+.mp2-event-list.home {
+  grid-column: 1;
+  grid-row: 1;
+}
+.mp2-event-list.away {
+  grid-column: 3;
+  grid-row: 1;
+}
+.mp2-event-list li {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+}
+.mp2-event-list.home li {
+  justify-content: flex-end;
   text-align: right;
+}
+.mp2-event-time {
+  color: rgba(255, 255, 255, 0.7);
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 /* Two-column body mirroring the homepage predictions layout; the odds /
    feed / verification sections span the full width below. */
@@ -3519,64 +3588,66 @@ dt {
 .mp2-hero-when {
   align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  position: relative;
 }
-.mp2-hero-date {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.mp2-hero-countdown {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
+.mp2-hero-kickoff-label {
+  align-items: center;
+  color: rgba(255, 255, 255, 0.58);
+  display: flex;
+  font-size: 15px;
   font-weight: 500;
+  left: 50%;
+  position: absolute;
+  top: calc(100% + 7px);
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 @media (max-width: 640px) {
   .mp2-hero-stage,
   .mp2-hero-content {
-    min-height: 188px;
+    min-height: 150px;
   }
   .mp2-hero-content {
-    padding: 12px 14px 14px;
+    padding: 13px 14px 11px;
   }
   .mp2-hero-match {
-    margin: 12px -14px -14px;
-    min-height: 104px;
-    padding: 1px 14px 16px;
+    margin: 14px -14px -11px;
+    min-height: 94px;
+    padding: 1px 14px 11px;
   }
   .mp2-hero-top {
     grid-template-columns: 1fr auto;
   }
+  .mp2-hero-top::after {
+    left: -14px;
+    right: -14px;
+  }
   .mp2-hero-comp {
     display: none;
   }
-  .mp2-hero-info {
-    margin-top: 14px;
-  }
-  .mp2-hero-info li:not(:first-child) {
-    display: none;
-  }
   .mp2-hero-grid {
-    margin-top: 18px;
+    margin-top: 12px;
   }
   .mp2-hero-name {
-    font-size: 14px;
-  }
-  .mp2-hero-rank {
-    font-size: 10px;
+    font-size: 16px;
   }
   .mp2-hero-center {
     min-width: 84px;
     padding: 0 6px;
   }
+  .mp2-hero-score {
+    font-size: 27px;
+    min-width: 68px;
+  }
+  .mp2-hero-event-row {
+    grid-template-columns: minmax(0, 1fr) 108px minmax(0, 1fr);
+  }
   .mp2-hero-time {
-    font-size: 22px;
+    font-size: 24px;
   }
   .mp2-hero-tabs {
     gap: 30px;
-    height: 58px;
+    height: 50px;
     overflow-x: auto;
     padding: 0 20px;
   }
