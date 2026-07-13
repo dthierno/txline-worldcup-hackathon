@@ -3,12 +3,7 @@
 import Link from "next/link";
 import {
   FootballIcon,
-  FootballPitchIcon,
-  Location01Icon,
   Share08Icon,
-  SunCloud02Icon,
-  TemperatureIcon,
-  UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
@@ -1099,12 +1094,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       <div className="mp2-layout">
         <div className="mp2-main">
       {finished ? (
-        <MatchMediaSection
-          awayTeam={fixture.awayTeam}
-          fixtureId={fixture.fixtureId}
-          homeTeam={fixture.homeTeam}
-          kickoffUtc={fixture.kickoffUtc}
-        />
+        <MatchMediaSection fixtureId={fixture.fixtureId} />
       ) : null}
       <section className="card" aria-labelledby="stats-heading">
         <h2 id="stats-heading">Stats</h2>
@@ -1187,7 +1177,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         </div>
 
         <aside className="mp2-side">
-      <VenueWeatherCard />
+      {finished ? (
+        <OfficialHighlightsCard
+          awayTeam={fixture.awayTeam}
+          homeTeam={fixture.homeTeam}
+          kickoffUtc={fixture.kickoffUtc}
+        />
+      ) : null}
+
       <PredictionSection
         key={fixture.fixtureId}
         calls={extractSettleableCalls(combinedUpdates)}
@@ -1845,38 +1842,44 @@ type FifaHighlightsResponse = {
   status: "published" | "pending" | "not-found";
 };
 
-function PlayBadge() {
+// Optional regional partner clips remain in the main match column.
+function MatchMediaSection({ fixtureId }: { fixtureId: number }) {
+  const clip = matchClips[fixtureId];
+
+  if (!clip) {
+    return null;
+  }
+
   return (
-    <span aria-hidden className="mp2-official-play">
-      <svg fill="none" viewBox="0 0 48 48">
-        <circle cx="24" cy="24" fill="rgba(0,0,0,0.55)" r="24" />
-        <path
-          d="M20 16.5v15a1 1 0 0 0 1.53.85l11.5-7.5a1 1 0 0 0 0-1.7l-11.5-7.5A1 1 0 0 0 20 16.5Z"
-          fill="#fff"
-        />
-      </svg>
-    </span>
+    <div className="mp2-media">
+      <a
+        className="card mp2-clip"
+        href={clip.url}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt={clip.title} className="mp2-clip-thumb" src={clip.thumbnail} />
+        <div className="mp2-clip-head">
+          <h3 className="mp2-clip-title">{clip.title}</h3>
+          <span className="mp2-clip-label">Highlights</span>
+        </div>
+      </a>
+    </div>
   );
 }
 
-// Highlight media cards, from the FotMob reference: an optional regional
-// partner clip (curated) and the official highlights card - powered live by
-// FIFA.com's own content API, so a match's real highlights (thumbnail + a
-// fifa.com/watch link) appear automatically once FIFA publishes them, and
-// show a "not published yet" state until then. Mirrors FIFA's own site: the
-// standard highlights, plus a sign-language (IS) link when available.
-function MatchMediaSection({
+// FIFA's official card lives in the sidebar and appears only after the real
+// highlights have been published. Pending and missing responses stay hidden.
+function OfficialHighlightsCard({
   awayTeam,
-  fixtureId,
   homeTeam,
   kickoffUtc,
 }: {
   awayTeam: string;
-  fixtureId: number;
   homeTeam: string;
   kickoffUtc: string;
 }) {
-  const clip = matchClips[fixtureId];
   const [fifa, setFifa] = useState<FifaHighlightsResponse | null>(null);
 
   useEffect(() => {
@@ -1903,145 +1906,57 @@ function MatchMediaSection({
   }, [awayTeam, homeTeam, kickoffUtc]);
 
   const official = fifa?.official ?? null;
-  const loading = fifa === null;
+
+  if (!official) {
+    return null;
+  }
 
   return (
-    <div className="mp2-media">
-      {clip ? (
-        <a
-          className="card mp2-clip"
-          href={clip.url}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img alt={clip.title} className="mp2-clip-thumb" src={clip.thumbnail} />
-          <div className="mp2-clip-head">
-            <h3 className="mp2-clip-title">{clip.title}</h3>
-            <span className="mp2-clip-label">Highlights</span>
-          </div>
-        </a>
-      ) : null}
-
-      {official ? (
-        <a
-          className="card mp2-official"
-          href={official.url}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <div className="mp2-official-head">
-            <h3 className="mp2-official-title">Official highlights</h3>
-            <span className="mp2-official-source">FIFA.com</span>
-          </div>
-          <div className="mp2-official-thumb">
-            {official.thumbnail ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt="" src={official.thumbnail} />
-            ) : (
-              <span className="mp2-official-placeholder" aria-hidden>
-                {homeTeam} v {awayTeam}
-              </span>
-            )}
-            <PlayBadge />
-          </div>
-          {fifa?.accessible ? (
-            <span className="mp2-official-foot">
-              Sign-language version available
-            </span>
-          ) : null}
-        </a>
-      ) : (
-        <div className="card mp2-official mp2-official-empty">
-          <div className="mp2-official-head">
-            <h3 className="mp2-official-title">Official highlights</h3>
-            <span className="mp2-official-source">FIFA.com</span>
-          </div>
-          <div className="mp2-official-thumb">
-            <span className="mp2-official-placeholder">
-              {loading ? "Checking FIFA…" : "Not published yet"}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Venue & conditions card at the top of the rail, rebuilt 1:1 from the
-// FotMob reference: venue name + location, capacity / attendance with a
-// fill gauge, surface, and a weather strip with temperature + condition.
-function VenueWeatherCard() {
-  const venue = {
-    attendance: "64,478",
-    capacity: "74,916",
-    condition: "Cloudy",
-    fillPct: 86,
-    location: "Miami Gardens, Florida, United States",
-    name: "Miami Stadium",
-    surface: "Grass",
-    temperature: "31\u00b0C",
-  };
-
-  return (
-    <section aria-label="Venue and conditions" className="card mp2-venue">
-      <div className="mp2-venue-head">
-        <span aria-hidden className="mp2-venue-pin">
-          <HugeiconsIcon icon={Location01Icon} strokeWidth={1.8} />
-        </span>
-        <span className="mp2-venue-names">
-          <span className="mp2-venue-name">{venue.name}</span>
-          <span className="mp2-venue-sub">{venue.location}</span>
-        </span>
-      </div>
-      <div className="mp2-venue-row">
-        <HugeiconsIcon aria-hidden icon={UserGroupIcon} strokeWidth={1.8} />
-        <span className="mp2-venue-stat">
-          <span className="mp2-venue-stat-label">Capacity</span>
-          <span className="mp2-venue-stat-value">{venue.capacity}</span>
-        </span>
-        <span className="mp2-venue-stat">
-          <span className="mp2-venue-stat-label">Attendance</span>
-          <span className="mp2-venue-stat-value">{venue.attendance}</span>
-        </span>
-        <span className="mp2-venue-gauge">
-          <span
-            className="mp2-venue-gauge-fill"
-            style={{ width: `${venue.fillPct}%` }}
-          />
-          <span className="mp2-venue-gauge-text">{venue.fillPct}%</span>
-        </span>
-      </div>
-      <div className="mp2-venue-row">
-        <HugeiconsIcon
+    <a
+      aria-label={`Official highlights: ${homeTeam} vs ${awayTeam}`}
+      className="card mp2-official mp2-side-official"
+      href={official.url}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      <div className="mp2-official-thumb">
+        {official.thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt="" src={official.thumbnail} />
+        ) : (
+          <span className="mp2-official-placeholder" aria-hidden>
+            {homeTeam} v {awayTeam}
+          </span>
+        )}
+        <svg
           aria-hidden
-          icon={FootballPitchIcon}
-          strokeWidth={1.8}
-        />
-        <span className="mp2-venue-stat">
-          <span className="mp2-venue-stat-label">Surface</span>
-          <span className="mp2-venue-stat-value">{venue.surface}</span>
-        </span>
+          className="mp2-official-play"
+          fill="none"
+          height="48"
+          viewBox="0 0 48 48"
+          width="48"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <g clipPath="url(#mp2-official-play-clip)">
+            <path
+              d="M23.999 4C20.0434 4.0002 16.1767 5.17335 12.8879 7.37109C9.59902 9.56884 7.03573 12.6925 5.52213 16.347C4.00853 20.0016 3.61261 24.0229 4.38443 27.9024C5.15624 31.782 7.06114 35.3455 9.85823 38.1425C12.6553 40.9394 16.219 42.8441 20.0986 43.6158C23.9782 44.3874 27.9994 43.9913 31.6539 42.4775C35.3084 40.9637 38.4319 38.4002 40.6295 35.1113C42.827 31.8223 44 27.9556 44 24C43.9979 18.6961 41.8899 13.6102 38.1394 9.85986C34.389 6.10956 29.3028 4.00186 23.999 4ZM19.9996 31.0004V17.0005C20.0003 16.8151 20.0524 16.6334 20.1501 16.4757C20.2478 16.3181 20.3873 16.1906 20.5531 16.1074C20.7189 16.0243 20.9045 15.9887 21.0893 16.0046C21.2741 16.0206 21.4509 16.0875 21.6 16.1979L30.9403 23.1983C31.0659 23.2905 31.1681 23.4109 31.2386 23.55C31.309 23.689 31.3457 23.8426 31.3457 23.9985C31.3457 24.1543 31.309 24.308 31.2386 24.447C31.1681 24.586 31.0659 24.7065 30.9403 24.7987L21.6 31.7991C21.4512 31.9093 21.2748 31.9761 21.0903 31.9923C20.9059 32.0084 20.7206 31.9732 20.5549 31.8905C20.3892 31.8078 20.2497 31.6809 20.1517 31.5238C20.0537 31.3667 20.001 31.1856 19.9996 31.0004Z"
+              fill="white"
+            />
+          </g>
+          <defs>
+            <clipPath id="mp2-official-play-clip">
+              <rect fill="white" height="48" width="48" />
+            </clipPath>
+          </defs>
+        </svg>
       </div>
-      <div className="mp2-venue-weather">
-        <span className="mp2-venue-weather-label">
-          <HugeiconsIcon
-            aria-hidden
-            icon={TemperatureIcon}
-            strokeWidth={1.8}
-          />
-          Weather conditions
+      <span className="mp2-official-copy">
+        <span className="mp2-official-matchup">
+          {homeTeam} vs. {awayTeam}
         </span>
-        <span className="mp2-venue-weather-value" title={venue.condition}>
-          {venue.temperature}
-          <HugeiconsIcon
-            aria-hidden
-            icon={SunCloud02Icon}
-            strokeWidth={1.8}
-          />
-        </span>
-      </div>
-    </section>
+        <span className="mp2-official-label">Highlights</span>
+      </span>
+    </a>
   );
 }
 

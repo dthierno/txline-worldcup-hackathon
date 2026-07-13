@@ -3677,141 +3677,7 @@ dt {
   margin-bottom: 2px;
 }
 
-/* Venue & conditions card (match page rail), after the FotMob reference. */
-.mp2-venue-head {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-}
-.mp2-venue-pin {
-  align-items: center;
-  background: #141419;
-  border-radius: 50%;
-  color: var(--muted-foreground);
-  display: flex;
-  flex-shrink: 0;
-  height: 38px;
-  justify-content: center;
-  width: 38px;
-}
-.mp2-venue-pin svg {
-  height: 19px;
-  width: 19px;
-}
-.mp2-venue-names {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.mp2-venue-name {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-}
-.mp2-venue-sub {
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-.mp2-venue-row {
-  align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--muted-foreground);
-  display: flex;
-  font-size: 13px;
-  gap: 9px;
-  margin-top: 14px;
-  padding-top: 14px;
-}
-.mp2-venue-row svg {
-  height: 16px;
-  width: 16px;
-}
-.mp2-venue-row-value {
-  color: #fff;
-  font-weight: 600;
-  margin-left: auto;
-}
-.mp2-venue-row > svg {
-  flex-shrink: 0;
-}
-.mp2-venue-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin-right: 18px;
-}
-.mp2-venue-stat-label {
-  color: var(--muted-foreground);
-  font-size: 11px;
-}
-.mp2-venue-stat-value {
-  color: #fff;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-/* Attendance fill gauge: thin track with the percentage riding its edge. */
-.mp2-venue-gauge {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  display: flex;
-  flex: 1;
-  height: 5px;
-  margin-left: auto;
-  max-width: 110px;
-  position: relative;
-}
-.mp2-venue-gauge-fill {
-  background: var(--won);
-  border-radius: 999px;
-  display: block;
-  height: 100%;
-}
-.mp2-venue-gauge-text {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 600;
-  position: absolute;
-  right: 0;
-  top: -17px;
-}
-.mp2-venue-weather {
-  align-items: center;
-  background: #141419;
-  border-radius: 12px;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding: 12px 14px;
-}
-.mp2-venue-weather-label {
-  align-items: center;
-  color: var(--muted-foreground);
-  display: flex;
-  font-size: 13px;
-  gap: 8px;
-}
-.mp2-venue-weather-label svg {
-  height: 16px;
-  width: 16px;
-}
-.mp2-venue-weather-value {
-  align-items: center;
-  color: #fff;
-  display: flex;
-  font-size: 14px;
-  font-weight: 600;
-  gap: 9px;
-}
-.mp2-venue-weather-value svg {
-  color: #fbbf24;
-  height: 26px;
-  width: 26px;
-}
-
-/* Highlight media cards (match page main column), from the FotMob reference. */
+/* Highlight media cards, from the FotMob reference. */
 .mp2-media {
   display: flex;
   flex-direction: column;
@@ -3823,11 +3689,25 @@ dt {
   overflow: hidden;
   padding: 0;
   text-decoration: none;
+}
+.mp2-clip {
   transition: background 0.18s ease;
 }
-.mp2-clip:hover,
-.mp2-official:hover {
+.mp2-clip:hover {
   background: #16161c;
+}
+.mp2 .mp2-official {
+  background: #1a1a1f;
+  border-radius: 20px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  padding: 16px;
+}
+.mp2 .mp2-official:focus-visible {
+  outline: 2px solid var(--won);
+  outline-offset: 3px;
+}
+.mp2-side-official {
+  margin-top: 0;
 }
 /* Partner clip: full-bleed thumbnail, title + "Highlights" label below. */
 .mp2-clip-thumb {
@@ -3861,33 +3741,26 @@ dt {
   font-weight: 600;
   padding: 3px 10px;
 }
-/* Official highlights: header above a thumbnail with a play overlay. */
-.mp2-official-head {
-  align-items: baseline;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 14px 18px 12px;
-}
-.mp2-official-title {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0;
-}
-.mp2-official-source {
-  color: var(--muted-foreground);
-  flex-shrink: 0;
-  font-size: 12px;
-}
+/* Official highlights: compact thumbnail card matching the app's media rail. */
 .mp2-official-thumb {
   aspect-ratio: 16 / 9;
+  background: #17171d;
+  border-radius: 9px;
+  overflow: hidden;
   position: relative;
+}
+.mp2-official-thumb::after {
+  background: linear-gradient(180deg, transparent 54%, rgba(3, 5, 8, 0.22));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }
 .mp2-official-thumb > img {
   display: block;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
   width: 100%;
 }
 .mp2-official-placeholder {
@@ -3902,32 +3775,41 @@ dt {
   width: 100%;
 }
 .mp2-official-play {
-  align-items: center;
-  display: flex;
-  inset: 0;
-  justify-content: center;
+  height: 48px;
+  inset: 50% auto auto 50%;
   position: absolute;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  z-index: 1;
 }
-.mp2-official-play svg {
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
-  height: 52px;
-  transition: transform 0.18s ease;
-  width: 52px;
+.mp2-official-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 0 1px;
 }
-.mp2-official:hover .mp2-official-play svg {
-  transform: scale(1.08);
+.mp2-official-matchup {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
 }
-
-/* FIFA highlights: sign-language footnote + empty ("not published") state. */
-.mp2-official-foot {
+.mp2-official-label {
   color: var(--muted-foreground);
-  display: block;
-  font-size: 12px;
-  padding: 10px 18px 13px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
 }
-.mp2-official-empty {
-  cursor: default;
+@media (hover: hover) and (pointer: fine) {
+  .mp2-official:hover .mp2-official-thumb > img {
+    transform: scale(1.025);
+  }
 }
-.mp2-official-empty:hover {
-  background: #101014;
+@media (prefers-reduced-motion: reduce) {
+  .mp2-official-thumb > img {
+    transition: none;
+  }
+  .mp2-official:hover .mp2-official-thumb > img {
+    transform: none;
+  }
 }

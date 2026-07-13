@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MatchPage } from "@/components/match-page";
@@ -353,6 +353,18 @@ function mockFetch() {
       });
     }
 
+    if (url.includes("/api/fifa/highlights")) {
+      return respond({
+        accessible: null,
+        official: {
+          thumbnail: "https://example.com/highlights.jpg",
+          title: "Official match highlights",
+          url: "https://www.fifa.com/watch/highlights",
+        },
+        status: "published",
+      });
+    }
+
     return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
   });
 }
@@ -633,6 +645,9 @@ describe("MatchPageV2 banner", () => {
     expect(screen.queryByText("FIFA #3")).not.toBeInTheDocument();
     expect(screen.queryByText("FIFA #2")).not.toBeInTheDocument();
     expect(document.querySelector(".mp2-hero-info")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Venue and conditions" }),
+    ).not.toBeInTheDocument();
     expect((await screen.findAllByText("Azzedine Ounahi")).length).toBeGreaterThan(
       0,
     );
@@ -646,5 +661,21 @@ describe("MatchPageV2 banner", () => {
     expect(
       screen.getByRole("button", { name: "Head-to-Head" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("places published official highlights in the right column", async () => {
+    render(<MatchPageV2 fixtureId={18185036} />);
+
+    const highlights = await screen.findByRole("link", {
+      name: /Official highlights/i,
+    });
+
+    expect(highlights.closest(".mp2-side")).not.toBeNull();
+    expect(highlights.closest(".mp2-side")?.firstElementChild).toBe(highlights);
+    expect(document.querySelector(".mp2-main .mp2-official")).toBeNull();
+    expect(within(highlights).getByText("Canada vs. Morocco")).toBeInTheDocument();
+    expect(within(highlights).getByText("Highlights")).toBeInTheDocument();
+    expect(highlights.querySelector(".mp2-official-play")).not.toBeNull();
+    expect(within(highlights).queryByText("FIFA.com")).not.toBeInTheDocument();
   });
 });
