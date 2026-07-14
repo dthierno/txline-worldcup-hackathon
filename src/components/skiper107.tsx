@@ -177,13 +177,17 @@ function applyFixture(
   game.away.team = team(fixture.awayTeam);
 
   if (score) {
-    game.home.score = String(score.homeGoals);
-    game.away.score = String(score.awayGoals);
-    game.liveMinute = score.clockSeconds
-      ? Math.max(1, Math.floor(score.clockSeconds / 60))
-      : undefined;
+    // TxLINE publishes a meaningless 0-0 snapshot before kickoff with no
+    // StatusId; a missing StatusId only means "live" once the match has
+    // actually started.
+    const kickedOff = new Date(fixture.kickoffUtc).getTime() <= now;
+    const inPlay =
+      IN_PLAY_STATUS_IDS.has(score.statusId ?? -1) ||
+      (score.statusId === undefined && kickedOff);
 
     if (isEnded(score.statusId)) {
+      game.home.score = String(score.homeGoals);
+      game.away.score = String(score.awayGoals);
       game.status = "finished";
       game.winner =
         score.homeGoals > score.awayGoals
@@ -191,11 +195,18 @@ function applyFixture(
           : score.awayGoals > score.homeGoals
             ? "away"
             : game.winner;
-    } else if (
-      score.statusId === undefined ||
-      IN_PLAY_STATUS_IDS.has(score.statusId)
-    ) {
+    } else if (inPlay) {
+      game.home.score = String(score.homeGoals);
+      game.away.score = String(score.awayGoals);
+      game.liveMinute = score.clockSeconds
+        ? Math.max(1, Math.floor(score.clockSeconds / 60))
+        : undefined;
       game.status = "live";
+      game.winner = undefined;
+    } else if (!kickedOff) {
+      game.status = "upcoming";
+      game.home.score = null;
+      game.away.score = null;
       game.winner = undefined;
     }
   } else if (new Date(fixture.kickoffUtc).getTime() > now) {

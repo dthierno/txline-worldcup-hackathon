@@ -88,4 +88,7 @@ export const worldCupResults: WorldCupResult[] = [
   { fixtureId: 18209181, home: "France", away: "Morocco", kickoffUtc: "2026-07-09T20:00:00.000Z", score: [2, 0] },
   { fixtureId: 18218149, home: "Spain", away: "Belgium", kickoffUtc: "2026-07-10T19:00:00.000Z", score: [2, 1] },
   { fixtureId: 18213979, home: "Norway", away: "England", kickoffUtc: "2026-07-11T21:00:00.000Z", score: [1, 2] },
+  // After extra time (goals in the 114th and 120th minutes) - verified
+  // against the TxLINE snapshot (statusId 100) on 14 Jul 2026.
+  { fixtureId: 18222446, home: "Argentina", away: "Switzerland", kickoffUtc: "2026-07-12T01:00:00.000Z", score: [3, 1] },
 ];
