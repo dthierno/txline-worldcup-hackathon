@@ -3435,21 +3435,9 @@ function PotentialPoints({ points }: { points: number }) {
   }, [points, reducedMotion]);
 
   return (
-    <div className="mp2-ticket-payout">
+    <div className="mp2-ticket-payout" title="If every pick hits">
       <span className="mp2-ticket-payout-label">Potential win</span>
-      {/* Keyed remount pops the scale on each new total while the count-up
-          text keeps flowing from parent state. */}
-      <motion.span
-        animate={{ scale: 1 }}
-        className="mp2-ticket-payout-value"
-        initial={reducedMotion ? false : { scale: 1.14 }}
-        key={points}
-        transition={{ damping: 14, stiffness: 300, type: "spring" }}
-      >
-        +{display}
-        <span className="mp2-ticket-payout-unit">pts</span>
-      </motion.span>
-      <span className="mp2-ticket-payout-note">if every pick hits</span>
+      <span className="mp2-ticket-payout-value">+{display} pts</span>
     </div>
   );
 }
