@@ -562,6 +562,14 @@ export function fillUnknownStats(
   });
 }
 
+export type DisplayUpdate = {
+  action: string;
+  id: string;
+  minute: string;
+  score: string;
+  text: string;
+};
+
 export function getDisplayUpdates(
   updates: TxlineUpdateData[] | undefined,
   fixture: WorldCupFixture,
@@ -571,7 +579,7 @@ export function getDisplayUpdates(
     return [];
   }
 
-  const displayUpdates: Array<{ id: string; text: string }> = [];
+  const displayUpdates: DisplayUpdate[] = [];
   const sortedUpdates = [...updates].sort(
     (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
   );
@@ -891,7 +899,13 @@ export function getDisplayUpdates(
 
       if (!seen.has(key)) {
         seen.add(key);
-        displayUpdates.push({ id: update.id, text });
+        displayUpdates.push({
+          action,
+          id: update.id,
+          minute,
+          score: scoreline,
+          text,
+        });
       }
     }
 

@@ -4678,6 +4678,114 @@ dt {
   position: sticky;
   top: 16px;
 }
+/* Commentary feed (Timeline tab), Google match-timeline style: minute
+   column, icon rail with a continuous line, bold key events, quiet plain
+   lines. */
+.cf-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cf-row {
+  column-gap: 12px;
+  display: grid;
+  grid-template-columns: 40px 28px minmax(0, 1fr);
+  margin: 0;
+  padding: 7px 0;
+}
+.cf-row.cf-key {
+  padding: 10px 0;
+}
+.cf-minute {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  padding-top: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+.cf-rail {
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+.cf-rail::before {
+  background: rgba(255, 255, 255, 0.07);
+  bottom: -7px;
+  content: "";
+  position: absolute;
+  top: -7px;
+  width: 2px;
+}
+.cf-row:first-child .cf-rail::before {
+  top: 6px;
+}
+.cf-row:last-child .cf-rail::before {
+  bottom: 6px;
+}
+/* Icons punch through the line with a card-coloured ring. */
+.cf-icon {
+  align-items: center;
+  background: #1c1c23;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #101014;
+  color: rgba(255, 255, 255, 0.88);
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  position: relative;
+  width: 26px;
+  z-index: 1;
+}
+.cf-dot {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #101014;
+  height: 5px;
+  margin-top: 7px;
+  position: relative;
+  width: 5px;
+  z-index: 1;
+}
+.cf-icon-subs {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cf-icon-var {
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.cf-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.cf-title {
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.cf-score {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+.cf-list .cf-text {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+.cf-row:not(.cf-key) .cf-text {
+  color: color-mix(in srgb, var(--muted-foreground) 78%, transparent);
+}
+
 /* The slip is a ticket (league-card idiom): a printed receipt - stub art,
    serial line, dot leaders, tear notches, barcode - set in the house type. */
 .mp2 .card.mp2-ticket-card {

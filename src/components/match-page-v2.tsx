@@ -85,6 +85,7 @@ import {
   useIsMounted,
   useNow,
   type ApiResult,
+  type DisplayUpdate,
   type GameDetails,
   type PlayerDirectory,
   type StreamStatus,
@@ -3987,6 +3988,142 @@ function OddsMovement({
   );
 }
 
+// Commentary feed in Google's match-timeline style: a minute column, an
+// icon rail with a continuous line, bold titles for key events (goals show
+// the updated scoreline) and quiet plain lines for ambient commentary.
+const COMMENTARY_TITLES: Record<string, string> = {
+  additional_time: "Added time",
+  game_finalised: "Full time",
+  goal: "Goal!",
+  halftime_finalised: "Halftime",
+  injury: "Injury",
+  kickoff: "Kickoff",
+  penalty: "Penalty!",
+  penalty_outcome: "Penalty",
+  possible: "VAR check",
+  red_card: "Red card",
+  substitution: "Substitution",
+  var: "VAR check",
+  var_end: "VAR decision",
+  yellow_card: "Yellow card",
+};
+
+function CommentaryIcon({ action }: { action: string }) {
+  if (action === "goal" || action === "penalty" || action === "penalty_outcome") {
+    return <LineupGoalIcon />;
+  }
+
+  if (action === "yellow_card" || action === "red_card") {
+    return (
+      <LineupCardIcon color={action === "red_card" ? "red" : "yellow"} />
+    );
+  }
+
+  if (action === "substitution") {
+    return (
+      <span className="cf-icon-subs">
+        <LineupSubstitutionIcon direction="in" />
+        <LineupSubstitutionIcon direction="out" />
+      </span>
+    );
+  }
+
+  if (action === "var" || action === "var_end" || action === "possible") {
+    return <span className="cf-icon-var">VAR</span>;
+  }
+
+  if (action === "additional_time") {
+    return (
+      <svg aria-hidden="true" fill="none" height="13" viewBox="0 0 14 14" width="13">
+        <circle cx="7" cy="7" r="5.4" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M7 4.2V7l2 1.4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
+      </svg>
+    );
+  }
+
+  if (action === "injury") {
+    return (
+      <svg aria-hidden="true" fill="currentColor" height="12" viewBox="0 0 12 12" width="12">
+        <path d="M7.6 1H4.4v3.4H1v3.2h3.4V11h3.2V7.6H11V4.4H7.6V1Z" />
+      </svg>
+    );
+  }
+
+  // Kickoff, halftime and full time share the whistle.
+  return (
+    <svg aria-hidden="true" fill="currentColor" height="13" viewBox="0 0 14 14" width="13">
+      <path d="M8.6 3.2a4.6 4.6 0 0 0-1.9.4L2.2 5.5a.9.9 0 0 0-.5 1.1 4.7 4.7 0 0 0 9.1-.8l1.9-.8a.5.5 0 0 0 0-.9l-2.3-1a4.5 4.5 0 0 0-1.8.1Zm-2.2 5.6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
+    </svg>
+  );
+}
+
+function CommentaryFeed({
+  entries,
+  fixture,
+}: {
+  entries: DisplayUpdate[];
+  fixture: WorldCupFixture;
+}) {
+  return (
+    <ol className="cf-list" reversed>
+      <AnimatePresence initial={false}>
+        {[...entries].reverse().map((entry) => {
+          const title = COMMENTARY_TITLES[entry.action];
+          const body =
+            entry.minute && entry.text.startsWith(`${entry.minute} `)
+              ? entry.text.slice(entry.minute.length + 1)
+              : entry.text;
+          const isGoal = entry.action === "goal";
+          // Phase rows (kickoff, halftime, full time) would only repeat
+          // their title as body text; halftime and full time show the
+          // scoreline instead, Google-style.
+          const isPhase =
+            entry.action === "halftime_finalised" ||
+            entry.action === "game_finalised";
+          const displayBody =
+            entry.action === "kickoff" || isPhase
+              ? null
+              : isGoal
+                ? body.replace(/\s*Score \d+-\d+\.$/, "")
+                : body;
+          const [homeGoals, awayGoals] = entry.score.split("-");
+
+          return (
+            <motion.li
+              animate={{ opacity: 1, y: 0 }}
+              className={`cf-row${title ? " cf-key" : ""}`}
+              initial={{ opacity: 0, y: -14 }}
+              key={entry.id}
+              transition={{ duration: 0.35 }}
+            >
+              <span className="cf-minute">{entry.minute}</span>
+              <span aria-hidden className="cf-rail">
+                {title ? (
+                  <span className="cf-icon">
+                    <CommentaryIcon action={entry.action} />
+                  </span>
+                ) : (
+                  <span className="cf-dot" />
+                )}
+              </span>
+              <div className="cf-content">
+                {title ? <span className="cf-title">{title}</span> : null}
+                {isGoal || isPhase ? (
+                  <span className="cf-score">
+                    {fixture.homeTeam} {homeGoals} - {awayGoals}{" "}
+                    {fixture.awayTeam}
+                  </span>
+                ) : null}
+                {displayBody ? <p className="cf-text">{displayBody}</p> : null}
+              </div>
+            </motion.li>
+          );
+        })}
+      </AnimatePresence>
+    </ol>
+  );
+}
+
 function UpdatesSection({
   fixture,
   players,
@@ -4000,23 +4137,10 @@ function UpdatesSection({
 
   return (
     <section className="card" aria-labelledby="updates-heading">
-      <h2 id="updates-heading">Match feed</h2>
+      <h2 id="updates-heading">Commentary</h2>
       {displayUpdates.length ? (
         <div className="feed-scroll">
-          <ol className="feed-list" reversed>
-            <AnimatePresence initial={false}>
-              {[...displayUpdates].reverse().map((update) => (
-                <motion.li
-                  key={update.id}
-                  animate={{ opacity: 1, y: 0 }}
-                  initial={{ opacity: 0, y: -14 }}
-                  transition={{ duration: 0.35 }}
-                >
-                  {update.text}
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </ol>
+          <CommentaryFeed entries={displayUpdates} fixture={fixture} />
         </div>
       ) : (
         <p className="muted">No readable match events yet.</p>
