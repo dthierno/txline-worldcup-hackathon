@@ -4791,14 +4791,16 @@ dt {
   text-transform: uppercase;
 }
 .mp2-ticket-pts {
+  align-self: center;
   background: color-mix(in srgb, var(--won) 14%, transparent);
   border-radius: 999px;
   color: var(--won);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   grid-column: 2;
+  grid-row: 1 / 3;
   justify-self: end;
-  padding: 1px 7px;
+  padding: 2px 8px;
 }
 .mp2-ticket-pick {
   color: #fff;
@@ -4809,14 +4811,6 @@ dt {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.mp2-ticket-odds {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  grid-column: 2;
-  text-align: right;
 }
 /* Perforated tear line; the "notches" are circles of the card fill behind
    the ticket, faking the league-card punch. */
@@ -5108,15 +5102,18 @@ dt {
 }
 .mp2-odds-btn-value > em {
   color: #fff;
-  font-size: 16.5px;
+  font-size: 16px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
 }
-.mp2-odds-btn-pts {
-  color: var(--won);
-  font-size: 10.5px;
-  font-weight: 700;
+.mp2-odds-btn-unit {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
+}
+.mp2-odds-btn.picked .mp2-odds-btn-unit {
+  color: #52525b;
 }
 /* Implied-chance meter: pct + slim bar (the homepage pc-meter recipe). */
 .mp2-odds-share {
@@ -5177,9 +5174,6 @@ dt {
 }
 .mp2-odds-btn.picked .mp2-odds-btn-value > em {
   color: #18181b;
-}
-.mp2-odds-btn.picked .mp2-odds-btn-pts {
-  display: none;
 }
 .mp2-odds-btn.picked .mp2-odds-badge,
 .mp2-scorer-chip.picked .mp2-odds-badge {

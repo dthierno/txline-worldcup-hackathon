@@ -1444,7 +1444,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
               {preMatchPlay ? (
                 <TicketCard
-                  board={playBoard}
                   draft={playCard.draft}
                   fixture={fixture}
                   odds1x2={playOdds}
@@ -3078,8 +3077,8 @@ function MarketCards({
         <div className="mp2-card-heading">
           <h2 id="market-result-heading">Match result</h2>
           <span className="mp2-card-hint">
-            winner pays 3× odds · exact score +{PREDICTION_POINTS.exactScore}{" "}
-            pts
+            bold winner calls pay more · exact score +
+            {PREDICTION_POINTS.exactScore} pts
           </span>
         </div>
         <div
@@ -3159,7 +3158,6 @@ function MarketCards({
                 key={option.value}
                 label={option.label}
                 leading={index === resultLead}
-                odds={odds1x2?.[option.value]}
                 onClick={() =>
                   patchDraft((previous) => ({
                     ...previous,
@@ -3194,7 +3192,6 @@ function MarketCards({
                     active={draft[row.field] === "over"}
                     label={`Over ${row.line}`}
                     leading={lead === 0}
-                    odds={row.prices?.[0]}
                     onClick={() =>
                       patchDraft((previous) => ({
                         ...previous,
@@ -3208,7 +3205,6 @@ function MarketCards({
                     active={draft[row.field] === "under"}
                     label={`Under ${row.line}`}
                     leading={lead === 1}
-                    odds={row.prices?.[1]}
                     onClick={() =>
                       patchDraft((previous) => ({
                         ...previous,
@@ -3230,8 +3226,8 @@ function MarketCards({
           <div className="mp2-card-heading">
             <h2 id="market-more-heading">More markets</h2>
             <span className="mp2-card-hint">
-              {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · pay 2× odds, up
-              to {SIDE_PICK_POINTS.cap} pts
+              {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · long shots pay
+              up to {SIDE_PICK_POINTS.cap} pts
             </span>
           </div>
           <div className="mp2-market-rows">
@@ -3268,7 +3264,6 @@ function MarketCards({
                               )}
                               label={offer.label}
                               labelHidden
-                              odds={offer.pick.odds}
                               onClick={() => toggleSidePick(offer)}
                               points={sidePickPoints(offer.pick.odds)}
                             />
@@ -3297,7 +3292,6 @@ function MarketCards({
                         key={offer.key}
                         label={offer.label}
                         leading={index === lead}
-                        odds={offer.pick.odds}
                         onClick={() => toggleSidePick(offer)}
                         points={sidePickPoints(offer.pick.odds)}
                         share={shares[index]}
@@ -3309,8 +3303,8 @@ function MarketCards({
             })}
           </div>
           <p className="muted">
-            Prices are live TxLINE odds; the bars show the chance those prices
-            imply. Double chance is derived from the 1X2 prices.
+            Points follow the live TxLINE odds - the bolder the call, the more
+            it pays. Bars show the chance the market gives each outcome.
           </p>
         </section>
       ) : null}
@@ -3402,14 +3396,12 @@ function MarketCards({
 // The live ticket in the rail: every pick on the card as a slip row, the
 // perfect-card total, and the save action.
 function TicketCard({
-  board,
   draft,
   fixture,
   odds1x2,
   onSave,
   saved,
 }: {
-  board: OddsBoard | undefined;
   draft: MatchPrediction;
   fixture: WorldCupFixture;
   odds1x2: { away: number; draw: number; home: number } | null;
@@ -3417,10 +3409,6 @@ function TicketCard({
   saved: boolean;
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
-  const goalsBoardLine = board?.overUnder?.find(
-    (entry) =>
-      entry.line === PREDICTION_LINES.goals && entry.prices.length >= 2,
-  );
   const winnerNames = {
     away: fixture.awayTeam,
     draw: "Draw",
@@ -3437,13 +3425,11 @@ function TicketCard({
     );
   const ticketRows: Array<{
     market: string;
-    odds?: number | null;
     pick: string;
     pts: number;
   }> = [
     {
       market: "Winner",
-      odds: odds1x2?.[draft.winner],
       pick: winnerNames[draft.winner],
       pts: winnerPoints(odds1x2?.[draft.winner]),
     },
@@ -3454,7 +3440,6 @@ function TicketCard({
     },
     {
       market: "Goals",
-      odds: goalsBoardLine?.prices[draft.totalGoals === "over" ? 0 : 1],
       pick: linePickLabel(draft.totalGoals, PREDICTION_LINES.goals),
       pts: PREDICTION_POINTS.line,
     },
@@ -3484,20 +3469,17 @@ function TicketCard({
       pick.kind === "double_chance"
         ? {
             market: "Double chance",
-            odds: pick.odds,
             pick: doubleChanceLabel(pick.pick, fixture),
             pts: sidePickPoints(pick.odds),
           }
         : pick.kind === "goals_line"
           ? {
               market: `Goals ${pick.line}`,
-              odds: pick.odds,
               pick: linePickLabel(pick.pick, pick.line),
               pts: sidePickPoints(pick.odds),
             }
           : {
               market: `Handicap ${handicapLineLabel(pick.line)}`,
-              odds: pick.odds,
               pick: pick.pick === "home" ? fixture.homeTeam : fixture.awayTeam,
               pts: sidePickPoints(pick.odds),
             },
@@ -3527,9 +3509,6 @@ function TicketCard({
             <span className="mp2-ticket-market">{row.market}</span>
             <span className="mp2-ticket-pts">+{row.pts}</span>
             <span className="mp2-ticket-pick">{row.pick}</span>
-            <span className="mp2-ticket-odds">
-              {typeof row.odds === "number" ? row.odds.toFixed(2) : ""}
-            </span>
           </li>
         ))}
       </ul>
@@ -3778,16 +3757,15 @@ function ShareMeter({
   );
 }
 
-// A tappable market outcome: label, the decimal odds it pays at (when the
-// TxLINE board quotes it), and the points it adds to the card. Picked chips
-// go solid white (the homepage pc-pill idiom) and the points jump out to a
-// floating badge on the corner - no rings, no tinted fills.
+// A tappable market outcome: label, the points it adds to the card, and the
+// implied-chance meter. The points already carry the live TxLINE odds (bold
+// calls pay more) so no bookmaker decimals appear anywhere. Picked chips go
+// solid white (the homepage pc-pill idiom) with a floating corner badge.
 function OddsButton({
   active,
   label,
   labelHidden = false,
   leading = false,
-  odds,
   onClick,
   points,
   share,
@@ -3796,16 +3774,13 @@ function OddsButton({
   label: string;
   labelHidden?: boolean;
   leading?: boolean;
-  odds?: number | null;
   onClick: () => void;
   points: number;
   share?: number | null;
 }) {
-  const hasOdds = typeof odds === "number" && Number.isFinite(odds);
-
   return (
     <button
-      aria-label={`${label}${hasOdds ? `, odds ${odds.toFixed(2)}` : ""}, pays ${points} points`}
+      aria-label={`${label}, pays ${points} points`}
       aria-pressed={active}
       className={`mp2-odds-btn${active ? " picked" : ""}`}
       onClick={onClick}
@@ -3815,8 +3790,8 @@ function OddsButton({
         <span className="mp2-odds-btn-label">{label}</span>
       )}
       <span className="mp2-odds-btn-value">
-        {hasOdds ? <em>{odds.toFixed(2)}</em> : null}
-        <span className="mp2-odds-btn-pts">+{points}</span>
+        <em>+{points}</em>
+        <span className="mp2-odds-btn-unit">pts</span>
       </span>
       <ShareMeter leading={leading} share={share} />
       <span aria-hidden className="mp2-odds-badge">

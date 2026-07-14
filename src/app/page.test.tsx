@@ -724,7 +724,7 @@ describe("MatchPageV2 banner", () => {
     render(<MatchPageV2 fixtureId={999001} />);
 
     const homePick = await screen.findByRole("button", {
-      name: /France, odds/,
+      name: /France, pays/,
     });
 
     await user.click(homePick);

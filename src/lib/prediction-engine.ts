@@ -91,6 +91,22 @@ export function sidePickPoints(odds: number): number {
   );
 }
 
+// Odds-aware winner payout: base points scaled by the decimal odds locked at
+// save time (bold picks pay more), capped to keep totals sane.
+export function winnerPoints(odds?: number | null): number {
+  if (!odds || !Number.isFinite(odds)) {
+    return PREDICTION_POINTS.winner;
+  }
+
+  return Math.min(
+    30,
+    Math.max(
+      PREDICTION_POINTS.winner,
+      Math.round(PREDICTION_POINTS.winner * odds),
+    ),
+  );
+}
+
 export const MAX_PREDICTED_GOALS = 12;
 
 export function clampGoals(value: number): number {
@@ -162,15 +178,8 @@ export function settlePrediction(
   const actualScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
   const totalGoals = outcome.homeGoals + outcome.awayGoals;
 
-  // Odds-aware winner payout: base points scaled by the decimal odds locked
-  // at save time (bold picks pay more), capped to keep totals sane.
   const winnerOdds = prediction.oddsAtSave?.[prediction.winner];
-  const winnerPointsIfWon = winnerOdds
-    ? Math.min(30, Math.max(
-        PREDICTION_POINTS.winner,
-        Math.round(PREDICTION_POINTS.winner * winnerOdds),
-      ))
-    : PREDICTION_POINTS.winner;
+  const winnerPointsIfWon = winnerPoints(winnerOdds);
 
   const exactScoreStatus: MarketStatus = !outcome.finished
     ? "open"
@@ -197,9 +206,7 @@ export function settlePrediction(
     ),
     settledMarket(
       "Winner",
-      `${winnerLabels[prediction.winner]}${
-        winnerOdds ? ` @ ${winnerOdds.toFixed(2)}` : ""
-      }`,
+      winnerLabels[prediction.winner],
       outcome.finished ? winnerLabels[outcomeWinner(outcome)] : actualScore,
       winnerStatus,
       winnerPointsIfWon,
@@ -287,7 +294,6 @@ function settleSidePick(
   teams: { awayTeam: string; homeTeam: string },
 ): SettledMarket {
   const actualScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
-  const oddsSuffix = ` @ ${pick.odds.toFixed(2)}`;
   const points = sidePickPoints(pick.odds);
 
   if (pick.kind === "double_chance") {
@@ -299,7 +305,7 @@ function settleSidePick(
 
     return settledMarket(
       "Double chance",
-      `${doubleChanceLabel(pick.pick, teams)}${oddsSuffix}`,
+      doubleChanceLabel(pick.pick, teams),
       outcome.finished ? actualScore : "Not finished",
       status,
       points,
@@ -311,7 +317,7 @@ function settleSidePick(
 
     return settledMarket(
       `Goals over/under ${pick.line}`,
-      `${linePickLabel(pick.pick, pick.line)}${oddsSuffix}`,
+      linePickLabel(pick.pick, pick.line),
       `${totalGoals} goal(s)`,
       settleLinePick(pick.pick, totalGoals, pick.line, outcome.finished),
       points,
@@ -331,7 +337,7 @@ function settleSidePick(
 
   return settledMarket(
     `Handicap ${teams.homeTeam} ${handicapLineLabel(pick.line)}`,
-    `${pick.pick === "home" ? teams.homeTeam : teams.awayTeam}${oddsSuffix}`,
+    pick.pick === "home" ? teams.homeTeam : teams.awayTeam,
     outcome.finished ? actualScore : "Not finished",
     status,
     points,

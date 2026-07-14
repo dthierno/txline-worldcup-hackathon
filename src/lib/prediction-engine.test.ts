@@ -209,7 +209,7 @@ describe("settlePrediction", () => {
 
     // away pick at 5.35 decimal odds: 3 x 5.35 = 16 points
     expect(winner?.points).toBe(16);
-    expect(winner?.pick).toBe("Morocco @ 5.35");
+    expect(winner?.pick).toBe("Morocco");
   });
 
   it("caps and floors odds-scaled winner payouts", () => {
@@ -261,7 +261,7 @@ describe("settlePrediction", () => {
       (market) => market.market === "Double chance",
     );
 
-    expect(covered?.pick).toBe("draw or Morocco @ 1.31");
+    expect(covered?.pick).toBe("draw or Morocco");
     expect(covered?.status).toBe("won");
     // 2 x 1.31 rounds to 3, floored at the base of 2 anyway
     expect(covered?.points).toBe(3);
@@ -330,7 +330,7 @@ describe("settlePrediction", () => {
       "void",
     ]);
     expect(handicaps[1]?.market).toBe("Handicap Canada -0.5");
-    expect(handicaps[1]?.pick).toBe("Morocco @ 3.00");
+    expect(handicaps[1]?.pick).toBe("Morocco");
     expect(handicaps[1]?.points).toBe(6);
     expect(handicaps[2]?.points).toBe(0);
   });
