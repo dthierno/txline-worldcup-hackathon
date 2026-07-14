@@ -4680,7 +4680,37 @@ dt {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  isolation: isolate;
   padding: 18px;
+  position: relative;
+}
+/* The homepage league-ticket colour wash, drifting slowly behind the
+   receipt: it peeks through around the pick cards and the tear. */
+.mp2 .card.mp2-ticket-card::after {
+  animation: league-flow 11s ease-in-out infinite alternate;
+  background-image: linear-gradient(
+    60deg,
+    #dc2626,
+    #ea580c,
+    #a5b4fc,
+    #2563eb,
+    #7c3aed,
+    #16a34a,
+    #22d3ee
+  );
+  background-size: 300% 100%;
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0.09;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mp2 .card.mp2-ticket-card::after {
+    animation: none;
+  }
 }
 /* Full-bleed tournament art across the stub, melting into the card fill so
    the printed rows below stay quiet. */
