@@ -4619,3 +4619,364 @@ dt {
     transform: none;
   }
 }
+
+/* ---- Play card: the Winamax-style market board ---- */
+.mp2-play-head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.mp2 .card.mp2-play .mp2-play-head > h2 {
+  margin: 0;
+}
+.mp2-play-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.mp2-play-total {
+  background: color-mix(in srgb, var(--won) 14%, transparent);
+  color: var(--won);
+  font-size: 13px;
+  font-weight: 700;
+}
+.mp2-play-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 14px;
+}
+.mp2-play-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mp2-play-group-head {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.mp2-play-group-head > span {
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.mp2-play-group-head > small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: right;
+}
+.mp2-odds-row {
+  display: grid;
+  gap: 8px;
+}
+.mp2-odds-row.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mp2-odds-row.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.mp2-odds-line {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(72px, 130px) minmax(0, 1fr);
+}
+.mp2-odds-line-label {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.mp2-odds-btn {
+  align-items: center;
+  background: #141419;
+  border: none;
+  border-radius: 14px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 8px 8px;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+.mp2-odds-btn:hover {
+  background: #1a1a21;
+}
+.mp2-odds-btn:active {
+  transform: scale(0.96);
+}
+.mp2-odds-btn.active {
+  background: color-mix(in srgb, var(--won) 15%, #141419);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--won) 45%, transparent) inset;
+}
+.mp2-odds-btn-label {
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-odds-btn.active .mp2-odds-btn-label {
+  color: var(--won);
+}
+.mp2-odds-btn-meta {
+  align-items: baseline;
+  display: flex;
+  gap: 6px;
+}
+.mp2-odds-btn-meta > em {
+  color: #fff;
+  font-size: 14.5px;
+  font-style: normal;
+  font-weight: 700;
+}
+.mp2-odds-btn-meta > strong {
+  color: var(--won);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.mp2-play-score {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+.mp2-play-score-sep {
+  color: var(--muted-foreground);
+  font-size: 15px;
+  font-weight: 700;
+}
+.mp2-play-stepper {
+  align-items: center;
+  background: #141419;
+  border-radius: 14px;
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 8px 10px;
+}
+.mp2-play-stepper-team {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-play-stepper-controls {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.mp2-play-stepper-controls > button {
+  align-items: center;
+  background: #000;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-size: 15px;
+  font-weight: 600;
+  height: 26px;
+  justify-content: center;
+  line-height: 1;
+  transition:
+    background 0.16s ease,
+    transform 0.16s ease;
+  width: 26px;
+}
+.mp2-play-stepper-controls > button:hover:not(:disabled) {
+  background: #1c1c22;
+}
+.mp2-play-stepper-controls > button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.mp2-play-stepper-controls > button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+.mp2-play-stepper-controls > output {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
+}
+.mp2-scorer-strip {
+  display: flex;
+  gap: 8px;
+  margin: 0 -4px;
+  overflow-x: auto;
+  padding: 2px 4px 6px;
+}
+.mp2-scorer-chip {
+  align-items: center;
+  background: #141419;
+  border: none;
+  border-radius: 14px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 5px;
+  padding: 10px 8px 8px;
+  transition:
+    background 0.16s ease,
+    transform 0.16s ease;
+  width: 86px;
+}
+.mp2-scorer-chip:hover {
+  background: #1a1a21;
+}
+.mp2-scorer-chip:active {
+  transform: scale(0.96);
+}
+.mp2-scorer-chip.active {
+  background: color-mix(in srgb, var(--won) 15%, #141419);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--won) 45%, transparent) inset;
+}
+.mp2-scorer-chip.active .mp2-scorer-chip-name {
+  color: var(--won);
+}
+.mp2-scorer-chip-none {
+  justify-content: center;
+  min-height: 84px;
+}
+.mp2-scorer-chip-name {
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-scorer-chip-team {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-play-save {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.mp2-play-save > .muted {
+  font-size: 12px;
+  text-align: right;
+}
+/* Settled slip */
+.mp2-slip {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.mp2-slip-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto 44px;
+  padding: 9px 0;
+}
+.mp2-slip-row + .mp2-slip-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.mp2-slip-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.mp2-slip-market {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.mp2-slip-pick {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-slip-status {
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  text-transform: uppercase;
+}
+.mp2-slip-status.won {
+  background: color-mix(in srgb, var(--won) 14%, transparent);
+  color: var(--won);
+}
+.mp2-slip-status.lost {
+  background: color-mix(in srgb, var(--lost) 14%, transparent);
+  color: var(--lost);
+}
+.mp2-slip-status.open {
+  background: color-mix(in srgb, var(--open) 14%, transparent);
+  color: var(--open);
+}
+.mp2-slip-status.void {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted-foreground);
+}
+.mp2-slip-pts {
+  color: var(--won);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+.mp2-slip-status.lost + .mp2-slip-pts,
+.mp2-slip-status.void + .mp2-slip-pts,
+.mp2-slip-status.open + .mp2-slip-pts {
+  color: var(--muted-foreground);
+}
+@media (max-width: 560px) {
+  .mp2-odds-line {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .mp2-play-score {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mp2-play-score-sep {
+    display: none;
+  }
+}

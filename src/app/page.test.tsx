@@ -718,6 +718,35 @@ describe("MatchPageV2 banner", () => {
     expect(screen.queryByText("Corner kicks")).not.toBeInTheDocument();
   });
 
+  it("lets a fan build a card on the market board and save it", async () => {
+    const user = userEvent.setup();
+
+    render(<MatchPageV2 fixtureId={999001} />);
+
+    const homePick = await screen.findByRole("button", {
+      name: /France, odds/,
+    });
+
+    await user.click(homePick);
+    expect(homePick).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: /Over 2\.5/ }));
+    await user.click(screen.getByRole("button", { name: "No goal scorer" }));
+    await user.click(screen.getByRole("button", { name: "Save picks" }));
+
+    expect(screen.getByText(/Picks saved on this device/)).toBeInTheDocument();
+
+    const stored = JSON.parse(
+      window.localStorage.getItem("fan-forecast.predictions.v1") ?? "{}",
+    );
+
+    expect(stored["999001"]).toMatchObject({
+      firstScorer: "none",
+      totalGoals: "over",
+      winner: "home",
+    });
+  });
+
   it("places published official highlights in the right column", async () => {
     const user = userEvent.setup();
 

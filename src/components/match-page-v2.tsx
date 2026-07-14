@@ -83,14 +83,18 @@ import {
 import {
   clampGoals,
   defaultPrediction,
-  linePickLabel,
+  handicapLineLabel,
+  MAX_SIDE_PICKS,
   PREDICTION_LINES,
+  PREDICTION_POINTS,
   settlePrediction,
-  type FirstScorerPick,
-  type LinePick,
+  SIDE_PICK_POINTS,
+  sidePickPoints,
+  winnerPoints,
+  type DoubleChancePick,
   type MatchOutcome,
   type MatchPrediction,
-  type WinnerPick,
+  type SidePick,
 } from "@/lib/prediction-engine";
 import {
   GOAL_CALL_POINTS,
@@ -177,6 +181,20 @@ function formatPlayerDisplayName(name: string) {
   const firstName = name.slice(commaIndex + 1).trim();
 
   return firstName && lastName ? `${firstName} ${lastName}` : name;
+}
+
+// TxLINE names are "Last, First"; compact surfaces (pitch markers, scorer
+// chips) show just the family name.
+function shortPlayerName(name: string) {
+  const commaIndex = name.indexOf(",");
+
+  if (commaIndex > 0) {
+    return name.slice(0, commaIndex);
+  }
+
+  const parts = name.trim().split(/\s+/);
+
+  return parts[parts.length - 1] || name;
 }
 
 export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
@@ -879,6 +897,38 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         },
       }
     : {};
+  // The play card quotes the live TxLINE board when it exists (closing prices
+  // once finished), falling back to odds derived from the win probabilities.
+  const playBoard = finished
+    ? details.oddsUpdates?.data?.closingBoard ?? details.oddsUpdates?.data?.board
+    : details.oddsUpdates?.data?.board;
+  const playOdds = playBoard?.result
+    ? {
+        away: playBoard.result.away,
+        draw: playBoard.result.draw,
+        home: playBoard.result.home,
+      }
+    : details.odds?.data?.homeWinProbability &&
+        details.odds.data.drawProbability &&
+        details.odds.data.awayWinProbability
+      ? {
+          away: 100 / details.odds.data.awayWinProbability,
+          draw: 100 / details.odds.data.drawProbability,
+          home: 100 / details.odds.data.homeWinProbability,
+        }
+      : null;
+  const playSection = (
+    <PredictionSection
+      key={fixture.fixtureId}
+      board={playBoard}
+      calls={extractSettleableCalls(combinedUpdates)}
+      fixture={fixture}
+      lineups={details.lineups?.data ?? null}
+      now={now}
+      odds1x2={playOdds}
+      outcome={outcome}
+    />
+  );
 
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
@@ -1297,6 +1347,11 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         {matchTab === "overview" ? (
           <div className="mp2-layout mp2-overview-layout">
             <div className="mp2-main">
+              {/* The game is the product: picks lead the page before kickoff
+                  and the result leads it after; live matches keep the card in
+                  the rail so the action stays front and centre. */}
+              {notStarted || finished ? playSection : null}
+
               {finished ? (
                 <MatchMediaSection fixtureId={fixture.fixtureId} />
               ) : null}
@@ -1367,25 +1422,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 />
               ) : null}
 
-              <PredictionSection
-                key={fixture.fixtureId}
-                calls={extractSettleableCalls(combinedUpdates)}
-                fixture={fixture}
-                lineups={details.lineups?.data ?? null}
-                now={now}
-                odds1x2={
-                  details.odds?.data?.homeWinProbability &&
-                  details.odds.data.drawProbability &&
-                  details.odds.data.awayWinProbability
-                    ? {
-                        away: 100 / details.odds.data.awayWinProbability,
-                        draw: 100 / details.odds.data.drawProbability,
-                        home: 100 / details.odds.data.homeWinProbability,
-                      }
-                    : null
-                }
-                outcome={outcome}
-              />
+              {!notStarted && !finished ? playSection : null}
 
               <MatchInfoSection fixture={fixture} info={matchInfo} />
             </aside>
@@ -2520,16 +2557,7 @@ function LineupsSection({
   type LineupPlayer = NormalizedLineups["teams"][number]["players"][number];
   const fullName = (player: LineupPlayer) =>
     formatPlayerDisplayName(player.name);
-  const pitchName = (player: LineupPlayer) => {
-    const commaIndex = player.name.indexOf(",");
-
-    if (commaIndex > 0) {
-      return player.name.slice(0, commaIndex);
-    }
-
-    const parts = player.name.trim().split(/\s+/);
-    return parts[parts.length - 1] || player.name;
-  };
+  const pitchName = (player: LineupPlayer) => shortPlayerName(player.name);
   const playerAge = (player: LineupPlayer) => {
     if (!player.dateOfBirth) return null;
 
@@ -2857,6 +2885,7 @@ function LineupsSection({
 }
 
 function PredictionSection({
+  board,
   calls,
   fixture,
   lineups,
@@ -2864,6 +2893,7 @@ function PredictionSection({
   odds1x2,
   outcome,
 }: {
+  board: OddsBoard | undefined;
   calls: SettleableCall[];
   fixture: WorldCupFixture;
   lineups: NormalizedLineups | null;
@@ -2939,17 +2969,80 @@ function PredictionSection({
   }
 
   const locked = isPredictionLocked(fixture, now);
+  const draftSidePicks = draft.sidePicks ?? [];
+  const sideOfferRows = buildSideOffers(board, fixture);
+  const toggleSidePick = (offer: SideOffer) => {
+    setDraft((previous) => {
+      const existing = previous.sidePicks ?? [];
+      const already = existing.some(
+        (pick) => sidePickKey(pick) === offer.key,
+      );
+      // One outcome per market: taking a line's "over" drops its "under".
+      const cleared = existing.filter(
+        (pick) => sidePickMarketKey(pick) !== offer.marketKey,
+      );
+
+      if (already) {
+        return { ...previous, sidePicks: cleared };
+      }
+
+      if (cleared.length >= MAX_SIDE_PICKS) {
+        return previous;
+      }
+
+      return { ...previous, sidePicks: [...cleared, offer.pick] };
+    });
+  };
+  const goalsBoardLine = board?.overUnder?.find(
+    (entry) =>
+      entry.line === PREDICTION_LINES.goals && entry.prices.length >= 2,
+  );
+  const totalsRows: Array<{
+    field: "totalCards" | "totalCorners" | "totalGoals";
+    label: string;
+    line: number;
+    prices?: number[];
+  }> = [
+    {
+      field: "totalGoals",
+      label: "Goals",
+      line: PREDICTION_LINES.goals,
+      prices: goalsBoardLine?.prices,
+    },
+    { field: "totalCorners", label: "Corners", line: PREDICTION_LINES.corners },
+    { field: "totalCards", label: "Cards", line: PREDICTION_LINES.cards },
+  ];
+  const scorerGroups = (lineups?.teams ?? [])
+    .map((team) => ({
+      players: team.players
+        .filter((player) => typeof player.playerId === "number")
+        .sort((left, right) => Number(right.starter) - Number(left.starter)),
+      teamName: team.teamName,
+    }))
+    .filter((team) => team.players.length > 0);
+  const potentialPoints =
+    PREDICTION_POINTS.exactScore +
+    winnerPoints(odds1x2?.[draft.winner]) +
+    PREDICTION_POINTS.line * 3 +
+    (draft.firstScorer ? PREDICTION_POINTS.firstScorer : 0) +
+    draftSidePicks.reduce(
+      (total, pick) => total + sidePickPoints(pick.odds),
+      0,
+    );
 
   if (!locked) {
     return (
-      <section className="card" aria-labelledby="prediction-heading">
-        <h2 id="prediction-heading">Your prediction</h2>
-        <p>
+      <section className="card mp2-play" aria-labelledby="prediction-heading">
+        <div className="mp2-play-head">
+          <h2 id="prediction-heading">Your picks</h2>
+          <span className="mp2-play-pill">Free game · points, not money</span>
+        </div>
+        <p className="muted">
           Locks at kickoff: {formatDate(fixture.kickoffUtc)} UTC. Stored in this
           browser only.
         </p>
         <form
-          className="prediction-form"
+          className="mp2-play-form"
           onSubmit={(event) => {
             event.preventDefault();
 
@@ -2971,126 +3064,207 @@ function PredictionSection({
             savePrediction(prediction);
             setSaved(prediction);
             setConfirmation(
-              "Prediction saved on this device. You can edit it until kickoff.",
+              "Picks saved on this device. You can edit them until kickoff.",
             );
           }}
         >
-          <div className="form-row">
-            <label>
-              {fixture.homeTeam} goals{" "}
-              <input
-                id="prediction-home-goals"
-                name="homeGoals"
-                type="number"
-                min={0}
-                max={12}
-                value={draft.homeGoals}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    homeGoals: clampGoals(event.target.valueAsNumber),
-                  })
-                }
-              />
-            </label>
-            <label>
-              {fixture.awayTeam} goals{" "}
-              <input
-                id="prediction-away-goals"
-                name="awayGoals"
-                type="number"
-                min={0}
-                max={12}
-                value={draft.awayGoals}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    awayGoals: clampGoals(event.target.valueAsNumber),
-                  })
-                }
-              />
-            </label>
+          <div className="mp2-play-group" role="group" aria-label="Match result">
+            <div className="mp2-play-group-head">
+              <span>Match result</span>
+              <small>pays 3× odds · up to 30 pts</small>
+            </div>
+            <div className="mp2-odds-row cols-3">
+              {(
+                [
+                  { label: fixture.homeTeam, value: "home" },
+                  { label: "Draw", value: "draw" },
+                  { label: fixture.awayTeam, value: "away" },
+                ] as const
+              ).map((option) => (
+                <OddsButton
+                  active={draft.winner === option.value}
+                  key={option.value}
+                  label={option.label}
+                  odds={odds1x2?.[option.value]}
+                  onClick={() =>
+                    setDraft({ ...draft, winner: option.value })
+                  }
+                  points={winnerPoints(odds1x2?.[option.value])}
+                />
+              ))}
+            </div>
           </div>
-          <label>
-            Winner{" "}
-            <select
-              id="prediction-winner"
-              name="winner"
-              value={draft.winner}
-              onChange={(event) =>
-                setDraft({ ...draft, winner: event.target.value as WinnerPick })
-              }
+
+          <div className="mp2-play-group" role="group" aria-label="Exact score">
+            <div className="mp2-play-group-head">
+              <span>Exact score</span>
+              <small>+{PREDICTION_POINTS.exactScore} pts</small>
+            </div>
+            <div className="mp2-play-score">
+              <GoalStepper
+                label={fixture.homeTeam}
+                onChange={(value) => setDraft({ ...draft, homeGoals: value })}
+                value={draft.homeGoals}
+              />
+              <span aria-hidden className="mp2-play-score-sep">
+                –
+              </span>
+              <GoalStepper
+                label={fixture.awayTeam}
+                onChange={(value) => setDraft({ ...draft, awayGoals: value })}
+                value={draft.awayGoals}
+              />
+            </div>
+          </div>
+
+          <div className="mp2-play-group" role="group" aria-label="Totals">
+            <div className="mp2-play-group-head">
+              <span>Totals</span>
+              <small>+{PREDICTION_POINTS.line} pts each</small>
+            </div>
+            {totalsRows.map((row) => (
+              <div className="mp2-odds-line" key={row.field}>
+                <span className="mp2-odds-line-label">{row.label}</span>
+                <div className="mp2-odds-row cols-2">
+                  <OddsButton
+                    active={draft[row.field] === "over"}
+                    label={`Over ${row.line}`}
+                    odds={row.prices?.[0]}
+                    onClick={() => setDraft({ ...draft, [row.field]: "over" })}
+                    points={PREDICTION_POINTS.line}
+                  />
+                  <OddsButton
+                    active={draft[row.field] === "under"}
+                    label={`Under ${row.line}`}
+                    odds={row.prices?.[1]}
+                    onClick={() => setDraft({ ...draft, [row.field]: "under" })}
+                    points={PREDICTION_POINTS.line}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {sideOfferRows ? (
+            <div className="mp2-play-group" role="group" aria-label="More markets">
+              <div className="mp2-play-group-head">
+                <span>More markets</span>
+                <small>
+                  {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · pay 2× odds,
+                  up to {SIDE_PICK_POINTS.cap} pts
+                </small>
+              </div>
+              {sideOfferRows.map((row) => (
+                <div className="mp2-odds-line" key={row.label}>
+                  <span className="mp2-odds-line-label">{row.label}</span>
+                  <div
+                    className={`mp2-odds-row cols-${row.offers.length}`}
+                  >
+                    {row.offers.map((offer) => (
+                      <OddsButton
+                        active={draftSidePicks.some(
+                          (pick) => sidePickKey(pick) === offer.key,
+                        )}
+                        key={offer.key}
+                        label={offer.label}
+                        odds={offer.pick.odds}
+                        onClick={() => toggleSidePick(offer)}
+                        points={sidePickPoints(offer.pick.odds)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="muted">
+                Prices are live TxLINE odds; double chance is derived from the
+                1X2 prices.
+              </p>
+            </div>
+          ) : null}
+
+          {scorerGroups.length ? (
+            <div
+              className="mp2-play-group"
+              role="group"
+              aria-label="First scorer"
             >
-              <option value="home">{fixture.homeTeam}</option>
-              <option value="draw">Draw</option>
-              <option value="away">{fixture.awayTeam}</option>
-            </select>
-          </label>
-          <LinePickSelect
-            label={`Total goals (line ${PREDICTION_LINES.goals})`}
-            line={PREDICTION_LINES.goals}
-            name="totalGoals"
-            value={draft.totalGoals}
-            onChange={(pick) => setDraft({ ...draft, totalGoals: pick })}
-          />
-          <LinePickSelect
-            label={`Total corners (line ${PREDICTION_LINES.corners})`}
-            line={PREDICTION_LINES.corners}
-            name="totalCorners"
-            value={draft.totalCorners}
-            onChange={(pick) => setDraft({ ...draft, totalCorners: pick })}
-          />
-          <LinePickSelect
-            label={`Total cards (line ${PREDICTION_LINES.cards})`}
-            line={PREDICTION_LINES.cards}
-            name="totalCards"
-            value={draft.totalCards}
-            onChange={(pick) => setDraft({ ...draft, totalCards: pick })}
-          />
-          {lineups?.teams.length ? (
-            <label>
-              First scorer{" "}
-              <select
-                id="prediction-first-scorer"
-                name="firstScorer"
-                value={
-                  draft.firstScorer === "none"
-                    ? "none"
-                    : draft.firstScorer?.playerId ?? ""
-                }
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    firstScorer: parseFirstScorerPick(
-                      event.target.value,
-                      lineups,
-                    ),
-                  })
-                }
-              >
-                <option value="">No pick</option>
-                <option value="none">No goal scorer</option>
-                {lineups.teams.map((team) => (
-                  <optgroup key={team.teamName} label={team.teamName}>
-                    {team.players
-                      .filter((player) => typeof player.playerId === "number")
-                      .map((player) => (
-                        <option key={player.playerId} value={player.playerId}>
-                          {player.name}
-                          {player.starter ? "" : " (bench)"}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+              <div className="mp2-play-group-head">
+                <span>First scorer</span>
+                <small>+{PREDICTION_POINTS.firstScorer} pts</small>
+              </div>
+              <div className="mp2-scorer-strip no-scrollbar">
+                <button
+                  aria-pressed={draft.firstScorer === "none"}
+                  className={`mp2-scorer-chip mp2-scorer-chip-none${
+                    draft.firstScorer === "none" ? " active" : ""
+                  }`}
+                  onClick={() =>
+                    setDraft({
+                      ...draft,
+                      firstScorer:
+                        draft.firstScorer === "none" ? null : "none",
+                    })
+                  }
+                  type="button"
+                >
+                  <span className="mp2-scorer-chip-name">No goal scorer</span>
+                </button>
+                {scorerGroups.flatMap((team) =>
+                  team.players.map((player) => {
+                    const active =
+                      draft.firstScorer != null &&
+                      draft.firstScorer !== "none" &&
+                      draft.firstScorer.playerId === player.playerId;
+
+                    return (
+                      <button
+                        aria-pressed={active}
+                        className={`mp2-scorer-chip${active ? " active" : ""}`}
+                        key={`${team.teamName}-${player.playerId}`}
+                        onClick={() =>
+                          setDraft({
+                            ...draft,
+                            firstScorer: active
+                              ? null
+                              : {
+                                  name: player.name,
+                                  playerId: player.playerId as number,
+                                },
+                          })
+                        }
+                        title={`${formatPlayerDisplayName(player.name)} · ${team.teamName}`}
+                        type="button"
+                      >
+                        <LineupPlayerAvatar
+                          imageUrl={player.imageUrl}
+                          name={formatPlayerDisplayName(player.name)}
+                          size="default"
+                        />
+                        <span className="mp2-scorer-chip-name">
+                          {shortPlayerName(player.name)}
+                        </span>
+                        <span className="mp2-scorer-chip-team">
+                          {team.teamName}
+                        </span>
+                      </button>
+                    );
+                  }),
+                )}
+              </div>
+            </div>
           ) : (
             <p className="muted">
               First scorer picks unavailable: TxLINE has not published a player
               list for this fixture yet.
             </p>
           )}
-          <Button type="submit">Save prediction</Button>
+
+          <div className="mp2-play-save">
+            <Button type="submit">Save picks</Button>
+            <span className="muted">
+              Perfect card pays {potentialPoints} pts
+            </span>
+          </div>
         </form>
         {confirmation ? <p>{confirmation}</p> : null}
       </section>
@@ -3099,120 +3273,282 @@ function PredictionSection({
 
   if (!saved) {
     return (
-      <section className="card" aria-labelledby="prediction-heading">
-        <h2 id="prediction-heading">Your prediction</h2>
-        <p>
-          Predictions locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC).
-          No prediction was saved for this match.
+      <section className="card mp2-play" aria-labelledby="prediction-heading">
+        <div className="mp2-play-head">
+          <h2 id="prediction-heading">Your picks</h2>
+          <span className="mp2-play-pill">Locked</span>
+        </div>
+        <p className="muted">
+          Picks locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC). None
+          were saved for this match.
         </p>
       </section>
     );
   }
 
+  const totalPoints = settlement
+    ? settlement.totalPoints + settledCallPoints
+    : 0;
+
   return (
-    <section className="card" aria-labelledby="prediction-heading">
-      <h2 id="prediction-heading">Your prediction</h2>
-      <p>
+    <section className="card mp2-play" aria-labelledby="prediction-heading">
+      <div className="mp2-play-head">
+        <h2 id="prediction-heading">
+          {settlement?.final ? "Your result" : "Your picks"}
+        </h2>
+        {settlement ? (
+          <span
+            className={`mp2-play-pill${settlement.final ? " mp2-play-total" : ""}`}
+          >
+            {settlement.final
+              ? `+${totalPoints} pts`
+              : `${totalPoints} pts so far`}
+          </span>
+        ) : (
+          <span className="mp2-play-pill">Locked</span>
+        )}
+      </div>
+      <p className="muted">
         Locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC). Saved{" "}
         {saved.savedAt ? formatDate(saved.savedAt) : "before kickoff"} UTC.
       </p>
       {settlement ? (
         <>
-          <h3>
+          <ul className="mp2-slip">
+            {settlement.markets.map((market) => (
+              <li className="mp2-slip-row" key={`${market.market}-${market.pick}`}>
+                <span className="mp2-slip-copy">
+                  <span className="mp2-slip-market">{market.market}</span>
+                  <span className="mp2-slip-pick">{market.pick}</span>
+                </span>
+                <span className={`mp2-slip-status ${market.status}`}>
+                  {market.status}
+                </span>
+                <span className="mp2-slip-pts">
+                  {market.status === "won"
+                    ? `+${market.points}`
+                    : market.status === "open"
+                      ? "–"
+                      : "0"}
+                </span>
+              </li>
+            ))}
+            {settledCallPoints > 0 ? (
+              <li className="mp2-slip-row" key="live-calls">
+                <span className="mp2-slip-copy">
+                  <span className="mp2-slip-market">Live calls</span>
+                  <span className="mp2-slip-pick">
+                    Answered during the match
+                  </span>
+                </span>
+                <span className="mp2-slip-status won">won</span>
+                <span className="mp2-slip-pts">+{settledCallPoints}</span>
+              </li>
+            ) : null}
+          </ul>
+          <p className="muted">
             {settlement.final
-              ? "Final settlement"
-              : "Provisional settlement (match not finished)"}
-          </h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Market</th>
-                <th>Your pick</th>
-                <th>Result</th>
-                <th>Status</th>
-                <th>Points</th>
-              </tr>
-            </thead>
-            <tbody>
-              {settlement.markets.map((market) => (
-                <tr key={market.market}>
-                  <td>{market.market}</td>
-                  <td>{market.pick}</td>
-                  <td>{market.result}</td>
-                  <td className={`status-${market.status}`}>{market.status}</td>
-                  <td>{market.points}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p>
-            Total: {settlement.totalPoints + settledCallPoints} point(s)
-            {settlement.final ? "" : " so far"}
-            {settledCallPoints > 0
-              ? ` - ${settlement.totalPoints} from markets + ${settledCallPoints} from live calls`
-              : ""}
-            . Settled deterministically from the TxLINE score data shown
-            above.
+              ? "Final settlement, computed deterministically from the TxLINE feed."
+              : "Provisional - markets settle as the verified feed confirms them."}
           </p>
         </>
       ) : (
-        <p>
-          Waiting for TxLINE score data to settle this prediction.
+        <p className="muted">
+          Waiting for TxLINE score data to settle these picks.
         </p>
       )}
     </section>
   );
 }
 
-function parseFirstScorerPick(
-  value: string,
-  lineups: NormalizedLineups,
-): FirstScorerPick | null {
-  if (value === "") {
-    return null;
-  }
+// A tappable market outcome: label, the decimal odds it pays at (when the
+// TxLINE board quotes it), and the points it adds to the card.
+function OddsButton({
+  active,
+  label,
+  odds,
+  onClick,
+  points,
+}: {
+  active: boolean;
+  label: string;
+  odds?: number | null;
+  onClick: () => void;
+  points: number;
+}) {
+  const hasOdds = typeof odds === "number" && Number.isFinite(odds);
 
-  if (value === "none") {
-    return "none";
-  }
-
-  const playerId = Number(value);
-  const player = lineups.teams
-    .flatMap((team) => team.players)
-    .find((candidate) => candidate.playerId === playerId);
-
-  return player && typeof player.playerId === "number"
-    ? { name: player.name, playerId: player.playerId }
-    : null;
+  return (
+    <button
+      aria-label={`${label}${hasOdds ? `, odds ${odds.toFixed(2)}` : ""}, pays ${points} points`}
+      aria-pressed={active}
+      className={`mp2-odds-btn${active ? " active" : ""}`}
+      onClick={onClick}
+      type="button"
+    >
+      <span className="mp2-odds-btn-label">{label}</span>
+      <span className="mp2-odds-btn-meta">
+        {hasOdds ? <em>{odds.toFixed(2)}</em> : null}
+        <strong>+{points}</strong>
+      </span>
+    </button>
+  );
 }
 
-function LinePickSelect({
+function GoalStepper({
   label,
-  line,
-  name,
   onChange,
   value,
 }: {
   label: string;
-  line: number;
-  name: string;
-  onChange: (pick: LinePick) => void;
-  value: LinePick;
+  onChange: (value: number) => void;
+  value: number;
 }) {
   return (
-    <label>
-      {label}{" "}
-      <select
-        id={`prediction-${name}`}
-        name={name}
-        value={value}
-        onChange={(event) => onChange(event.target.value as LinePick)}
-      >
-        <option value="over">{linePickLabel("over", line)}</option>
-        <option value="under">{linePickLabel("under", line)}</option>
-      </select>
-    </label>
+    <div className="mp2-play-stepper">
+      <span className="mp2-play-stepper-team">{label}</span>
+      <div className="mp2-play-stepper-controls">
+        <button
+          aria-label={`Fewer ${label} goals`}
+          disabled={value <= 0}
+          onClick={() => onChange(clampGoals(value - 1))}
+          type="button"
+        >
+          −
+        </button>
+        <output aria-label={`${label} goals`}>{value}</output>
+        <button
+          aria-label={`More ${label} goals`}
+          onClick={() => onChange(clampGoals(value + 1))}
+          type="button"
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
+}
+
+type SideOffer = {
+  key: string;
+  label: string;
+  marketKey: string;
+  pick: SidePick;
+};
+
+function sidePickKey(pick: SidePick): string {
+  if (pick.kind === "double_chance") {
+    return `dc:${pick.pick}`;
+  }
+
+  if (pick.kind === "goals_line") {
+    return `gl:${pick.line}:${pick.pick}`;
+  }
+
+  return `ah:${pick.line}:${pick.pick}`;
+}
+
+function sidePickMarketKey(pick: SidePick): string {
+  if (pick.kind === "double_chance") {
+    return "dc";
+  }
+
+  return pick.kind === "goals_line" ? `gl:${pick.line}` : `ah:${pick.line}`;
+}
+
+function roundOdds(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+// Fair double-chance price from the two covered 1X2 outcomes.
+function doubleChanceOdds(first: number, second: number): number {
+  return roundOdds(1 / (1 / first + 1 / second));
+}
+
+// Extra markets straight off the TxLINE odds board: double chance (derived),
+// the .5 goals lines around the core 2.5, and .5 home handicaps. Quarter and
+// integer lines are skipped so every pick settles cleanly won or lost.
+function buildSideOffers(
+  board: OddsBoard | undefined,
+  fixture: WorldCupFixture,
+): Array<{ label: string; offers: SideOffer[] }> | null {
+  if (!board) {
+    return null;
+  }
+
+  const rows: Array<{ label: string; offers: SideOffer[] }> = [];
+  const isHalfLine = (line: number) =>
+    line % 1 !== 0 && (line * 2) % 1 === 0;
+
+  if (board.result) {
+    const { away, draw, home } = board.result;
+    const covers: Array<[DoubleChancePick, string, number]> = [
+      ["home_draw", `${fixture.homeTeam} or draw`, doubleChanceOdds(home, draw)],
+      [
+        "home_away",
+        `${fixture.homeTeam} or ${fixture.awayTeam}`,
+        doubleChanceOdds(home, away),
+      ],
+      ["draw_away", `Draw or ${fixture.awayTeam}`, doubleChanceOdds(draw, away)],
+    ];
+
+    rows.push({
+      label: "Double chance",
+      offers: covers.map(([pick, label, odds]) => ({
+        key: `dc:${pick}`,
+        label,
+        marketKey: "dc",
+        pick: { kind: "double_chance", odds, pick },
+      })),
+    });
+  }
+
+  for (const entry of (board.overUnder ?? [])
+    .filter(
+      (candidate) =>
+        isHalfLine(candidate.line) &&
+        candidate.line !== PREDICTION_LINES.goals &&
+        candidate.prices.length >= 2,
+    )
+    .slice(0, 2)) {
+    rows.push({
+      label: `Goals ${entry.line}`,
+      offers: (["over", "under"] as const).map((pick, index) => ({
+        key: `gl:${entry.line}:${pick}`,
+        label: `${pick === "over" ? "Over" : "Under"} ${entry.line}`,
+        marketKey: `gl:${entry.line}`,
+        pick: {
+          kind: "goals_line",
+          line: entry.line,
+          odds: roundOdds(entry.prices[index]),
+          pick,
+        },
+      })),
+    });
+  }
+
+  for (const entry of (board.asianHandicap ?? [])
+    .filter(
+      (candidate) => isHalfLine(candidate.line) && candidate.prices.length >= 2,
+    )
+    .slice(0, 2)) {
+    rows.push({
+      label: `Handicap ${fixture.homeTeam} ${handicapLineLabel(entry.line)}`,
+      offers: (["home", "away"] as const).map((pick, index) => ({
+        key: `ah:${entry.line}:${pick}`,
+        label: pick === "home" ? fixture.homeTeam : fixture.awayTeam,
+        marketKey: `ah:${entry.line}`,
+        pick: {
+          kind: "handicap",
+          line: entry.line,
+          odds: roundOdds(entry.prices[index]),
+          pick,
+        },
+      })),
+    });
+  }
+
+  return rows.length ? rows : null;
 }
 
 function OddsMovement({
