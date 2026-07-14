@@ -18,6 +18,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
@@ -4013,7 +4014,7 @@ const POSITION_LABELS: Record<string, string> = {
 
 function HeadsetIcon() {
   return (
-    <svg aria-hidden="true" fill="#4285f4" height="15" viewBox="0 0 24 24" width="15">
+    <svg aria-hidden="true" className="cf-headset" fill="currentColor" height="15" viewBox="0 0 24 24" width="15">
       <path d="M12 3a8 8 0 0 0-8 8v6a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H6v-2a6 6 0 1 1 12 0v2h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-6a8 8 0 0 0-8-8Z" />
     </svg>
   );
@@ -4148,9 +4149,15 @@ function CommentaryFeed({
             const goalBody = body.replace(/\s*Score \d+-\d+\.$/, "");
             const scoringSide =
               scorer && scorer.teamName === fixture.awayTeam ? "away" : "home";
+            const teamColor = ringFor(
+              scoringSide === "home" ? fixture.homeTeam : fixture.awayTeam,
+            );
 
             block = (
-              <div className="cf-card cf-goal">
+              <div
+                className="cf-card cf-goal"
+                style={{ "--cf-team": teamColor } as CSSProperties}
+              >
                 <div className="cf-goal-head">
                   <span className="cf-goal-ball">
                     <LineupGoalIcon />
