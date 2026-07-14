@@ -8,6 +8,11 @@ export default defineConfig({
     },
   },
   test: {
+    env: {
+      // Time formatting is user-local in the app; tests pin UTC so their
+      // expected strings are deterministic on any machine.
+      TZ: "UTC",
+    },
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],

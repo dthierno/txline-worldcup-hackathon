@@ -3334,9 +3334,6 @@ dt {
   position: relative;
   z-index: 1;
 }
-.mp2-lineup-half.away {
-  flex-direction: row-reverse;
-}
 .mp2-lineup-half::before {
   content: none;
 }

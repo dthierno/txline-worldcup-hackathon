@@ -268,10 +268,10 @@ export function formatCompetition(fixture: WorldCupFixture) {
 }
 
 export function formatDate(kickoffUtc: string) {
+  // Rendered in the fan's local timezone.
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
     timeStyle: "short",
-    timeZone: "UTC",
   }).format(new Date(kickoffUtc));
 }
 
@@ -285,11 +285,11 @@ export function formatUtcTime(ts: number) {
 }
 
 export function formatKickoffTime(ts: number) {
+  // Rendered in the fan's local timezone.
   return new Intl.DateTimeFormat("en", {
     hour: "numeric",
     hour12: true,
     minute: "2-digit",
-    timeZone: "UTC",
   }).format(new Date(ts));
 }
 
@@ -297,7 +297,6 @@ export function formatKickoffLabel(kickoff: Date, now: number | null) {
   const dateLabel = new Intl.DateTimeFormat("en", {
     day: "numeric",
     month: "long",
-    timeZone: "UTC",
   }).format(kickoff);
 
   if (now === null) {

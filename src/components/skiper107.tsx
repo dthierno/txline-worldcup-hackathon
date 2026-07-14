@@ -136,7 +136,6 @@ function formatBracketDate(kickoffUtc: string) {
     hour: "numeric",
     minute: "2-digit",
     month: "short",
-    timeZone: "Asia/Singapore",
     weekday: "short",
   }).format(new Date(kickoffUtc));
 }
@@ -593,7 +592,6 @@ export function KnockoutBracket({
               : new Intl.DateTimeFormat("en", {
                   dateStyle: "medium",
                   timeStyle: "medium",
-                  timeZone: "Asia/Singapore",
                 }).format(new Date(now))}
           </time>
         </p>

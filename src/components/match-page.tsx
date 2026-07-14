@@ -715,7 +715,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           ) : null}
         </p>
         <p className="match-meta">
-          Kickoff {formatDate(fixture.kickoffUtc)} UTC - Fixture #
+          Kickoff {formatDate(fixture.kickoffUtc)} - Fixture #
           {fixture.fixtureId}
         </p>
         {detailsLoading ? (
@@ -1604,7 +1604,7 @@ function PredictionSection({
       <section className="card" aria-labelledby="prediction-heading">
         <h2 id="prediction-heading">Your prediction</h2>
         <p>
-          Locks at kickoff: {formatDate(fixture.kickoffUtc)} UTC. Stored in this
+          Locks at kickoff: {formatDate(fixture.kickoffUtc)}. Stored in this
           browser only.
         </p>
         <form
@@ -1750,7 +1750,7 @@ function PredictionSection({
       <section className="card" aria-labelledby="prediction-heading">
         <h2 id="prediction-heading">Your prediction</h2>
         <p>
-          Predictions locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC).
+          Predictions locked at kickoff ({formatDate(fixture.kickoffUtc)}).
           No prediction was saved for this match.
         </p>
       </section>
@@ -1761,8 +1761,8 @@ function PredictionSection({
     <section className="card" aria-labelledby="prediction-heading">
       <h2 id="prediction-heading">Your prediction</h2>
       <p>
-        Locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC). Saved{" "}
-        {saved.savedAt ? formatDate(saved.savedAt) : "before kickoff"} UTC.
+        Locked at kickoff ({formatDate(fixture.kickoffUtc)}). Saved{" "}
+        {saved.savedAt ? formatDate(saved.savedAt) : "before kickoff"}.
       </p>
       {settlement ? (
         <>

@@ -725,7 +725,6 @@ function dayLabel(kickoffUtc: string, now: number | null): string {
   const label = new Intl.DateTimeFormat("en", {
     day: "numeric",
     month: "long",
-    timeZone: "UTC",
     weekday: "long",
   }).format(kickoff);
 
@@ -750,7 +749,6 @@ function formatKickoffTime(kickoffUtc: string) {
     hour: "2-digit",
     hour12: true,
     minute: "2-digit",
-    timeZone: "UTC",
   }).format(new Date(kickoffUtc));
 }
 

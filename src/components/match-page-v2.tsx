@@ -2610,7 +2610,10 @@ function LineupsSection({
   type LineupPlayer = NormalizedLineups["teams"][number]["players"][number];
   const fullName = (player: LineupPlayer) =>
     formatPlayerDisplayName(player.name);
-  const pitchName = (player: LineupPlayer) => shortPlayerName(player.name);
+  // First surname token only ("Oyarzabal", not "Oyarzabal Ugarte") so pitch
+  // captions stay one clean line, Google-style.
+  const pitchName = (player: LineupPlayer) =>
+    shortPlayerName(player.name).split(/\s+/)[0] ?? player.name;
   const playerAge = (player: LineupPlayer) => {
     if (!player.dateOfBirth) return null;
 
@@ -3720,7 +3723,7 @@ function PredictionSection({
           <span className="mp2-play-pill">Locked</span>
         </div>
         <p className="muted">
-          Picks locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC). None
+          Picks locked at kickoff ({formatDate(fixture.kickoffUtc)}). None
           were saved for this match.
         </p>
       </section>
@@ -3750,8 +3753,8 @@ function PredictionSection({
         )}
       </div>
       <p className="muted">
-        Locked at kickoff ({formatDate(fixture.kickoffUtc)} UTC). Saved{" "}
-        {saved.savedAt ? formatDate(saved.savedAt) : "before kickoff"} UTC.
+        Locked at kickoff ({formatDate(fixture.kickoffUtc)}). Saved{" "}
+        {saved.savedAt ? formatDate(saved.savedAt) : "before kickoff"}.
       </p>
       {settlement ? (
         <>
@@ -4480,7 +4483,7 @@ function VerificationSection({
         </summary>
         <div className="mp2-verification-content">
           <p className="muted">
-            Fixture #{fixture.fixtureId} · Kickoff {formatDate(fixture.kickoffUtc)} UTC
+            Fixture #{fixture.fixtureId} · Kickoff {formatDate(fixture.kickoffUtc)}
           </p>
           {detailsLoading ? <p className="muted">Loading TxLINE details...</p> : null}
           {liveStreamEligible ? (
