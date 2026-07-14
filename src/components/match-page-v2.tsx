@@ -18,7 +18,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
@@ -42,6 +41,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Avatar,
   AvatarFallback,
+  AvatarGroup,
   AvatarImage,
 } from "@/components/ui/avatar";
 import { KnockoutBracketLive } from "@/components/knockout-bracket-live";
@@ -58,6 +58,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
 import {
@@ -3017,8 +3018,10 @@ function rivalWinnerPick(fixtureId: number, name: string): WinnerPick {
   return roll < 45 ? "home" : roll < 70 ? "draw" : "away";
 }
 
-// Pre-kickoff market cards for the main column: one plain card per market
-// family, consistent with every other card on the page.
+// Pre-kickoff market cards, kept to the shadcn preset: outline ToggleGroups
+// for every market (pressed = primary, the commitment colour), plain Inputs
+// for the exact score, an AvatarGroup for the league tally, and an Accordion
+// holding the long tail. Points carry the live TxLINE odds.
 function MarketCards({
   board,
   draft,
@@ -3034,8 +3037,6 @@ function MarketCards({
   odds1x2: { away: number; draw: number; home: number } | null;
   patchDraft: (recipe: (previous: MatchPrediction) => MatchPrediction) => void;
 }) {
-  const homeIso = teamFlag(fixture.homeTeam);
-  const awayIso = teamFlag(fixture.awayTeam);
   const draftSidePicks = draft.sidePicks ?? [];
   const sideOfferRows = buildSideOffers(board, fixture);
   // One outcome per market; an empty group value means the pick was
@@ -3067,39 +3068,27 @@ function MarketCards({
         return { ...previous, sidePicks: [...cleared, offer.pick] };
       });
     };
-  const goalsBoardLine = board?.overUnder?.find(
-    (entry) =>
-      entry.line === PREDICTION_LINES.goals && entry.prices.length >= 2,
-  );
   const totalsRows: Array<{
     field: "totalCards" | "totalCorners" | "totalGoals";
     label: string;
     line: number;
-    prices?: number[];
   }> = [
-    {
-      field: "totalGoals",
-      label: "Goals",
-      line: PREDICTION_LINES.goals,
-      prices: goalsBoardLine?.prices,
-    },
+    { field: "totalGoals", label: "Goals", line: PREDICTION_LINES.goals },
     { field: "totalCorners", label: "Corners", line: PREDICTION_LINES.corners },
     { field: "totalCards", label: "Cards", line: PREDICTION_LINES.cards },
   ];
-  const scorerGroups = (lineups?.teams ?? [])
-    .map((team) => ({
-      players: team.players
-        .filter((player) => typeof player.playerId === "number")
-        .sort((left, right) => Number(right.starter) - Number(left.starter)),
-      teamName: team.teamName,
-    }))
-    .filter((team) => team.players.length > 0);
+  const scorerPlayers = (lineups?.teams ?? []).flatMap((team) =>
+    team.players
+      .filter((player) => typeof player.playerId === "number")
+      .map((player) => ({ player, teamName: team.teamName })),
+  );
   const resultShares = impliedShares([
     odds1x2?.home,
     odds1x2?.draw,
     odds1x2?.away,
   ]);
-  const resultLead = leadIndex(resultShares);
+  const pct = (share: number | null) =>
+    share === null ? null : `${Math.round(share)}%`;
   // Your league's winner picks: the simulated trio plus your current call,
   // so switching your pick updates the tally live.
   const winnerNames: Record<WinnerPick, string> = {
@@ -3130,96 +3119,24 @@ function MarketCards({
   const leagueMembers = leaguePicks.filter(
     (member) => member.pick === leagueModal,
   );
-  // Double-chance covers two outcomes; its implied chance is their sum.
-  const dcShare = (pick: DoubleChancePick): number | null => {
-    const [home, draw, away] = resultShares;
-    const pair: Record<DoubleChancePick, [number | null, number | null]> = {
-      draw_away: [draw, away],
-      home_away: [home, away],
-      home_draw: [home, draw],
-    };
-    const [first, second] = pair[pick];
-
-    return first === null || second === null ? null : first + second;
-  };
+  const itemClass =
+    "flex-1 justify-between gap-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground";
+  const ptsClass =
+    "text-muted-foreground text-xs font-semibold group-aria-pressed/toggle:text-primary-foreground/70";
+  const rowClass = "grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3";
+  const rowLabelClass = "text-muted-foreground text-xs font-medium";
 
   return (
     <>
       <section aria-labelledby="market-result-heading" className="card">
         <div className="mp2-card-heading">
           <h2 id="market-result-heading">Match result</h2>
-          <span className="mp2-card-hint">
-            bold winner calls pay more · exact score +
-            {PREDICTION_POINTS.exactScore} pts
-          </span>
+          <span className="mp2-card-hint">bold winner calls pay more</span>
         </div>
-        <div
-          className="mp2-play-panel"
-          style={
-            {
-              "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b46",
-              "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b46",
-            } as CSSProperties
-          }
-        >
-          <div className="mp2-play-teams">
-            <div className="mp2-play-team">
-              {homeIso ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt=""
-                  className="mp2-play-flag"
-                  src={`https://flagcdn.com/w80/${homeIso}.png`}
-                />
-              ) : (
-                <span className="mp2-play-flag mp2-play-flag-tbd" />
-              )}
-              <span className="mp2-play-team-name">{fixture.homeTeam}</span>
-            </div>
-            <div className="mp2-play-center">
-              <div className="mp2-play-scores">
-                <GoalStepper
-                  label={fixture.homeTeam}
-                  onChange={(value) =>
-                    patchDraft((previous) => ({
-                      ...previous,
-                      homeGoals: value,
-                    }))
-                  }
-                  value={draft.homeGoals}
-                />
-                <GoalStepper
-                  label={fixture.awayTeam}
-                  onChange={(value) =>
-                    patchDraft((previous) => ({
-                      ...previous,
-                      awayGoals: value,
-                    }))
-                  }
-                  value={draft.awayGoals}
-                />
-              </div>
-              <span className="mp2-play-exact-hint">
-                Exact score +{PREDICTION_POINTS.exactScore}
-              </span>
-            </div>
-            <div className="mp2-play-team">
-              {awayIso ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt=""
-                  className="mp2-play-flag"
-                  src={`https://flagcdn.com/w80/${awayIso}.png`}
-                />
-              ) : (
-                <span className="mp2-play-flag mp2-play-flag-tbd" />
-              )}
-              <span className="mp2-play-team-name">{fixture.awayTeam}</span>
-            </div>
-          </div>
+        <div className="mt-3.5 flex flex-col gap-3">
           <ToggleGroup
             aria-label="Match result"
-            className="mp2-odds-row cols-3 mp2-play-result"
+            className="w-full"
             onValueChange={(groupValue: unknown[]) => {
               const pick = groupValue[0] as WinnerPick | undefined;
 
@@ -3235,37 +3152,90 @@ function MarketCards({
                 { label: "Draw", value: "draw" },
                 { label: fixture.awayTeam, value: "away" },
               ] as const
-            ).map((option, index) => (
-              <MarketOption
+            ).map((option) => (
+              <ToggleGroupItem
+                aria-label={`${option.label}, pays ${winnerPoints(odds1x2?.[option.value])} points`}
+                className={itemClass}
                 key={option.value}
-                label={option.label}
-                leading={index === resultLead}
-                points={winnerPoints(odds1x2?.[option.value])}
-                share={resultShares[index]}
                 value={option.value}
-              />
+                variant="outline"
+              >
+                <span className="truncate">{option.label}</span>
+                <span className={ptsClass}>
+                  +{winnerPoints(odds1x2?.[option.value])}
+                </span>
+              </ToggleGroupItem>
             ))}
           </ToggleGroup>
-        </div>
-        <p className="mp2-league-picks">
-          <span aria-hidden className="mp2-league-avatars">
-            {leagueMembers.map((member) => (
-              <span
-                className={`mp2-league-avatar${member.name === "You" ? " you" : ""}`}
-                key={member.name}
-              >
-                {member.name[0]}
+          {resultShares[0] !== null ? (
+            <p className="text-muted-foreground text-xs">
+              Market chance: {fixture.homeTeam} {pct(resultShares[0])} · draw{" "}
+              {pct(resultShares[1])} · {fixture.awayTeam}{" "}
+              {pct(resultShares[2])} — implied by the live TxLINE prices.
+            </p>
+          ) : null}
+          <div className={rowClass}>
+            <span className={rowLabelClass}>Exact score</span>
+            <div className="flex items-center gap-2">
+              <Input
+                aria-label={`${fixture.homeTeam} goals`}
+                className="h-8 w-14 text-center"
+                max={12}
+                min={0}
+                onChange={(event) =>
+                  patchDraft((previous) => ({
+                    ...previous,
+                    homeGoals: clampGoals(event.target.valueAsNumber),
+                  }))
+                }
+                type="number"
+                value={draft.homeGoals}
+              />
+              <span className="text-muted-foreground">–</span>
+              <Input
+                aria-label={`${fixture.awayTeam} goals`}
+                className="h-8 w-14 text-center"
+                max={12}
+                min={0}
+                onChange={(event) =>
+                  patchDraft((previous) => ({
+                    ...previous,
+                    awayGoals: clampGoals(event.target.valueAsNumber),
+                  }))
+                }
+                type="number"
+                value={draft.awayGoals}
+              />
+              <span className="text-muted-foreground text-xs">
+                +{PREDICTION_POINTS.exactScore} pts
               </span>
-            ))}
-          </span>
-          <span className="mp2-league-copy">
-            <strong>
-              {leagueMembers.length} of {leaguePicks.length}
-            </strong>{" "}
-            in your league took {winnerNames[leagueModal]}
-            <em> · simulated</em>
-          </span>
-        </p>
+            </div>
+          </div>
+          <div className="text-muted-foreground flex items-center gap-2.5 text-xs">
+            <AvatarGroup aria-hidden>
+              {leagueMembers.map((member) => (
+                <Avatar key={member.name} size="sm">
+                  <AvatarFallback
+                    className={
+                      member.name === "You"
+                        ? "bg-primary text-primary-foreground"
+                        : undefined
+                    }
+                  >
+                    {member.name[0]}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+            </AvatarGroup>
+            <span>
+              <strong className="text-foreground font-semibold">
+                {leagueMembers.length} of {leaguePicks.length}
+              </strong>{" "}
+              in your league took {winnerNames[leagueModal]}
+              <span className="opacity-75"> · simulated</span>
+            </span>
+          </div>
+        </div>
       </section>
 
       <section aria-labelledby="market-totals-heading" className="card">
@@ -3275,49 +3245,47 @@ function MarketCards({
             totals +{PREDICTION_POINTS.line} pts each
           </span>
         </div>
-        <div className="mp2-market-rows">
-          {totalsRows.map((row) => {
-            const shares = impliedShares([row.prices?.[0], row.prices?.[1]]);
-            const lead = leadIndex(shares);
+        <div className="mt-3.5 flex flex-col gap-3">
+          {totalsRows.map((row) => (
+            <div className={rowClass} key={row.field}>
+              <span className={rowLabelClass}>{row.label}</span>
+              <ToggleGroup
+                aria-label={`${row.label} over/under ${row.line}`}
+                className="w-full"
+                onValueChange={(groupValue: unknown[]) => {
+                  const pick = groupValue[0] as "over" | "under" | undefined;
 
-            return (
-              <div className="mp2-odds-line" key={row.field}>
-                <span className="mp2-odds-line-label">{row.label}</span>
-                <ToggleGroup
-                  aria-label={`${row.label} over/under ${row.line}`}
-                  className="mp2-odds-row cols-2"
-                  onValueChange={(groupValue: unknown[]) => {
-                    const pick = groupValue[0] as "over" | "under" | undefined;
-
-                    if (pick) {
-                      patchDraft((previous) => ({
-                        ...previous,
-                        [row.field]: pick,
-                      }));
-                    }
-                  }}
-                  value={[draft[row.field]]}
+                  if (pick) {
+                    patchDraft((previous) => ({
+                      ...previous,
+                      [row.field]: pick,
+                    }));
+                  }
+                }}
+                value={[draft[row.field]]}
+              >
+                <ToggleGroupItem
+                  aria-label={`Over ${row.line}, pays ${PREDICTION_POINTS.line} points`}
+                  className={itemClass}
+                  value="over"
+                  variant="outline"
                 >
-                  <MarketOption
-                    label={`Over ${row.line}`}
-                    leading={lead === 0}
-                    points={PREDICTION_POINTS.line}
-                    share={shares[0]}
-                    value="over"
-                  />
-                  <MarketOption
-                    label={`Under ${row.line}`}
-                    leading={lead === 1}
-                    points={PREDICTION_POINTS.line}
-                    share={shares[1]}
-                    value="under"
-                  />
-                </ToggleGroup>
-              </div>
-            );
-          })}
+                  <span>Over {row.line}</span>
+                  <span className={ptsClass}>+{PREDICTION_POINTS.line}</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  aria-label={`Under ${row.line}, pays ${PREDICTION_POINTS.line} points`}
+                  className={itemClass}
+                  value="under"
+                  variant="outline"
+                >
+                  <span>Under {row.line}</span>
+                  <span className={ptsClass}>+{PREDICTION_POINTS.line}</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          ))}
         </div>
-
         {sideOfferRows ? (
           <>
             <Separator className="my-4" />
@@ -3336,94 +3304,79 @@ function MarketCards({
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="-mx-4 pt-4 pb-0">
-                  <div className="mp2-market-rows !mt-0">
+                  <div className="flex flex-col gap-3">
                     {sideOfferRows.map((row) => {
                       const marketKey = row.offers[0]?.marketKey ?? row.label;
 
                       if (row.layout === "rows") {
-                        const rowShares = row.offers.map((offer) =>
-                          offer.pick.kind === "double_chance"
-                            ? dcShare(offer.pick.pick)
-                            : null,
-                        );
-                        const rowLead = leadIndex(rowShares);
-
                         return (
-                          <div className="mp2-dc-block" key={row.label}>
-                            <span className="mp2-odds-line-label">
-                              {row.label}
-                            </span>
+                          <div className="flex flex-col gap-1.5" key={row.label}>
+                            <span className={rowLabelClass}>{row.label}</span>
                             <ToggleGroup
                               aria-label={row.label}
-                              className="mp2-dc-list"
+                              className="w-full"
                               onValueChange={onSideGroupChange(
                                 marketKey,
                                 row.offers,
                               )}
+                              orientation="vertical"
                               value={sideGroupValue(marketKey)}
                             >
-                              {row.offers.map((offer, index) => (
-                                <div className="mp2-dc-row" key={offer.key}>
-                                  <span className="mp2-dc-copy">
-                                    <span className="mp2-dc-label">
-                                      {offer.label}
-                                    </span>
-                                    <ShareMeter
-                                      leading={index === rowLead}
-                                      share={rowShares[index]}
-                                    />
+                              {row.offers.map((offer) => (
+                                <ToggleGroupItem
+                                  aria-label={`${offer.label}, pays ${sidePickPoints(offer.pick.odds)} points`}
+                                  className="w-full justify-between gap-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                                  key={offer.key}
+                                  value={offer.key}
+                                  variant="outline"
+                                >
+                                  <span className="truncate">
+                                    {offer.label}
                                   </span>
-                                  <MarketOption
-                                    label={offer.label}
-                                    labelHidden
-                                    points={sidePickPoints(offer.pick.odds)}
-                                    value={offer.key}
-                                  />
-                                </div>
+                                  <span className={ptsClass}>
+                                    +{sidePickPoints(offer.pick.odds)}
+                                  </span>
+                                </ToggleGroupItem>
                               ))}
                             </ToggleGroup>
                           </div>
                         );
                       }
 
-                      const shares = impliedShares(
-                        row.offers.map((offer) => offer.pick.odds),
-                      );
-                      const lead = leadIndex(shares);
-
                       return (
-                        <div className="mp2-odds-line" key={row.label}>
-                          <span className="mp2-odds-line-label">
-                            {row.label}
-                          </span>
+                        <div className={rowClass} key={row.label}>
+                          <span className={rowLabelClass}>{row.label}</span>
                           <ToggleGroup
                             aria-label={row.label}
-                            className={`mp2-odds-row cols-${row.offers.length}`}
+                            className="w-full"
                             onValueChange={onSideGroupChange(
                               marketKey,
                               row.offers,
                             )}
                             value={sideGroupValue(marketKey)}
                           >
-                            {row.offers.map((offer, index) => (
-                              <MarketOption
+                            {row.offers.map((offer) => (
+                              <ToggleGroupItem
+                                aria-label={`${offer.label}, pays ${sidePickPoints(offer.pick.odds)} points`}
+                                className={itemClass}
                                 key={offer.key}
-                                label={offer.label}
-                                leading={index === lead}
-                                points={sidePickPoints(offer.pick.odds)}
-                                share={shares[index]}
                                 value={offer.key}
-                              />
+                                variant="outline"
+                              >
+                                <span className="truncate">{offer.label}</span>
+                                <span className={ptsClass}>
+                                  +{sidePickPoints(offer.pick.odds)}
+                                </span>
+                              </ToggleGroupItem>
                             ))}
                           </ToggleGroup>
                         </div>
                       );
                     })}
                   </div>
-                  <p className="muted">
+                  <p className="text-muted-foreground mt-4 text-xs">
                     Points follow the live TxLINE odds - the bolder the call,
-                    the more it pays. Bars show the chance the market gives
-                    each outcome.
+                    the more it pays.
                   </p>
                 </AccordionContent>
               </AccordionItem>
@@ -3439,72 +3392,72 @@ function MarketCards({
             +{PREDICTION_POINTS.firstScorer} pts
           </span>
         </div>
-        {scorerGroups.length ? (
-          <div className="mp2-scorer-strip no-scrollbar">
-            <button
-              aria-pressed={draft.firstScorer === "none"}
-              className={`mp2-scorer-chip mp2-scorer-chip-none${
-                draft.firstScorer === "none" ? " picked" : ""
-              }`}
-              onClick={() =>
-                patchDraft((previous) => ({
-                  ...previous,
-                  firstScorer:
-                    previous.firstScorer === "none" ? null : "none",
-                }))
-              }
-              type="button"
-            >
-              <span className="mp2-scorer-chip-name">No goal scorer</span>
-              <span aria-hidden className="mp2-odds-badge">
-                +{PREDICTION_POINTS.firstScorer}
-              </span>
-            </button>
-            {scorerGroups.flatMap((team) =>
-              team.players.map((player) => {
-                const active =
-                  draft.firstScorer != null &&
-                  draft.firstScorer !== "none" &&
-                  draft.firstScorer.playerId === player.playerId;
+        {scorerPlayers.length ? (
+          <ToggleGroup
+            aria-label="First scorer"
+            className="mt-3.5 w-full flex-wrap justify-start"
+            onValueChange={(groupValue: unknown[]) => {
+              const picked = groupValue[0] as string | undefined;
 
-                return (
-                  <button
-                    aria-pressed={active}
-                    className={`mp2-scorer-chip${active ? " picked" : ""}`}
-                    key={`${team.teamName}-${player.playerId}`}
-                    onClick={() =>
-                      patchDraft((previous) => ({
-                        ...previous,
-                        firstScorer: active
-                          ? null
-                          : {
-                              name: player.name,
-                              playerId: player.playerId as number,
-                            },
-                      }))
-                    }
-                    title={`${formatPlayerDisplayName(player.name)} · ${team.teamName}`}
-                    type="button"
-                  >
-                    <LineupPlayerAvatar
-                      imageUrl={player.imageUrl}
-                      name={formatPlayerDisplayName(player.name)}
-                      size="default"
-                    />
-                    <span className="mp2-scorer-chip-name">
-                      {shortPlayerName(player.name)}
-                    </span>
-                    <span className="mp2-scorer-chip-team">
-                      {team.teamName}
-                    </span>
-                    <span aria-hidden className="mp2-odds-badge">
-                      +{PREDICTION_POINTS.firstScorer}
-                    </span>
-                  </button>
+              patchDraft((previous) => {
+                if (picked === undefined) {
+                  return { ...previous, firstScorer: null };
+                }
+
+                if (picked === "none") {
+                  return { ...previous, firstScorer: "none" };
+                }
+
+                const found = scorerPlayers.find(
+                  (candidate) => String(candidate.player.playerId) === picked,
                 );
-              }),
-            )}
-          </div>
+
+                return {
+                  ...previous,
+                  firstScorer: found
+                    ? {
+                        name: found.player.name,
+                        playerId: found.player.playerId as number,
+                      }
+                    : null,
+                };
+              });
+            }}
+            value={
+              draft.firstScorer === "none"
+                ? ["none"]
+                : draft.firstScorer?.playerId != null
+                  ? [String(draft.firstScorer.playerId)]
+                  : []
+            }
+          >
+            <ToggleGroupItem
+              aria-label="No goal scorer"
+              className="aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+              value="none"
+              variant="outline"
+            >
+              No goal scorer
+            </ToggleGroupItem>
+            {scorerPlayers.map(({ player, teamName }) => (
+              <ToggleGroupItem
+                aria-label={`${formatPlayerDisplayName(player.name)}, ${teamName}`}
+                className="aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                key={player.playerId}
+                title={teamName}
+                value={String(player.playerId)}
+                variant="outline"
+              >
+                <Avatar size="sm">
+                  {player.imageUrl ? (
+                    <AvatarImage alt="" src={player.imageUrl} />
+                  ) : null}
+                  <AvatarFallback>{player.name[0]}</AvatarFallback>
+                </Avatar>
+                {shortPlayerName(player.name)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         ) : (
           <p className="muted">
             First scorer picks unavailable: TxLINE has not published a player
@@ -3864,127 +3817,6 @@ function impliedShares(
 
   return inverses.map((value) =>
     value === null ? null : (value / total) * 100,
-  );
-}
-
-function leadIndex(shares: Array<number | null>): number {
-  let best = -1;
-  let bestValue = -Infinity;
-
-  shares.forEach((share, index) => {
-    if (share !== null && share > bestValue) {
-      bestValue = share;
-      best = index;
-    }
-  });
-
-  return best;
-}
-
-// The "share" meter under an outcome: the chance TxLINE's prices imply.
-function ShareMeter({
-  leading,
-  share,
-}: {
-  leading: boolean;
-  share: number | null | undefined;
-}) {
-  if (typeof share !== "number" || !Number.isFinite(share)) {
-    return null;
-  }
-
-  const pct = Math.round(share);
-
-  return (
-    <span
-      aria-label={`Implied chance ${pct}%`}
-      className="mp2-odds-share"
-      role="img"
-    >
-      <em>{pct}%</em>
-      <span className="mp2-odds-track">
-        <span
-          className={`mp2-odds-fill${leading ? " lead" : ""}`}
-          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-        />
-      </span>
-    </span>
-  );
-}
-
-// A market outcome inside a single-select ToggleGroup (shadcn preset on
-// Base UI): label, the points it adds to the card, and the implied-chance
-// meter. The points already carry the live TxLINE odds (bold calls pay
-// more) so no bookmaker decimals appear anywhere. The pressed option goes
-// solid white (the homepage pc-pill idiom) with a floating corner badge.
-function MarketOption({
-  label,
-  labelHidden = false,
-  leading = false,
-  points,
-  share,
-  value,
-}: {
-  label: string;
-  labelHidden?: boolean;
-  leading?: boolean;
-  points: number;
-  share?: number | null;
-  value: string;
-}) {
-  return (
-    <ToggleGroupItem
-      aria-label={`${label}, pays ${points} points`}
-      className="mp2-odds-btn"
-      value={value}
-    >
-      {labelHidden ? null : (
-        <span className="mp2-odds-btn-label">{label}</span>
-      )}
-      <span className="mp2-odds-btn-value">
-        <em>+{points}</em>
-        <span className="mp2-odds-btn-unit">pts</span>
-      </span>
-      <ShareMeter leading={leading} share={share} />
-      <span aria-hidden className="mp2-odds-badge">
-        +{points}
-      </span>
-    </ToggleGroupItem>
-  );
-}
-
-// Glassy vertical stepper column, straight from the homepage prediction
-// card: the animated team glow bleeds through the translucent fills.
-function GoalStepper({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  value: number;
-}) {
-  return (
-    <div className="mp2-play-stepper">
-      <button
-        aria-label={`More ${label} goals`}
-        className="mp2-play-step up"
-        onClick={() => onChange(clampGoals(value + 1))}
-        type="button"
-      >
-        +
-      </button>
-      <output aria-label={`${label} goals`}>{value}</output>
-      <button
-        aria-label={`Fewer ${label} goals`}
-        className="mp2-play-step down"
-        disabled={value <= 0}
-        onClick={() => onChange(clampGoals(value - 1))}
-        type="button"
-      >
-        −
-      </button>
-    </div>
   );
 }
 
