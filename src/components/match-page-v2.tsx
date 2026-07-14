@@ -30,7 +30,15 @@ import {
   YAxis,
 } from "recharts";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Avatar,
   AvatarFallback,
@@ -3030,28 +3038,35 @@ function MarketCards({
   const awayIso = teamFlag(fixture.awayTeam);
   const draftSidePicks = draft.sidePicks ?? [];
   const sideOfferRows = buildSideOffers(board, fixture);
-  const toggleSidePick = (offer: SideOffer) => {
-    patchDraft((previous) => {
-      const existing = previous.sidePicks ?? [];
-      const already = existing.some(
-        (pick) => sidePickKey(pick) === offer.key,
-      );
-      // One outcome per market: taking a line's "over" drops its "under".
-      const cleared = existing.filter(
-        (pick) => sidePickMarketKey(pick) !== offer.marketKey,
-      );
+  // One outcome per market; an empty group value means the pick was
+  // toggled off.
+  const sideGroupValue = (marketKey: string) => {
+    const active = draftSidePicks.find(
+      (pick) => sidePickMarketKey(pick) === marketKey,
+    );
 
-      if (already) {
-        return { ...previous, sidePicks: cleared };
-      }
-
-      if (cleared.length >= MAX_SIDE_PICKS) {
-        return previous;
-      }
-
-      return { ...previous, sidePicks: [...cleared, offer.pick] };
-    });
+    return active ? [sidePickKey(active)] : [];
   };
+  const onSideGroupChange =
+    (marketKey: string, offers: SideOffer[]) => (groupValue: unknown[]) => {
+      const offer = offers.find((candidate) => candidate.key === groupValue[0]);
+
+      patchDraft((previous) => {
+        const cleared = (previous.sidePicks ?? []).filter(
+          (pick) => sidePickMarketKey(pick) !== marketKey,
+        );
+
+        if (!offer) {
+          return { ...previous, sidePicks: cleared };
+        }
+
+        if (cleared.length >= MAX_SIDE_PICKS) {
+          return previous;
+        }
+
+        return { ...previous, sidePicks: [...cleared, offer.pick] };
+      });
+    };
   const goalsBoardLine = board?.overUnder?.find(
     (entry) =>
       entry.line === PREDICTION_LINES.goals && entry.prices.length >= 2,
@@ -3202,7 +3217,18 @@ function MarketCards({
               <span className="mp2-play-team-name">{fixture.awayTeam}</span>
             </div>
           </div>
-          <div className="mp2-odds-row cols-3 mp2-play-result">
+          <ToggleGroup
+            aria-label="Match result"
+            className="mp2-odds-row cols-3 mp2-play-result"
+            onValueChange={(groupValue: unknown[]) => {
+              const pick = groupValue[0] as WinnerPick | undefined;
+
+              if (pick) {
+                patchDraft((previous) => ({ ...previous, winner: pick }));
+              }
+            }}
+            value={[draft.winner]}
+          >
             {(
               [
                 { label: fixture.homeTeam, value: "home" },
@@ -3210,22 +3236,16 @@ function MarketCards({
                 { label: fixture.awayTeam, value: "away" },
               ] as const
             ).map((option, index) => (
-              <OddsButton
-                active={draft.winner === option.value}
+              <MarketOption
                 key={option.value}
                 label={option.label}
                 leading={index === resultLead}
-                onClick={() =>
-                  patchDraft((previous) => ({
-                    ...previous,
-                    winner: option.value,
-                  }))
-                }
                 points={winnerPoints(odds1x2?.[option.value])}
                 share={resultShares[index]}
+                value={option.value}
               />
             ))}
-          </div>
+          </ToggleGroup>
         </div>
         <p className="mp2-league-picks">
           <span aria-hidden className="mp2-league-avatars">
@@ -3250,9 +3270,9 @@ function MarketCards({
 
       <section aria-labelledby="market-totals-heading" className="card">
         <div className="mp2-card-heading">
-          <h2 id="market-totals-heading">Totals</h2>
+          <h2 id="market-totals-heading">Markets</h2>
           <span className="mp2-card-hint">
-            +{PREDICTION_POINTS.line} pts each
+            totals +{PREDICTION_POINTS.line} pts each
           </span>
         </div>
         <div className="mp2-market-rows">
@@ -3263,127 +3283,154 @@ function MarketCards({
             return (
               <div className="mp2-odds-line" key={row.field}>
                 <span className="mp2-odds-line-label">{row.label}</span>
-                <div className="mp2-odds-row cols-2">
-                  <OddsButton
-                    active={draft[row.field] === "over"}
+                <ToggleGroup
+                  aria-label={`${row.label} over/under ${row.line}`}
+                  className="mp2-odds-row cols-2"
+                  onValueChange={(groupValue: unknown[]) => {
+                    const pick = groupValue[0] as "over" | "under" | undefined;
+
+                    if (pick) {
+                      patchDraft((previous) => ({
+                        ...previous,
+                        [row.field]: pick,
+                      }));
+                    }
+                  }}
+                  value={[draft[row.field]]}
+                >
+                  <MarketOption
                     label={`Over ${row.line}`}
                     leading={lead === 0}
-                    onClick={() =>
-                      patchDraft((previous) => ({
-                        ...previous,
-                        [row.field]: "over",
-                      }))
-                    }
                     points={PREDICTION_POINTS.line}
                     share={shares[0]}
+                    value="over"
                   />
-                  <OddsButton
-                    active={draft[row.field] === "under"}
+                  <MarketOption
                     label={`Under ${row.line}`}
                     leading={lead === 1}
-                    onClick={() =>
-                      patchDraft((previous) => ({
-                        ...previous,
-                        [row.field]: "under",
-                      }))
-                    }
                     points={PREDICTION_POINTS.line}
                     share={shares[1]}
+                    value="under"
                   />
-                </div>
+                </ToggleGroup>
               </div>
             );
           })}
         </div>
-      </section>
 
-      {sideOfferRows ? (
-        <section aria-labelledby="market-more-heading" className="card">
-          <div className="mp2-card-heading">
-            <h2 id="market-more-heading">More markets</h2>
-            <span className="mp2-card-hint">
-              {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · long shots pay
-              up to {SIDE_PICK_POINTS.cap} pts
-            </span>
-          </div>
-          <div className="mp2-market-rows">
-            {sideOfferRows.map((row) => {
-              if (row.layout === "rows") {
-                const rowShares = row.offers.map((offer) =>
-                  offer.pick.kind === "double_chance"
-                    ? dcShare(offer.pick.pick)
-                    : null,
-                );
-                const rowLead = leadIndex(rowShares);
+        {sideOfferRows ? (
+          <>
+            <Separator className="my-4" />
+            <Accordion className="rounded-none border-0">
+              <AccordionItem
+                className="border-0 data-open:bg-transparent"
+                value="more-markets"
+              >
+                <AccordionTrigger className="items-center p-0 hover:no-underline">
+                  <span className="flex-1 text-[15px] font-bold text-white">
+                    More markets
+                  </span>
+                  <span className="mp2-card-hint">
+                    {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · long
+                    shots pay up to {SIDE_PICK_POINTS.cap} pts
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="-mx-4 pt-4 pb-0">
+                  <div className="mp2-market-rows !mt-0">
+                    {sideOfferRows.map((row) => {
+                      const marketKey = row.offers[0]?.marketKey ?? row.label;
 
-                return (
-                  <div className="mp2-dc-block" key={row.label}>
-                    <span className="mp2-odds-line-label">{row.label}</span>
-                    <div className="mp2-dc-list">
-                      {row.offers.map((offer, index) => {
-                        const share = rowShares[index];
+                      if (row.layout === "rows") {
+                        const rowShares = row.offers.map((offer) =>
+                          offer.pick.kind === "double_chance"
+                            ? dcShare(offer.pick.pick)
+                            : null,
+                        );
+                        const rowLead = leadIndex(rowShares);
 
                         return (
-                          <div className="mp2-dc-row" key={offer.key}>
-                            <span className="mp2-dc-copy">
-                              <span className="mp2-dc-label">
-                                {offer.label}
-                              </span>
-                              <ShareMeter
-                                leading={index === rowLead}
-                                share={share}
-                              />
+                          <div className="mp2-dc-block" key={row.label}>
+                            <span className="mp2-odds-line-label">
+                              {row.label}
                             </span>
-                            <OddsButton
-                              active={draftSidePicks.some(
-                                (pick) => sidePickKey(pick) === offer.key,
+                            <ToggleGroup
+                              aria-label={row.label}
+                              className="mp2-dc-list"
+                              onValueChange={onSideGroupChange(
+                                marketKey,
+                                row.offers,
                               )}
-                              label={offer.label}
-                              labelHidden
-                              onClick={() => toggleSidePick(offer)}
-                              points={sidePickPoints(offer.pick.odds)}
-                            />
+                              value={sideGroupValue(marketKey)}
+                            >
+                              {row.offers.map((offer, index) => (
+                                <div className="mp2-dc-row" key={offer.key}>
+                                  <span className="mp2-dc-copy">
+                                    <span className="mp2-dc-label">
+                                      {offer.label}
+                                    </span>
+                                    <ShareMeter
+                                      leading={index === rowLead}
+                                      share={rowShares[index]}
+                                    />
+                                  </span>
+                                  <MarketOption
+                                    label={offer.label}
+                                    labelHidden
+                                    points={sidePickPoints(offer.pick.odds)}
+                                    value={offer.key}
+                                  />
+                                </div>
+                              ))}
+                            </ToggleGroup>
                           </div>
                         );
-                      })}
-                    </div>
-                  </div>
-                );
-              }
+                      }
 
-              const shares = impliedShares(
-                row.offers.map((offer) => offer.pick.odds),
-              );
-              const lead = leadIndex(shares);
+                      const shares = impliedShares(
+                        row.offers.map((offer) => offer.pick.odds),
+                      );
+                      const lead = leadIndex(shares);
 
-              return (
-                <div className="mp2-odds-line" key={row.label}>
-                  <span className="mp2-odds-line-label">{row.label}</span>
-                  <div className={`mp2-odds-row cols-${row.offers.length}`}>
-                    {row.offers.map((offer, index) => (
-                      <OddsButton
-                        active={draftSidePicks.some(
-                          (pick) => sidePickKey(pick) === offer.key,
-                        )}
-                        key={offer.key}
-                        label={offer.label}
-                        leading={index === lead}
-                        onClick={() => toggleSidePick(offer)}
-                        points={sidePickPoints(offer.pick.odds)}
-                        share={shares[index]}
-                      />
-                    ))}
+                      return (
+                        <div className="mp2-odds-line" key={row.label}>
+                          <span className="mp2-odds-line-label">
+                            {row.label}
+                          </span>
+                          <ToggleGroup
+                            aria-label={row.label}
+                            className={`mp2-odds-row cols-${row.offers.length}`}
+                            onValueChange={onSideGroupChange(
+                              marketKey,
+                              row.offers,
+                            )}
+                            value={sideGroupValue(marketKey)}
+                          >
+                            {row.offers.map((offer, index) => (
+                              <MarketOption
+                                key={offer.key}
+                                label={offer.label}
+                                leading={index === lead}
+                                points={sidePickPoints(offer.pick.odds)}
+                                share={shares[index]}
+                                value={offer.key}
+                              />
+                            ))}
+                          </ToggleGroup>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="muted">
-            Points follow the live TxLINE odds - the bolder the call, the more
-            it pays. Bars show the chance the market gives each outcome.
-          </p>
-        </section>
-      ) : null}
+                  <p className="muted">
+                    Points follow the live TxLINE odds - the bolder the call,
+                    the more it pays. Bars show the chance the market gives
+                    each outcome.
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </>
+        ) : null}
+      </section>
 
       <section aria-labelledby="market-scorer-heading" className="card">
         <div className="mp2-card-heading">
@@ -3487,13 +3534,10 @@ function PotentialPoints({ points }: { points: number }) {
 
     previous.current = points;
 
-    if (reducedMotion) {
-      setDisplay(points);
-      return;
-    }
-
+    // Reduced motion snaps via a zero-duration tween (still async, so no
+    // cascading synchronous state updates inside the effect).
     const controls = animate(from, points, {
-      duration: 0.5,
+      duration: reducedMotion ? 0 : 0.5,
       ease: [0.22, 1, 0.36, 1],
       onUpdate: (value) => setDisplay(Math.round(value)),
     });
@@ -3868,34 +3912,31 @@ function ShareMeter({
   );
 }
 
-// A tappable market outcome: label, the points it adds to the card, and the
-// implied-chance meter. The points already carry the live TxLINE odds (bold
-// calls pay more) so no bookmaker decimals appear anywhere. Picked chips go
+// A market outcome inside a single-select ToggleGroup (shadcn preset on
+// Base UI): label, the points it adds to the card, and the implied-chance
+// meter. The points already carry the live TxLINE odds (bold calls pay
+// more) so no bookmaker decimals appear anywhere. The pressed option goes
 // solid white (the homepage pc-pill idiom) with a floating corner badge.
-function OddsButton({
-  active,
+function MarketOption({
   label,
   labelHidden = false,
   leading = false,
-  onClick,
   points,
   share,
+  value,
 }: {
-  active: boolean;
   label: string;
   labelHidden?: boolean;
   leading?: boolean;
-  onClick: () => void;
   points: number;
   share?: number | null;
+  value: string;
 }) {
   return (
-    <button
+    <ToggleGroupItem
       aria-label={`${label}, pays ${points} points`}
-      aria-pressed={active}
-      className={`mp2-odds-btn${active ? " picked" : ""}`}
-      onClick={onClick}
-      type="button"
+      className="mp2-odds-btn"
+      value={value}
     >
       {labelHidden ? null : (
         <span className="mp2-odds-btn-label">{label}</span>
@@ -3908,7 +3949,7 @@ function OddsButton({
       <span aria-hidden className="mp2-odds-badge">
         +{points}
       </span>
-    </button>
+    </ToggleGroupItem>
   );
 }
 

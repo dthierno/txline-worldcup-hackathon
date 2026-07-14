@@ -5104,6 +5104,7 @@ dt {
 .mp2-odds-row {
   display: grid;
   gap: 8px;
+  width: 100%;
 }
 .mp2-odds-row.cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5134,6 +5135,9 @@ dt {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* The preset toggle sizes to a fixed h-8; the market chip stacks label,
+     points and meter, so it sizes to content. */
+  height: auto;
   min-width: 0;
   padding: 8px 8px 7px;
   position: relative;
@@ -5174,7 +5178,7 @@ dt {
   font-size: 10px;
   font-weight: 600;
 }
-.mp2-odds-btn.picked .mp2-odds-btn-unit {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-btn-unit {
   color: #52525b;
 }
 /* Implied-chance meter: pct + slim bar (the homepage pc-meter recipe). */
@@ -5210,34 +5214,34 @@ dt {
 .mp2-odds-fill.lead {
   background: var(--won);
 }
-.mp2-odds-btn.picked .mp2-odds-share > em {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-share > em {
   color: #52525b;
 }
-.mp2-odds-btn.picked .mp2-odds-track {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-track {
   background: rgba(0, 0, 0, 0.1);
 }
-.mp2-odds-btn.picked .mp2-odds-fill {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-fill {
   background: rgba(0, 0, 0, 0.32);
 }
-.mp2-odds-btn.picked .mp2-odds-fill.lead {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-fill.lead {
   background: #16a34a;
 }
 .mp2-odds-badge {
   display: none;
 }
 /* Picked: solid white chip, dark text, points fly to a corner badge. */
-.mp2-odds-btn.picked {
+.mp2-odds-btn[aria-pressed="true"] {
   animation: mp2-pick-pop 0.26s cubic-bezier(0.23, 1, 0.32, 1);
   background: #f4f4f5;
   border-color: transparent;
 }
-.mp2-odds-btn.picked .mp2-odds-btn-label {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-btn-label {
   color: #52525b;
 }
-.mp2-odds-btn.picked .mp2-odds-btn-value > em {
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-btn-value > em {
   color: #18181b;
 }
-.mp2-odds-btn.picked .mp2-odds-badge,
+.mp2-odds-btn[aria-pressed="true"] .mp2-odds-badge,
 .mp2-scorer-chip.picked .mp2-odds-badge {
   align-items: center;
   animation: mp2-badge-pop 0.3s cubic-bezier(0.23, 1, 0.32, 1);
@@ -5276,9 +5280,9 @@ dt {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mp2-odds-btn.picked,
+  .mp2-odds-btn[aria-pressed="true"],
   .mp2-scorer-chip.picked,
-  .mp2-odds-btn.picked .mp2-odds-badge,
+  .mp2-odds-btn[aria-pressed="true"] .mp2-odds-badge,
   .mp2-scorer-chip.picked .mp2-odds-badge {
     animation: none;
   }
