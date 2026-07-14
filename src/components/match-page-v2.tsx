@@ -31,7 +31,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { Skiper107 } from "@/components/skiper107";
+import { KnockoutBracketLive } from "@/components/knockout-bracket-live";
 import {
   ChartContainer,
   ChartTooltip,
@@ -1617,7 +1617,11 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         {matchTab === "knockout" ? (
           <section className="card mp2-bracket-tab" aria-labelledby="bracket-heading">
             <h2 id="bracket-heading">Tournament bracket</h2>
-            <Skiper107 fixtures={fixtures} now={now} scores={bracketScores} />
+            <KnockoutBracketLive
+              fixtures={fixtures}
+              now={now}
+              scores={bracketScores}
+            />
           </section>
         ) : null}
 
