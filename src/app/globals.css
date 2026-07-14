@@ -4767,39 +4767,43 @@ dt {
   margin: 2px 0 0;
   padding: 0;
 }
-/* Each pick sits on its own quiet raised card. The margin reset beats the
-   app-wide li spacing, which otherwise stretches the stack. */
+/* Each pick sits on its own glassy card so the colour wash glows through.
+   The margin reset beats the app-wide li spacing, which otherwise
+   stretches the stack. */
 .mp2-ticket-list > li {
-  align-items: baseline;
-  background: #141419;
-  border-radius: 11px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
   column-gap: 10px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   margin: 0;
-  padding: 6px 10px 7px;
-  row-gap: 0;
+  padding: 7px 11px 8px;
+  row-gap: 1px;
 }
 .mp2-ticket-market {
   color: var(--muted-foreground);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 600;
   grid-column: 1;
-  letter-spacing: 0.07em;
-  line-height: 1.5;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
   text-transform: uppercase;
 }
 .mp2-ticket-pts {
+  background: color-mix(in srgb, var(--won) 14%, transparent);
+  border-radius: 999px;
   color: var(--won);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   grid-column: 2;
-  text-align: right;
+  justify-self: end;
+  padding: 1px 7px;
 }
 .mp2-ticket-pick {
   color: #fff;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 650;
   grid-column: 1;
   max-width: 100%;
   overflow: hidden;
@@ -4807,7 +4811,7 @@ dt {
   white-space: nowrap;
 }
 .mp2-ticket-odds {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -4862,29 +4866,26 @@ dt {
   font-size: 16px;
   font-weight: 800;
 }
-/* The one true CTA on the ticket: the confirm-green gradient from the
-   homepage check badge, sized for a confident thumb. */
+/* The one true CTA on the ticket: solid white, the same commitment colour
+   as a picked chip, in the app's pill shape. */
 .mp2-play .mp2-ticket-save,
 .mp2-ticket-card .mp2-ticket-save {
-  background: linear-gradient(135deg, #34d399, #16a34a);
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.24);
-  color: #052e16;
+  background: #f4f4f5;
+  border-radius: 999px;
+  color: #18181b;
   font-size: 13.5px;
-  font-weight: 700;
-  height: 42px;
+  font-weight: 750;
+  height: 44px;
   letter-spacing: 0.01em;
   transition:
-    box-shadow 0.16s ease,
-    filter 0.16s ease,
+    background 0.16s ease,
     transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
   width: 100%;
 }
 .mp2-ticket-card .mp2-ticket-save:hover {
-  filter: brightness(1.07);
+  background: #fff;
 }
 .mp2-ticket-card .mp2-ticket-save:active {
-  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.2);
   transform: scale(0.98);
 }
 @media (max-width: 900px) {
