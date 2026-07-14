@@ -4737,7 +4737,7 @@ dt {
 .mp2-ticket-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   list-style: none;
   margin: 2px 0 0;
   padding: 0;
@@ -4746,12 +4746,12 @@ dt {
 .mp2-ticket-list > li {
   align-items: baseline;
   background: #141419;
-  border-radius: 12px;
+  border-radius: 11px;
   column-gap: 10px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  padding: 8px 11px 9px;
-  row-gap: 1px;
+  padding: 7px 10px 8px;
+  row-gap: 0;
 }
 .mp2-ticket-market {
   color: var(--muted-foreground);
