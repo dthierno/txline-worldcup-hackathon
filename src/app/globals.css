@@ -4233,6 +4233,18 @@ dt {
   overflow: hidden;
   padding: 22px 24px 24px !important;
 }
+/* The bracket component lays its lists out absolutely; the app's global
+   list styling (disc markers, indents, li margins) sits outside cascade
+   layers, so it beats the component's utility classes - reset it here. */
+.mp2-bracket-tab ul,
+.mp2-bracket-tab ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mp2-bracket-tab li {
+  margin: 0;
+}
 .mp2-form-grid {
   display: grid;
   gap: 14px;
