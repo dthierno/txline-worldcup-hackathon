@@ -3525,7 +3525,6 @@ function TicketCard({
             <span className="mp2-ticket-market">{row.market}</span>
             <span className="mp2-ticket-pts">+{row.pts}</span>
             <span className="mp2-ticket-pick">{row.pick}</span>
-            <span aria-hidden className="mp2-ticket-dots" />
             <span className="mp2-ticket-odds">
               {typeof row.odds === "number" ? row.odds.toFixed(2) : ""}
             </span>
