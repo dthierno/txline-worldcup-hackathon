@@ -3023,6 +3023,24 @@ function PredictionSection({
       teamName: team.teamName,
     }))
     .filter((team) => team.players.length > 0);
+  const resultShares = impliedShares([
+    odds1x2?.home,
+    odds1x2?.draw,
+    odds1x2?.away,
+  ]);
+  const resultLead = leadIndex(resultShares);
+  // Double-chance covers two outcomes; its implied chance is their sum.
+  const dcShare = (pick: DoubleChancePick): number | null => {
+    const [home, draw, away] = resultShares;
+    const pair: Record<DoubleChancePick, [number | null, number | null]> = {
+      draw_away: [draw, away],
+      home_away: [home, away],
+      home_draw: [home, draw],
+    };
+    const [first, second] = pair[pick];
+
+    return first === null || second === null ? null : first + second;
+  };
   const potentialPoints =
     PREDICTION_POINTS.exactScore +
     winnerPoints(odds1x2?.[draft.winner]) +
@@ -3144,16 +3162,18 @@ function PredictionSection({
                     { label: "Draw", value: "draw" },
                     { label: fixture.awayTeam, value: "away" },
                   ] as const
-                ).map((option) => (
+                ).map((option, index) => (
                   <OddsButton
                     active={draft.winner === option.value}
                     key={option.value}
                     label={option.label}
+                    leading={index === resultLead}
                     odds={odds1x2?.[option.value]}
                     onClick={() =>
                       setDraft({ ...draft, winner: option.value })
                     }
                     points={winnerPoints(odds1x2?.[option.value])}
+                    share={resultShares[index]}
                   />
                 ))}
               </div>
@@ -3165,27 +3185,43 @@ function PredictionSection({
               <span>Totals</span>
               <small>+{PREDICTION_POINTS.line} pts each</small>
             </div>
-            {totalsRows.map((row) => (
-              <div className="mp2-odds-line" key={row.field}>
-                <span className="mp2-odds-line-label">{row.label}</span>
-                <div className="mp2-odds-row cols-2">
-                  <OddsButton
-                    active={draft[row.field] === "over"}
-                    label={`Over ${row.line}`}
-                    odds={row.prices?.[0]}
-                    onClick={() => setDraft({ ...draft, [row.field]: "over" })}
-                    points={PREDICTION_POINTS.line}
-                  />
-                  <OddsButton
-                    active={draft[row.field] === "under"}
-                    label={`Under ${row.line}`}
-                    odds={row.prices?.[1]}
-                    onClick={() => setDraft({ ...draft, [row.field]: "under" })}
-                    points={PREDICTION_POINTS.line}
-                  />
+            {totalsRows.map((row) => {
+              const shares = impliedShares([
+                row.prices?.[0],
+                row.prices?.[1],
+              ]);
+              const lead = leadIndex(shares);
+
+              return (
+                <div className="mp2-odds-line" key={row.field}>
+                  <span className="mp2-odds-line-label">{row.label}</span>
+                  <div className="mp2-odds-row cols-2">
+                    <OddsButton
+                      active={draft[row.field] === "over"}
+                      label={`Over ${row.line}`}
+                      leading={lead === 0}
+                      odds={row.prices?.[0]}
+                      onClick={() =>
+                        setDraft({ ...draft, [row.field]: "over" })
+                      }
+                      points={PREDICTION_POINTS.line}
+                      share={shares[0]}
+                    />
+                    <OddsButton
+                      active={draft[row.field] === "under"}
+                      label={`Under ${row.line}`}
+                      leading={lead === 1}
+                      odds={row.prices?.[1]}
+                      onClick={() =>
+                        setDraft({ ...draft, [row.field]: "under" })
+                      }
+                      points={PREDICTION_POINTS.line}
+                      share={shares[1]}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {sideOfferRows ? (
@@ -3197,30 +3233,84 @@ function PredictionSection({
                   up to {SIDE_PICK_POINTS.cap} pts
                 </small>
               </div>
-              {sideOfferRows.map((row) => (
-                <div className="mp2-odds-line" key={row.label}>
-                  <span className="mp2-odds-line-label">{row.label}</span>
-                  <div
-                    className={`mp2-odds-row cols-${row.offers.length}`}
-                  >
-                    {row.offers.map((offer) => (
-                      <OddsButton
-                        active={draftSidePicks.some(
-                          (pick) => sidePickKey(pick) === offer.key,
-                        )}
-                        key={offer.key}
-                        label={offer.label}
-                        odds={offer.pick.odds}
-                        onClick={() => toggleSidePick(offer)}
-                        points={sidePickPoints(offer.pick.odds)}
-                      />
-                    ))}
+              {sideOfferRows.map((row) => {
+                // Double chance reads best as full-width rows (label and
+                // implied chance left, odds chip right); paired lines keep
+                // the two-chip grid.
+                if (row.layout === "rows") {
+                  const rowShares = row.offers.map((offer) =>
+                    offer.pick.kind === "double_chance"
+                      ? dcShare(offer.pick.pick)
+                      : null,
+                  );
+                  const rowLead = leadIndex(rowShares);
+
+                  return (
+                    <div className="mp2-dc-block" key={row.label}>
+                      <span className="mp2-odds-line-label">{row.label}</span>
+                      <div className="mp2-dc-list">
+                      {row.offers.map((offer, index) => {
+                        const share = rowShares[index];
+
+                        return (
+                          <div className="mp2-dc-row" key={offer.key}>
+                            <span className="mp2-dc-copy">
+                              <span className="mp2-dc-label">
+                                {offer.label}
+                              </span>
+                              <ShareMeter
+                                leading={index === rowLead}
+                                share={share}
+                              />
+                            </span>
+                            <OddsButton
+                              active={draftSidePicks.some(
+                                (pick) => sidePickKey(pick) === offer.key,
+                              )}
+                              label={offer.label}
+                              labelHidden
+                              odds={offer.pick.odds}
+                              onClick={() => toggleSidePick(offer)}
+                              points={sidePickPoints(offer.pick.odds)}
+                            />
+                          </div>
+                        );
+                      })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                const shares = impliedShares(
+                  row.offers.map((offer) => offer.pick.odds),
+                );
+                const lead = leadIndex(shares);
+
+                return (
+                  <div className="mp2-odds-line" key={row.label}>
+                    <span className="mp2-odds-line-label">{row.label}</span>
+                    <div className={`mp2-odds-row cols-${row.offers.length}`}>
+                      {row.offers.map((offer, index) => (
+                        <OddsButton
+                          active={draftSidePicks.some(
+                            (pick) => sidePickKey(pick) === offer.key,
+                          )}
+                          key={offer.key}
+                          label={offer.label}
+                          leading={index === lead}
+                          odds={offer.pick.odds}
+                          onClick={() => toggleSidePick(offer)}
+                          points={sidePickPoints(offer.pick.odds)}
+                          share={shares[index]}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <p className="muted">
-                Prices are live TxLINE odds; double chance is derived from the
-                1X2 prices.
+                Prices are live TxLINE odds; the bars show the chance those
+                prices imply. Double chance is derived from the 1X2 prices.
               </p>
             </div>
           ) : null}
@@ -3410,6 +3500,73 @@ function PredictionSection({
   );
 }
 
+// Implied probability of each outcome from its decimal odds, with the
+// bookmaker margin stripped by normalising across the market's outcomes.
+// Null odds keep their slot so callers can zip shares back onto options.
+function impliedShares(
+  odds: Array<number | null | undefined>,
+): Array<number | null> {
+  const inverses = odds.map((value) =>
+    typeof value === "number" && Number.isFinite(value) && value > 1
+      ? 1 / value
+      : null,
+  );
+  const total = inverses.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+
+  if (total <= 0) {
+    return odds.map(() => null);
+  }
+
+  return inverses.map((value) =>
+    value === null ? null : (value / total) * 100,
+  );
+}
+
+function leadIndex(shares: Array<number | null>): number {
+  let best = -1;
+  let bestValue = -Infinity;
+
+  shares.forEach((share, index) => {
+    if (share !== null && share > bestValue) {
+      bestValue = share;
+      best = index;
+    }
+  });
+
+  return best;
+}
+
+// The "share" meter under an outcome: the chance TxLINE's prices imply.
+function ShareMeter({
+  leading,
+  share,
+}: {
+  leading: boolean;
+  share: number | null | undefined;
+}) {
+  if (typeof share !== "number" || !Number.isFinite(share)) {
+    return null;
+  }
+
+  const pct = Math.round(share);
+
+  return (
+    <span
+      aria-label={`Implied chance ${pct}%`}
+      className="mp2-odds-share"
+      role="img"
+    >
+      <em>{pct}%</em>
+      <span className="mp2-odds-track">
+        <span
+          className={`mp2-odds-fill${leading ? " lead" : ""}`}
+          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+        />
+      </span>
+    </span>
+  );
+}
+
 // A tappable market outcome: label, the decimal odds it pays at (when the
 // TxLINE board quotes it), and the points it adds to the card. Picked chips
 // go solid white (the homepage pc-pill idiom) and the points jump out to a
@@ -3417,15 +3574,21 @@ function PredictionSection({
 function OddsButton({
   active,
   label,
+  labelHidden = false,
+  leading = false,
   odds,
   onClick,
   points,
+  share,
 }: {
   active: boolean;
   label: string;
+  labelHidden?: boolean;
+  leading?: boolean;
   odds?: number | null;
   onClick: () => void;
   points: number;
+  share?: number | null;
 }) {
   const hasOdds = typeof odds === "number" && Number.isFinite(odds);
 
@@ -3437,11 +3600,14 @@ function OddsButton({
       onClick={onClick}
       type="button"
     >
-      <span className="mp2-odds-btn-label">{label}</span>
+      {labelHidden ? null : (
+        <span className="mp2-odds-btn-label">{label}</span>
+      )}
       <span className="mp2-odds-btn-value">
         {hasOdds ? <em>{odds.toFixed(2)}</em> : null}
         <span className="mp2-odds-btn-pts">+{points}</span>
       </span>
+      <ShareMeter leading={leading} share={share} />
       <span aria-hidden className="mp2-odds-badge">
         +{points}
       </span>
@@ -3523,15 +3689,21 @@ function doubleChanceOdds(first: number, second: number): number {
 // Extra markets straight off the TxLINE odds board: double chance (derived),
 // the .5 goals lines around the core 2.5, and .5 home handicaps. Quarter and
 // integer lines are skipped so every pick settles cleanly won or lost.
+type SideOfferRow = {
+  label: string;
+  layout: "chips" | "rows";
+  offers: SideOffer[];
+};
+
 function buildSideOffers(
   board: OddsBoard | undefined,
   fixture: WorldCupFixture,
-): Array<{ label: string; offers: SideOffer[] }> | null {
+): SideOfferRow[] | null {
   if (!board) {
     return null;
   }
 
-  const rows: Array<{ label: string; offers: SideOffer[] }> = [];
+  const rows: SideOfferRow[] = [];
   const isHalfLine = (line: number) =>
     line % 1 !== 0 && (line * 2) % 1 === 0;
 
@@ -3549,6 +3721,7 @@ function buildSideOffers(
 
     rows.push({
       label: "Double chance",
+      layout: "rows",
       offers: covers.map(([pick, label, odds]) => ({
         key: `dc:${pick}`,
         label,
@@ -3568,6 +3741,7 @@ function buildSideOffers(
     .slice(0, 2)) {
     rows.push({
       label: `Goals ${entry.line}`,
+      layout: "chips",
       offers: (["over", "under"] as const).map((pick, index) => ({
         key: `gl:${entry.line}:${pick}`,
         label: `${pick === "over" ? "Over" : "Under"} ${entry.line}`,
@@ -3589,6 +3763,7 @@ function buildSideOffers(
     .slice(0, 2)) {
     rows.push({
       label: `Handicap ${fixture.homeTeam} ${handicapLineLabel(entry.line)}`,
+      layout: "chips",
       offers: (["home", "away"] as const).map((pick, index) => ({
         key: `ah:${entry.line}:${pick}`,
         label: pick === "home" ? fixture.homeTeam : fixture.awayTeam,

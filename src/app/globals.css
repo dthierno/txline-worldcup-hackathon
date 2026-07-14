@@ -4900,15 +4900,60 @@ dt {
 }
 .mp2-odds-btn-value > em {
   color: #fff;
-  font-size: 15px;
+  font-size: 16.5px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 800;
 }
 .mp2-odds-btn-pts {
   color: var(--won);
   font-size: 10.5px;
   font-weight: 700;
+}
+/* Implied-chance meter: pct + slim bar (the homepage pc-meter recipe). */
+.mp2-odds-share {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  width: 100%;
+}
+.mp2-odds-share > em {
+  color: rgba(255, 255, 255, 0.8);
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 500;
+  min-width: 27px;
+  text-align: right;
+}
+.mp2-odds-track {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+}
+.mp2-odds-fill {
+  background: rgba(255, 255, 255, 0.38);
+  border-radius: 999px;
+  display: block;
+  height: 100%;
+}
+.mp2-odds-fill.lead {
+  background: var(--won);
+}
+.mp2-odds-btn.picked .mp2-odds-share > em {
+  color: #52525b;
+}
+.mp2-odds-btn.picked .mp2-odds-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+.mp2-odds-btn.picked .mp2-odds-fill {
+  background: rgba(0, 0, 0, 0.32);
+}
+.mp2-odds-btn.picked .mp2-odds-fill.lead {
+  background: #16a34a;
 }
 .mp2-odds-badge {
   display: none;
@@ -4973,6 +5018,48 @@ dt {
   .mp2-scorer-chip.picked .mp2-odds-badge {
     animation: none;
   }
+}
+/* Double-chance: full-width rows, label + implied chance left, chip right. */
+.mp2-dc-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mp2-dc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mp2-dc-row {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 96px;
+}
+.mp2-dc-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.mp2-dc-copy > .mp2-odds-share {
+  margin-top: 0;
+  max-width: 210px;
+}
+.mp2-dc-copy > .mp2-odds-share > em {
+  min-width: 27px;
+  text-align: left;
+}
+.mp2-dc-label {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp2-dc-row .mp2-odds-btn {
+  width: 100%;
 }
 /* First-scorer chip strip. */
 .mp2-scorer-strip {
