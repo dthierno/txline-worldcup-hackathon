@@ -7,7 +7,14 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   Area,
   AreaChart,
@@ -217,6 +224,47 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
     window.history.pushState({}, "", url);
   }, []);
+
+  // Manual-activation tablist keyboard pattern: arrows/Home/End move focus
+  // between tabs, Enter/Space (native button click) selects - so arrowing
+  // across the list doesn't push a history entry per step.
+  const handleTabListKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLElement>) => {
+      const currentValue = (event.target as HTMLElement).id?.replace(
+        "match-tab-",
+        "",
+      );
+      const currentIndex = MATCH_TABS.findIndex(
+        (tab) => tab.value === currentValue,
+      );
+
+      if (currentIndex === -1) {
+        return;
+      }
+
+      const lastIndex = MATCH_TABS.length - 1;
+      const nextIndex =
+        event.key === "ArrowRight"
+          ? (currentIndex + 1) % MATCH_TABS.length
+          : event.key === "ArrowLeft"
+            ? (currentIndex + lastIndex) % MATCH_TABS.length
+            : event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? lastIndex
+                : null;
+
+      if (nextIndex === null) {
+        return;
+      }
+
+      event.preventDefault();
+      document
+        .getElementById(`match-tab-${MATCH_TABS[nextIndex].value}`)
+        ?.focus();
+    },
+    [],
+  );
 
   // Resolve the fixture from the docs seed plus the live snapshot, so deep
   // links work for any TxLINE fixture id.
@@ -467,6 +515,42 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     };
   }, [fixtureId, liveStreamEligible]);
 
+  const replayUpdates = details.historicalUpdates?.data?.length
+    ? details.historicalUpdates
+    : details.updates;
+  // Scout corrections first: drop discarded events (disallowed goals, wrongly
+  // logged corners) and apply amends (re-graded shot outcomes) so every
+  // consumer below - stats, calls, feed - sees the corrected record of play.
+  // Memoized (with the other feed folds below): the component re-renders at
+  // least every 30s via useNow, and these walk 1000+ records per pass.
+  const combinedUpdates = useMemo(
+    () =>
+      applyScoutCorrections(
+        fillUnknownStats([...(replayUpdates?.data ?? []), ...streamUpdates]),
+      ),
+    [replayUpdates, streamUpdates],
+  );
+  const goals = useMemo(() => extractGoals(combinedUpdates), [combinedUpdates]);
+  const playerDirectory: PlayerDirectory = useMemo(
+    () =>
+      new Map(
+        (details.lineups?.data?.teams ?? []).flatMap((team) =>
+          team.players
+            .filter((player) => typeof player.playerId === "number")
+            .map((player) => [
+              player.playerId as number,
+              { name: player.name, teamName: team.teamName },
+            ]),
+        ),
+      ),
+    [details.lineups],
+  );
+  const readableUpdates = useMemo(
+    () =>
+      fixture ? getDisplayUpdates(combinedUpdates, fixture, playerDirectory) : [],
+    [combinedUpdates, fixture, playerDirectory],
+  );
+
   if (!fixture) {
     return (
       <main>
@@ -483,15 +567,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     );
   }
 
-  const replayUpdates = details.historicalUpdates?.data?.length
-    ? details.historicalUpdates
-    : details.updates;
-  // Scout corrections first: drop discarded events (disallowed goals, wrongly
-  // logged corners) and apply amends (re-graded shot outcomes) so every
-  // consumer below - stats, calls, feed - sees the corrected record of play.
-  const combinedUpdates = applyScoutCorrections(
-    fillUnknownStats([...(replayUpdates?.data ?? []), ...streamUpdates]),
-  );
   const displayScore = getDisplayScore(details.score?.data, combinedUpdates);
   const scoreSource = replayUpdates?.data?.length
     ? `${details.score?.source ?? "TxLINE scores snapshot API"} + ${
@@ -529,20 +604,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             ? "Live"
             : formattedState;
   const finished = displayState === "Finished";
-  const goals = extractGoals(combinedUpdates);
   const firstGoal = goals[0] ?? null;
   const lineupPlayers =
     details.lineups?.data?.teams.flatMap((team) => team.players) ?? [];
-  const playerDirectory: PlayerDirectory = new Map(
-    (details.lineups?.data?.teams ?? []).flatMap((team) =>
-      team.players
-        .filter((player) => typeof player.playerId === "number")
-        .map((player) => [
-          player.playerId as number,
-          { name: player.name, teamName: team.teamName },
-        ]),
-    ),
-  );
   const substitutions = extractSubstitutionEvents(combinedUpdates);
   const redCardedPlayerIds = new Set<number>();
   // Live yellow-card counts per player, deduped by TxLINE event id (one real
@@ -799,11 +863,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     { label: "Defence", rows: defenceStatRows },
     { label: "Goalkeeping", rows: goalkeepingStatRows },
   ].filter((section) => section.rows.length > 0);
-  const readableUpdates = getDisplayUpdates(
-    combinedUpdates,
-    fixture,
-    playerDirectory,
-  );
   const keyUpdatePattern =
     /goal|penalty|red card|yellow card|half ?time|full time|substitution/i;
   const overviewEvents = readableUpdates
@@ -878,48 +937,67 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       </li>
     ));
   };
-  const redCardEvents = combinedUpdates
-    .filter(
-      (update, index, updates) =>
-        update.action === "red_card" &&
-        updates.findIndex(
-          (candidate) =>
-            candidate.action === "red_card" &&
-            (candidate.eventId !== undefined
-              ? candidate.eventId === update.eventId
-              : candidate.data?.PlayerId === update.data?.PlayerId),
-        ) === index,
-    )
-    .map((update) => {
-      const participant1IsHome = update.participant1IsHome !== false;
-      const side =
-        update.participant === 1
-          ? participant1IsHome
-            ? "home"
-            : "away"
-          : participant1IsHome
-            ? "away"
-            : "home";
-      const playerId =
-        typeof update.data?.PlayerId === "number"
-          ? update.data.PlayerId
-          : undefined;
+  // One real sending-off can emit several feed records: dedupe by eventId
+  // when present, by PlayerId for records without one (single pass - the
+  // feed holds 1000+ records by full time).
+  const seenRedCardEventIds = new Set<number | string>();
+  const seenRedCardPlayerIds = new Set<unknown>();
+  const redCardEvents: Array<{
+    key: number | string;
+    minute: string;
+    name: string;
+    side: "away" | "home";
+  }> = [];
 
-      return {
-        key: update.eventId ?? `red-card-${update.seq}`,
-        minute:
-          update.clockSeconds !== undefined
-            ? formatLiveMinute(update.clockSeconds, update.statusId)
-            : "—",
-        name: formatPlayerDisplayName(
-          (playerId !== undefined
-            ? playerDirectory.get(playerId)?.name
-            : undefined) ??
-            (side === "home" ? fixture.homeTeam : fixture.awayTeam),
-        ),
-        side,
-      };
+  for (const update of combinedUpdates) {
+    if (update.action !== "red_card") {
+      continue;
+    }
+
+    const duplicate =
+      (update.eventId !== undefined &&
+        seenRedCardEventIds.has(update.eventId)) ||
+      seenRedCardPlayerIds.has(update.data?.PlayerId);
+
+    if (update.eventId !== undefined) {
+      seenRedCardEventIds.add(update.eventId);
+    } else {
+      seenRedCardPlayerIds.add(update.data?.PlayerId);
+    }
+
+    if (duplicate) {
+      continue;
+    }
+
+    const participant1IsHome = update.participant1IsHome !== false;
+    const side =
+      update.participant === 1
+        ? participant1IsHome
+          ? "home"
+          : "away"
+        : participant1IsHome
+          ? "away"
+          : "home";
+    const playerId =
+      typeof update.data?.PlayerId === "number"
+        ? update.data.PlayerId
+        : undefined;
+
+    redCardEvents.push({
+      key: update.eventId ?? `red-card-${update.seq}`,
+      minute:
+        update.clockSeconds !== undefined
+          ? formatLiveMinute(update.clockSeconds, update.statusId)
+          : "—",
+      name: formatPlayerDisplayName(
+        (playerId !== undefined
+          ? playerDirectory.get(playerId)?.name
+          : undefined) ??
+          (side === "home" ? fixture.homeTeam : fixture.awayTeam),
+      ),
+      side,
     });
+  }
   const heroRedCardLines = (side: "away" | "home") =>
     redCardEvents
       .filter((event) => event.side === side)
@@ -1183,11 +1261,16 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         <nav
           aria-label="Match sections"
           className="mp2-hero-tabs"
+          onKeyDown={handleTabListKeyDown}
           role="tablist"
         >
           {MATCH_TABS.map((tab) => (
             <button
-              aria-controls={`match-panel-${tab.value}`}
+              // Only the selected tab's panel is in the DOM, and
+              // aria-controls must not point at a missing id.
+              aria-controls={
+                matchTab === tab.value ? `match-panel-${tab.value}` : undefined
+              }
               aria-current={matchTab === tab.value ? "page" : undefined}
               aria-selected={matchTab === tab.value}
               className={matchTab === tab.value ? "active" : undefined}
@@ -1195,6 +1278,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               key={tab.value}
               onClick={() => selectMatchTab(tab.value)}
               role="tab"
+              tabIndex={matchTab === tab.value ? 0 : -1}
               type="button"
             >
               {tab.label}
@@ -1229,7 +1313,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                     Full stats <span aria-hidden>→</span>
                   </Button>
                 </div>
-                {topStatRows.length ? (
+                {/* TxLINE publishes a 0-0 snapshot before kickoff, so check
+                    notStarted first or the card shows meaningless zero rows. */}
+                {notStarted ? (
+                  <p className="muted">
+                    Match statistics will appear after kickoff.
+                  </p>
+                ) : topStatRows.length ? (
                   <div className="mp2-glance-stats">
                     {topStatRows.slice(0, 4).map((row) => (
                       <div className="mp2-glance-stat" key={row.label}>
@@ -1240,11 +1330,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="muted">
-                    {notStarted
-                      ? "Match statistics will appear after kickoff."
-                      : "No match statistics are available yet."}
-                  </p>
+                  <p className="muted">No match statistics are available yet.</p>
                 )}
               </section>
 
@@ -2893,6 +2979,8 @@ function PredictionSection({
             <label>
               {fixture.homeTeam} goals{" "}
               <input
+                id="prediction-home-goals"
+                name="homeGoals"
                 type="number"
                 min={0}
                 max={12}
@@ -2908,6 +2996,8 @@ function PredictionSection({
             <label>
               {fixture.awayTeam} goals{" "}
               <input
+                id="prediction-away-goals"
+                name="awayGoals"
                 type="number"
                 min={0}
                 max={12}
@@ -2924,6 +3014,8 @@ function PredictionSection({
           <label>
             Winner{" "}
             <select
+              id="prediction-winner"
+              name="winner"
               value={draft.winner}
               onChange={(event) =>
                 setDraft({ ...draft, winner: event.target.value as WinnerPick })
@@ -2937,18 +3029,21 @@ function PredictionSection({
           <LinePickSelect
             label={`Total goals (line ${PREDICTION_LINES.goals})`}
             line={PREDICTION_LINES.goals}
+            name="totalGoals"
             value={draft.totalGoals}
             onChange={(pick) => setDraft({ ...draft, totalGoals: pick })}
           />
           <LinePickSelect
             label={`Total corners (line ${PREDICTION_LINES.corners})`}
             line={PREDICTION_LINES.corners}
+            name="totalCorners"
             value={draft.totalCorners}
             onChange={(pick) => setDraft({ ...draft, totalCorners: pick })}
           />
           <LinePickSelect
             label={`Total cards (line ${PREDICTION_LINES.cards})`}
             line={PREDICTION_LINES.cards}
+            name="totalCards"
             value={draft.totalCards}
             onChange={(pick) => setDraft({ ...draft, totalCards: pick })}
           />
@@ -2956,6 +3051,8 @@ function PredictionSection({
             <label>
               First scorer{" "}
               <select
+                id="prediction-first-scorer"
+                name="firstScorer"
                 value={
                   draft.firstScorer === "none"
                     ? "none"
@@ -3092,11 +3189,13 @@ function parseFirstScorerPick(
 function LinePickSelect({
   label,
   line,
+  name,
   onChange,
   value,
 }: {
   label: string;
   line: number;
+  name: string;
   onChange: (pick: LinePick) => void;
   value: LinePick;
 }) {
@@ -3104,6 +3203,8 @@ function LinePickSelect({
     <label>
       {label}{" "}
       <select
+        id={`prediction-${name}`}
+        name={name}
         value={value}
         onChange={(event) => onChange(event.target.value as LinePick)}
       >

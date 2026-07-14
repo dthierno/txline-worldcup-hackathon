@@ -270,6 +270,17 @@ function mockFetch() {
       });
     }
 
+    // The future fixture has not kicked off: no score updates yet.
+    if (
+      url.includes(`/api/txline/scores/${futureFixture.fixtureId}/`) &&
+      (url.endsWith("/updates") || url.endsWith("/historical"))
+    ) {
+      return respond({
+        data: [],
+        source: "TxLINE scores updates API",
+      });
+    }
+
     if (url.includes("/api/txline/scores/") && url.endsWith("/updates")) {
       return respond({
         data: scoreUpdates,
@@ -663,6 +674,48 @@ describe("MatchPageV2 banner", () => {
       screen.getByRole("tab", { name: "Head-to-Head" }),
     ).toHaveAttribute("aria-current", "page");
     expect(window.location.search).toBe("?tab=head-to-head");
+  });
+
+  it("moves between match tabs with the keyboard", async () => {
+    const user = userEvent.setup();
+
+    render(<MatchPageV2 fixtureId={18237038} />);
+
+    const overviewTab = await screen.findByRole("tab", { name: "Overview" });
+
+    expect(overviewTab).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Lineups" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+
+    overviewTab.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Lineups" })).toHaveFocus();
+
+    await user.keyboard("{End}");
+    expect(screen.getByRole("tab", { name: "Head-to-Head" })).toHaveFocus();
+
+    // Manual activation: arrows only move focus; Enter selects.
+    expect(window.location.search).toBe("");
+    await user.keyboard("{Enter}");
+    expect(
+      screen.getByRole("tab", { name: "Head-to-Head" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(window.location.search).toBe("?tab=head-to-head");
+
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveFocus();
+  });
+
+  it("shows a kickoff note instead of zero stats before the match starts", async () => {
+    render(<MatchPageV2 fixtureId={999001} />);
+
+    expect(
+      await screen.findByText("Match statistics will appear after kickoff."),
+    ).toBeInTheDocument();
+    // The pre-match 0-0 snapshot must not render as zero stat rows.
+    expect(screen.queryByText("Corner kicks")).not.toBeInTheDocument();
   });
 
   it("places published official highlights in the right column", async () => {
