@@ -103,6 +103,7 @@ import {
   type MatchOutcome,
   type MatchPrediction,
   type SidePick,
+  type WinnerPick,
 } from "@/lib/prediction-engine";
 import {
   GOAL_CALL_POINTS,
@@ -2991,6 +2992,23 @@ function usePlayCard(fixtureId: number) {
   };
 }
 
+// The same simulated trio as the homepage leaderboard. Until leagues have a
+// backend, their winner picks are derived deterministically from the fixture
+// (stable across reloads, no randomness) and labelled as simulated.
+const LEAGUE_RIVALS = ["Amina", "Sam", "Noah"] as const;
+
+function rivalWinnerPick(fixtureId: number, name: string): WinnerPick {
+  let hash = 5381;
+
+  for (const char of `${fixtureId}:${name}`) {
+    hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
+  }
+
+  const roll = hash % 100;
+
+  return roll < 45 ? "home" : roll < 70 ? "draw" : "away";
+}
+
 // Pre-kickoff market cards for the main column: one plain card per market
 // family, consistent with every other card on the page.
 function MarketCards({
@@ -3067,6 +3085,36 @@ function MarketCards({
     odds1x2?.away,
   ]);
   const resultLead = leadIndex(resultShares);
+  // Your league's winner picks: the simulated trio plus your current call,
+  // so switching your pick updates the tally live.
+  const winnerNames: Record<WinnerPick, string> = {
+    away: fixture.awayTeam,
+    draw: "a draw",
+    home: fixture.homeTeam,
+  };
+  const leaguePicks: Array<{ name: string; pick: WinnerPick }> = [
+    ...LEAGUE_RIVALS.map((name) => ({
+      name,
+      pick: rivalWinnerPick(fixture.fixtureId, name),
+    })),
+    { name: "You", pick: draft.winner },
+  ];
+  const leagueCounts = leaguePicks.reduce<Record<WinnerPick, number>>(
+    (counts, member) => {
+      counts[member.pick] += 1;
+
+      return counts;
+    },
+    { away: 0, draw: 0, home: 0 },
+  );
+  const leagueModal = (
+    Object.keys(leagueCounts) as WinnerPick[]
+  ).reduce((best, pick) =>
+    leagueCounts[pick] > leagueCounts[best] ? pick : best,
+  );
+  const leagueMembers = leaguePicks.filter(
+    (member) => member.pick === leagueModal,
+  );
   // Double-chance covers two outcomes; its implied chance is their sum.
   const dcShare = (pick: DoubleChancePick): number | null => {
     const [home, draw, away] = resultShares;
@@ -3179,6 +3227,25 @@ function MarketCards({
             ))}
           </div>
         </div>
+        <p className="mp2-league-picks">
+          <span aria-hidden className="mp2-league-avatars">
+            {leagueMembers.map((member) => (
+              <span
+                className={`mp2-league-avatar${member.name === "You" ? " you" : ""}`}
+                key={member.name}
+              >
+                {member.name[0]}
+              </span>
+            ))}
+          </span>
+          <span className="mp2-league-copy">
+            <strong>
+              {leagueMembers.length} of {leaguePicks.length}
+            </strong>{" "}
+            in your league took {winnerNames[leagueModal]}
+            <em> · simulated</em>
+          </span>
+        </p>
       </section>
 
       <section aria-labelledby="market-totals-heading" className="card">

@@ -4856,6 +4856,52 @@ dt {
 .mp2-ticket-tear::after {
   right: -32px;
 }
+/* League pick tally under the 1X2: mini avatar stack + one quiet line. */
+.mp2-league-picks {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  margin: 12px 2px 0;
+}
+.mp2-league-avatars {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.mp2-league-avatar {
+  align-items: center;
+  background: #1c1c23;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #101014;
+  color: rgba(255, 255, 255, 0.72);
+  display: inline-flex;
+  font-size: 9.5px;
+  font-weight: 700;
+  height: 19px;
+  justify-content: center;
+  width: 19px;
+}
+.mp2-league-avatar + .mp2-league-avatar {
+  margin-left: -5px;
+}
+.mp2-league-avatar.you {
+  background: color-mix(in srgb, var(--won) 22%, #101014);
+  color: var(--won);
+}
+.mp2-league-copy {
+  color: var(--muted-foreground);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.mp2-league-copy > strong {
+  color: #fff;
+  font-weight: 600;
+}
+.mp2-league-copy > em {
+  font-size: 10px;
+  font-style: normal;
+  opacity: 0.75;
+}
+
 /* Counterfoil payoff: one quiet row, weight carries the hierarchy. */
 .mp2-ticket-payout {
   align-items: baseline;
