@@ -4894,33 +4894,6 @@ dt {
   box-shadow: 0 3px 10px rgba(22, 163, 74, 0.2);
   transform: scale(0.98);
 }
-/* Decorative print barcode: two overlaid bar rhythms make the pattern read
-   as irregular without any randomness. */
-.mp2-ticket-barcode {
-  align-self: center;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.9) 0 1px,
-      transparent 1px 3px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.85) 0 2px,
-      transparent 2px 7px
-    );
-  height: 15px;
-  margin-top: 2px;
-  opacity: 0.32;
-  width: 124px;
-}
-.mp2-ticket-note {
-  color: var(--muted-foreground);
-  font-size: 10.5px;
-  line-height: 1.45;
-  margin: 0;
-  text-align: center;
-}
 @media (max-width: 900px) {
   .mp2-overview-layout > .mp2-side {
     position: static;

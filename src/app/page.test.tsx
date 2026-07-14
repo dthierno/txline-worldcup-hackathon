@@ -734,7 +734,10 @@ describe("MatchPageV2 banner", () => {
     await user.click(screen.getByRole("button", { name: "No goal scorer" }));
     await user.click(screen.getByRole("button", { name: "Save picks" }));
 
-    expect(screen.getByText(/Picks saved on this device/)).toBeInTheDocument();
+    // Saving flips the ticket CTA into update mode.
+    expect(
+      screen.getByRole("button", { name: "Update picks" }),
+    ).toBeInTheDocument();
 
     const stored = JSON.parse(
       window.localStorage.getItem("fan-forecast.predictions.v1") ?? "{}",

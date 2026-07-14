@@ -1445,7 +1445,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               {preMatchPlay ? (
                 <TicketCard
                   board={playBoard}
-                  confirmation={playCard.confirmation}
                   draft={playCard.draft}
                   fixture={fixture}
                   odds1x2={playOdds}
@@ -3404,7 +3403,6 @@ function MarketCards({
 // perfect-card total, and the save action.
 function TicketCard({
   board,
-  confirmation,
   draft,
   fixture,
   odds1x2,
@@ -3412,7 +3410,6 @@ function TicketCard({
   saved,
 }: {
   board: OddsBoard | undefined;
-  confirmation: string;
   draft: MatchPrediction;
   fixture: WorldCupFixture;
   odds1x2: { away: number; draw: number; home: number } | null;
@@ -3546,10 +3543,6 @@ function TicketCard({
       >
         {saved ? "Update picks" : "Save picks"}
       </Button>
-      <span aria-hidden className="mp2-ticket-barcode" />
-      <p className="mp2-ticket-note">
-        {confirmation || "Free game · points, not money · stored in this browser."}
-      </p>
     </section>
   );
 }
