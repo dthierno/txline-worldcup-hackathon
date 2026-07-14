@@ -4869,9 +4869,30 @@ dt {
   font-size: 16px;
   font-weight: 800;
 }
+/* The one true CTA on the ticket: the confirm-green gradient from the
+   homepage check badge, sized for a confident thumb. */
 .mp2-play .mp2-ticket-save,
 .mp2-ticket-card .mp2-ticket-save {
+  background: linear-gradient(135deg, #34d399, #16a34a);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.24);
+  color: #052e16;
+  font-size: 13.5px;
+  font-weight: 700;
+  height: 42px;
+  letter-spacing: 0.01em;
+  transition:
+    box-shadow 0.16s ease,
+    filter 0.16s ease,
+    transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
   width: 100%;
+}
+.mp2-ticket-card .mp2-ticket-save:hover {
+  filter: brightness(1.07);
+}
+.mp2-ticket-card .mp2-ticket-save:active {
+  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.2);
+  transform: scale(0.98);
 }
 /* Decorative print barcode: two overlaid bar rhythms make the pattern read
    as irregular without any randomness. */

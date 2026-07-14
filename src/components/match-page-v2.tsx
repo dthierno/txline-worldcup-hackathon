@@ -1450,6 +1450,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   fixture={fixture}
                   odds1x2={playOdds}
                   onSave={playCard.save}
+                  saved={Boolean(playCard.saved)}
                 />
               ) : !finished ? (
                 playSection
@@ -3408,6 +3409,7 @@ function TicketCard({
   fixture,
   odds1x2,
   onSave,
+  saved,
 }: {
   board: OddsBoard | undefined;
   confirmation: string;
@@ -3415,6 +3417,7 @@ function TicketCard({
   fixture: WorldCupFixture;
   odds1x2: { away: number; draw: number; home: number } | null;
   onSave: (odds1x2: { away: number; draw: number; home: number } | null) => void;
+  saved: boolean;
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
   const goalsBoardLine = board?.overUnder?.find(
@@ -3541,7 +3544,7 @@ function TicketCard({
         onClick={() => onSave(odds1x2)}
         type="button"
       >
-        Save picks
+        {saved ? "Update picks" : "Save picks"}
       </Button>
       <span aria-hidden className="mp2-ticket-barcode" />
       <p className="mp2-ticket-note">
