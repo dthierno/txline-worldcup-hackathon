@@ -9,6 +9,15 @@ export type FirstScorerPick =
   | { name: string; playerId: number }
   | "none";
 
+export type DoubleChancePick = "draw_away" | "home_away" | "home_draw";
+
+// Optional extra markets picked straight off the TxLINE odds board. Each pick
+// freezes the decimal odds it was taken at; payout scales with those odds.
+export type SidePick =
+  | { kind: "double_chance"; odds: number; pick: DoubleChancePick }
+  | { kind: "goals_line"; line: number; odds: number; pick: LinePick }
+  | { kind: "handicap"; line: number; odds: number; pick: "away" | "home" };
+
 export type MatchPrediction = {
   awayGoals: number;
   // Only present when a verified TxLINE player list existed at prediction time.
@@ -19,6 +28,7 @@ export type MatchPrediction = {
   oddsAtSave?: { away: number; draw: number; home: number } | null;
   homeGoals: number;
   savedAt: string;
+  sidePicks?: SidePick[] | null;
   totalCards: LinePick;
   totalCorners: LinePick;
   totalGoals: LinePick;
@@ -64,6 +74,22 @@ export const PREDICTION_POINTS = {
   line: 2,
   winner: 3,
 } as const;
+
+// Side picks pay double their decimal odds, clamped so one lucky long shot
+// cannot dwarf the rest of the league.
+export const SIDE_PICK_POINTS = { base: 2, cap: 20 } as const;
+export const MAX_SIDE_PICKS = 5;
+
+export function sidePickPoints(odds: number): number {
+  if (!Number.isFinite(odds) || odds <= 1) {
+    return SIDE_PICK_POINTS.base;
+  }
+
+  return Math.min(
+    SIDE_PICK_POINTS.cap,
+    Math.max(SIDE_PICK_POINTS.base, Math.round(SIDE_PICK_POINTS.base * odds)),
+  );
+}
 
 export const MAX_PREDICTED_GOALS = 12;
 
@@ -214,6 +240,9 @@ export function settlePrediction(
       ),
       PREDICTION_POINTS.line,
     ),
+    ...(prediction.sidePicks ?? [])
+      .slice(0, MAX_SIDE_PICKS)
+      .map((sidePick) => settleSidePick(sidePick, outcome, teams)),
   ];
 
   return {
@@ -225,6 +254,88 @@ export function settlePrediction(
 
 export function linePickLabel(pick: LinePick, line: number): string {
   return `${pick === "over" ? "Over" : "Under"} ${line}`;
+}
+
+const DOUBLE_CHANCE_COVERS: Record<DoubleChancePick, [WinnerPick, WinnerPick]> =
+  {
+    draw_away: ["draw", "away"],
+    home_away: ["home", "away"],
+    home_draw: ["home", "draw"],
+  };
+
+export function doubleChanceLabel(
+  pick: DoubleChancePick,
+  teams: { awayTeam: string; homeTeam: string },
+): string {
+  const names: Record<WinnerPick, string> = {
+    away: teams.awayTeam,
+    draw: "draw",
+    home: teams.homeTeam,
+  };
+  const [first, second] = DOUBLE_CHANCE_COVERS[pick];
+
+  return `${names[first]} or ${names[second]}`;
+}
+
+export function handicapLineLabel(line: number): string {
+  return line > 0 ? `+${line}` : `${line}`;
+}
+
+function settleSidePick(
+  pick: SidePick,
+  outcome: MatchOutcome,
+  teams: { awayTeam: string; homeTeam: string },
+): SettledMarket {
+  const actualScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
+  const oddsSuffix = ` @ ${pick.odds.toFixed(2)}`;
+  const points = sidePickPoints(pick.odds);
+
+  if (pick.kind === "double_chance") {
+    const status: MarketStatus = !outcome.finished
+      ? "open"
+      : DOUBLE_CHANCE_COVERS[pick.pick].includes(outcomeWinner(outcome))
+        ? "won"
+        : "lost";
+
+    return settledMarket(
+      "Double chance",
+      `${doubleChanceLabel(pick.pick, teams)}${oddsSuffix}`,
+      outcome.finished ? actualScore : "Not finished",
+      status,
+      points,
+    );
+  }
+
+  if (pick.kind === "goals_line") {
+    const totalGoals = outcome.homeGoals + outcome.awayGoals;
+
+    return settledMarket(
+      `Goals over/under ${pick.line}`,
+      `${linePickLabel(pick.pick, pick.line)}${oddsSuffix}`,
+      `${totalGoals} goal(s)`,
+      settleLinePick(pick.pick, totalGoals, pick.line, outcome.finished),
+      points,
+    );
+  }
+
+  // Handicap: the line is applied to the home side. Integer lines can land
+  // exactly on the line - that is a push, so the market voids.
+  const margin = outcome.homeGoals - outcome.awayGoals + pick.line;
+  const status: MarketStatus = !outcome.finished
+    ? "open"
+    : margin === 0
+      ? "void"
+      : (margin > 0) === (pick.pick === "home")
+        ? "won"
+        : "lost";
+
+  return settledMarket(
+    `Handicap ${teams.homeTeam} ${handicapLineLabel(pick.line)}`,
+    `${pick.pick === "home" ? teams.homeTeam : teams.awayTeam}${oddsSuffix}`,
+    outcome.finished ? actualScore : "Not finished",
+    status,
+    points,
+  );
 }
 
 function settleFirstScorer(

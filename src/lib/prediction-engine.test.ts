@@ -245,4 +245,128 @@ describe("settlePrediction", () => {
 
     expect(second).toEqual(first);
   });
+
+  it("settles double-chance side picks at full time, scaled by odds", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        sidePicks: [
+          { kind: "double_chance", odds: 1.31, pick: "draw_away" },
+          { kind: "double_chance", odds: 4.1, pick: "home_draw" },
+        ],
+      }),
+      makeOutcome(),
+      teams,
+    );
+    const [covered, missed] = settlement.markets.filter(
+      (market) => market.market === "Double chance",
+    );
+
+    expect(covered?.pick).toBe("draw or Morocco @ 1.31");
+    expect(covered?.status).toBe("won");
+    // 2 x 1.31 rounds to 3, floored at the base of 2 anyway
+    expect(covered?.points).toBe(3);
+    expect(missed?.status).toBe("lost");
+    expect(missed?.points).toBe(0);
+  });
+
+  it("keeps double chance open while the match runs", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        sidePicks: [{ kind: "double_chance", odds: 1.31, pick: "draw_away" }],
+      }),
+      makeOutcome({ finished: false }),
+      teams,
+    );
+
+    expect(
+      settlement.markets.find((market) => market.market === "Double chance")
+        ?.status,
+    ).toBe("open");
+  });
+
+  it("settles extra goals lines like core lines, paying the frozen odds", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        sidePicks: [
+          { kind: "goals_line", line: 1.5, odds: 1.3, pick: "over" },
+          { kind: "goals_line", line: 4.5, odds: 3.4, pick: "over" },
+        ],
+      }),
+      // 3 goals so far, match still running: over 1.5 already won, over 4.5
+      // still open.
+      makeOutcome({ finished: false }),
+      teams,
+    );
+    const overLow = settlement.markets.find(
+      (market) => market.market === "Goals over/under 1.5",
+    );
+    const overHigh = settlement.markets.find(
+      (market) => market.market === "Goals over/under 4.5",
+    );
+
+    expect(overLow?.status).toBe("won");
+    expect(overLow?.points).toBe(3);
+    expect(overHigh?.status).toBe("open");
+  });
+
+  it("settles home handicap by the adjusted margin and voids pushes", () => {
+    const prediction = makePrediction({
+      sidePicks: [
+        { kind: "handicap", line: 1.5, odds: 2.1, pick: "home" },
+        { kind: "handicap", line: -0.5, odds: 3.0, pick: "away" },
+        { kind: "handicap", line: 3, odds: 2.5, pick: "home" },
+      ],
+    });
+    // Canada 0 - 3 Morocco: home +1.5 loses (margin -1.5), away -0.5 wins
+    // (margin -3.5), home +3 pushes (margin 0) and voids.
+    const settlement = settlePrediction(prediction, makeOutcome(), teams);
+    const handicaps = settlement.markets.filter((market) =>
+      market.market.startsWith("Handicap"),
+    );
+
+    expect(handicaps.map((market) => market.status)).toEqual([
+      "lost",
+      "won",
+      "void",
+    ]);
+    expect(handicaps[1]?.market).toBe("Handicap Canada -0.5");
+    expect(handicaps[1]?.pick).toBe("Morocco @ 3.00");
+    expect(handicaps[1]?.points).toBe(6);
+    expect(handicaps[2]?.points).toBe(0);
+  });
+
+  it("caps side-pick payouts and ignores picks past the limit", () => {
+    const longShot = settlePrediction(
+      makePrediction({
+        sidePicks: [{ kind: "goals_line", line: 0.5, odds: 16.4, pick: "under" }],
+      }),
+      makeOutcome({ awayGoals: 0, finished: true, homeGoals: 0 }),
+      teams,
+    );
+
+    expect(
+      longShot.markets.find(
+        (market) => market.market === "Goals over/under 0.5",
+      )?.points,
+    ).toBe(20);
+
+    const overLimit = settlePrediction(
+      makePrediction({
+        sidePicks: Array.from({ length: 8 }, () => ({
+          kind: "goals_line" as const,
+          line: 1.5,
+          odds: 1.3,
+          pick: "over" as const,
+        })),
+      }),
+      makeOutcome(),
+      teams,
+    );
+
+    expect(
+      overLimit.markets.filter(
+        (market) => market.market === "Goals over/under 1.5",
+      ),
+    ).toHaveLength(5);
+  });
 });
