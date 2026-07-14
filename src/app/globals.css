@@ -4651,43 +4651,47 @@ dt {
   font-size: 13px;
   font-weight: 700;
 }
-/* Board left, live ticket right; the ticket stays put while you scroll
-   the markets. */
-.mp2-play-form {
-  align-items: start;
-  display: grid;
-  gap: 22px 26px;
-  grid-template-columns: minmax(0, 1fr) 288px;
+/* Market cards: plain cards, one per market family. */
+.mp2-card-hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: right;
+}
+.mp2 .card > .mp2-play-panel {
   margin-top: 14px;
 }
-.mp2-play-markets {
+.mp2-market-rows {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-width: 0;
+  gap: 14px;
+  margin-top: 14px;
+}
+/* Pre-match the rail (ticket + match info) rides along while the market
+   cards scroll, like the homepage leaderboard rail. */
+.mp2-overview-layout > .mp2-side {
+  align-self: start;
+  position: sticky;
+  top: 16px;
 }
 /* The slip is a ticket (league-card idiom): notched tear line above the
    total, quiet raised fill. */
-.mp2-ticket {
-  background: #0f0f15;
-  border-radius: 18px;
+.mp2 .card.mp2-ticket-card {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  position: sticky;
-  top: 20px;
+}
+.mp2 .card.mp2-ticket-card .mp2-ticket-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
 }
 .mp2-ticket-head {
   align-items: center;
   display: flex;
   gap: 10px;
   justify-content: space-between;
-}
-.mp2-ticket-title {
-  color: #fff;
-  font-size: 13px;
-  font-weight: 750;
 }
 .mp2-ticket-list {
   display: flex;
@@ -4740,7 +4744,7 @@ dt {
 }
 .mp2-ticket-tear::before,
 .mp2-ticket-tear::after {
-  background: #101014;
+  background: var(--background);
   border-radius: 50%;
   content: "";
   height: 18px;
@@ -4749,10 +4753,10 @@ dt {
   width: 18px;
 }
 .mp2-ticket-tear::before {
-  left: -25px;
+  left: -31px;
 }
 .mp2-ticket-tear::after {
-  right: -25px;
+  right: -31px;
 }
 .mp2-ticket-total {
   align-items: baseline;
@@ -4781,40 +4785,9 @@ dt {
   text-align: center;
 }
 @media (max-width: 900px) {
-  .mp2-play-form {
-    grid-template-columns: 1fr;
-  }
-  .mp2-ticket {
+  .mp2-overview-layout > .mp2-side {
     position: static;
   }
-}
-.mp2-play-group {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-/* Row gaps leave air for the floating corner badges. */
-.mp2-play-group > .mp2-odds-line + .mp2-odds-line {
-  margin-top: 6px;
-}
-.mp2-play-group-head {
-  align-items: baseline;
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-}
-.mp2-play-group-head > span {
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.mp2-play-group-head > small {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 500;
-  text-align: right;
 }
 /* The glowing match panel: same layered team glows as the homepage cards. */
 .mp2-play-panel {
