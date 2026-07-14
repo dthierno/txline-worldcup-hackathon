@@ -4679,7 +4679,7 @@ dt {
 .mp2 .card.mp2-ticket-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding: 18px;
 }
 /* Full-bleed tournament art across the stub, melting into the card fill so
@@ -4692,12 +4692,14 @@ dt {
   position: relative;
 }
 .mp2-ticket-art::after {
-  background: linear-gradient(
-    180deg,
-    rgba(16, 16, 20, 0) 42%,
-    rgba(16, 16, 20, 0.55) 76%,
-    #101014 100%
-  );
+  background:
+    linear-gradient(
+      180deg,
+      rgba(16, 16, 20, 0) 42%,
+      rgba(16, 16, 20, 0.55) 76%,
+      #101014 100%
+    ),
+    linear-gradient(rgba(10, 10, 14, 0.28), rgba(10, 10, 14, 0.28));
   content: "";
   inset: 0;
   position: absolute;
@@ -4737,7 +4739,7 @@ dt {
 .mp2-ticket-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   list-style: none;
   margin: 2px 0 0;
   padding: 0;
@@ -4750,7 +4752,7 @@ dt {
   column-gap: 10px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  padding: 7px 10px 8px;
+  padding: 6px 10px 7px;
   row-gap: 0;
 }
 .mp2-ticket-market {
