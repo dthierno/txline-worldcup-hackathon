@@ -4856,23 +4856,42 @@ dt {
 .mp2-ticket-tear::after {
   right: -32px;
 }
-.mp2-ticket-total {
-  align-items: baseline;
+/* Counterfoil payoff: label, big glowing count-up total, honesty note. */
+.mp2-ticket-payout {
+  align-items: center;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 3px;
+  text-align: center;
 }
-.mp2-ticket-total > span {
+.mp2-ticket-payout-label {
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
-.mp2-ticket-total > strong {
+.mp2-ticket-payout-value {
+  align-items: baseline;
   color: var(--won);
-  font-size: 16px;
+  display: inline-flex;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
   font-weight: 800;
+  gap: 5px;
+  line-height: 1.15;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--won) 40%, transparent);
+}
+.mp2-ticket-payout-unit {
+  color: color-mix(in srgb, var(--won) 72%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.mp2-ticket-payout-note {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
 }
 /* The one true CTA on the ticket: solid white, the same commitment colour
    as a picked chip, in the app's pill shape. */

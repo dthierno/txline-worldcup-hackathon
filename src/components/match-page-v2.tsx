@@ -6,7 +6,12 @@ import {
   Share08Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+  animate,
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "motion/react";
 import {
   useCallback,
   useEffect,
@@ -3399,6 +3404,56 @@ function MarketCards({
 
 // The live ticket in the rail: every pick on the card as a slip row, the
 // perfect-card total, and the save action.
+// The counterfoil payoff: a big green total that counts up or down with a
+// spring whenever a pick changes, plus a pop on the new value.
+function PotentialPoints({ points }: { points: number }) {
+  const reducedMotion = useReducedMotion();
+  const [display, setDisplay] = useState(points);
+  const previous = useRef(points);
+
+  useEffect(() => {
+    if (previous.current === points) {
+      return;
+    }
+
+    const from = previous.current;
+
+    previous.current = points;
+
+    if (reducedMotion) {
+      setDisplay(points);
+      return;
+    }
+
+    const controls = animate(from, points, {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (value) => setDisplay(Math.round(value)),
+    });
+
+    return () => controls.stop();
+  }, [points, reducedMotion]);
+
+  return (
+    <div className="mp2-ticket-payout">
+      <span className="mp2-ticket-payout-label">Potential win</span>
+      {/* Keyed remount pops the scale on each new total while the count-up
+          text keeps flowing from parent state. */}
+      <motion.span
+        animate={{ scale: 1 }}
+        className="mp2-ticket-payout-value"
+        initial={reducedMotion ? false : { scale: 1.14 }}
+        key={points}
+        transition={{ damping: 14, stiffness: 300, type: "spring" }}
+      >
+        +{display}
+        <span className="mp2-ticket-payout-unit">pts</span>
+      </motion.span>
+      <span className="mp2-ticket-payout-note">if every pick hits</span>
+    </div>
+  );
+}
+
 function TicketCard({
   draft,
   fixture,
@@ -3517,10 +3572,7 @@ function TicketCard({
         ))}
       </ul>
       <div aria-hidden className="mp2-ticket-tear" />
-      <div className="mp2-ticket-total">
-        <span>Perfect card</span>
-        <strong>+{potentialPoints} pts</strong>
-      </div>
+      <PotentialPoints points={potentialPoints} />
       <Button
         className="mp2-ticket-save"
         onClick={() => onSave(odds1x2)}
