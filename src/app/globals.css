@@ -4674,13 +4674,40 @@ dt {
   position: sticky;
   top: 16px;
 }
-/* The slip is a ticket (league-card idiom): a printed receipt - serial
-   line, dot leaders, tear notches, barcode - set in the house type. */
+/* The slip is a ticket (league-card idiom): a printed receipt - stub art,
+   serial line, dot leaders, tear notches, barcode - set in the house type. */
 .mp2 .card.mp2-ticket-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 18px;
+}
+/* Full-bleed tournament art across the stub, melting into the card fill so
+   the printed rows below stay quiet. */
+.mp2-ticket-art {
+  border-radius: 20px 20px 0 0;
+  height: 86px;
+  margin: -18px -18px 0;
+  overflow: hidden;
+  position: relative;
+}
+.mp2-ticket-art::after {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 16, 20, 0) 42%,
+    rgba(16, 16, 20, 0.55) 76%,
+    #101014 100%
+  );
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+.mp2-ticket-art > img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 32%;
+  width: 100%;
 }
 .mp2 .card.mp2-ticket-card .mp2-ticket-title {
   color: #fff;

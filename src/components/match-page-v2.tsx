@@ -3506,6 +3506,10 @@ function TicketCard({
 
   return (
     <section aria-label="Your card" className="card mp2-ticket-card">
+      <div aria-hidden className="mp2-ticket-art">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt="" src="/ticket-header.jpg" />
+      </div>
       <div className="mp2-ticket-head">
         <h2 className="mp2-ticket-title">Your card</h2>
         <span className="mp2-play-pill">
