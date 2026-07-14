@@ -19,6 +19,12 @@ import {
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import { Skiper107 } from "@/components/skiper107";
+import {
   ChartContainer,
   ChartTooltip,
   type ChartConfig,
@@ -124,6 +130,34 @@ import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
+import { worldCupResults } from "@/lib/world-cup-results";
+
+type MatchTab =
+  | "head-to-head"
+  | "knockout"
+  | "lineups"
+  | "overview"
+  | "stats"
+  | "timeline";
+
+const MATCH_TABS: Array<{ label: string; value: MatchTab }> = [
+  { label: "Overview", value: "overview" },
+  { label: "Lineups", value: "lineups" },
+  { label: "Stats", value: "stats" },
+  { label: "Timeline", value: "timeline" },
+  { label: "Knockout", value: "knockout" },
+  { label: "Head-to-Head", value: "head-to-head" },
+];
+
+function matchTabFromLocation(): MatchTab {
+  if (typeof window === "undefined") return "overview";
+
+  const value = new URLSearchParams(window.location.search).get("tab");
+
+  return MATCH_TABS.some((tab) => tab.value === value)
+    ? (value as MatchTab)
+    : "overview";
+}
 
 function formatPlayerDisplayName(name: string) {
   const commaIndex = name.indexOf(",");
@@ -161,8 +195,28 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const [streamUpdates, setStreamUpdates] = useState<TxlineUpdateData[]>([]);
   const [liveOddsNote, setLiveOddsNote] = useState<string | null>(null);
   const [shareLabel, setShareLabel] = useState("Share");
-  const [heroTab, setHeroTab] = useState("Preview");
+  const [matchTab, setMatchTab] = useState<MatchTab>("overview");
   const now = useNow();
+
+  useEffect(() => {
+    const syncTabFromUrl = () => setMatchTab(matchTabFromLocation());
+
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+
+    return () => window.removeEventListener("popstate", syncTabFromUrl);
+  }, [fixtureId]);
+
+  const selectMatchTab = useCallback((tab: MatchTab) => {
+    setMatchTab(tab);
+
+    const url = new URL(window.location.href);
+
+    if (tab === "overview") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+
+    window.history.pushState({}, "", url);
+  }, []);
 
   // Resolve the fixture from the docs seed plus the live snapshot, so deep
   // links work for any TxLINE fixture id.
@@ -745,6 +799,27 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     { label: "Defence", rows: defenceStatRows },
     { label: "Goalkeeping", rows: goalkeepingStatRows },
   ].filter((section) => section.rows.length > 0);
+  const readableUpdates = getDisplayUpdates(
+    combinedUpdates,
+    fixture,
+    playerDirectory,
+  );
+  const keyUpdatePattern =
+    /goal|penalty|red card|yellow card|half ?time|full time|substitution/i;
+  const overviewEvents = readableUpdates
+    .filter((update) => keyUpdatePattern.test(update.text))
+    .slice(-6)
+    .reverse();
+  const bracketScores = displayScore
+    ? {
+        [fixture.fixtureId]: {
+          awayGoals: displayScore.awayGoals,
+          clockSeconds: displayScore.clockSeconds,
+          homeGoals: displayScore.homeGoals,
+          statusId: displayScore.statusId,
+        },
+      }
+    : {};
 
   const homeIso = teamFlag(fixture.homeTeam);
   const awayIso = teamFlag(fixture.awayTeam);
@@ -1105,234 +1180,298 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             ) : null}
           </div>
         </div>
-        <nav aria-label="Match sections" className="mp2-hero-tabs">
-          {["Preview", "Knockout", "Head-to-Head"].map((tab) => (
+        <nav
+          aria-label="Match sections"
+          className="mp2-hero-tabs"
+          role="tablist"
+        >
+          {MATCH_TABS.map((tab) => (
             <button
-              aria-current={heroTab === tab ? "page" : undefined}
-              className={heroTab === tab ? "active" : undefined}
-              key={tab}
-              onClick={() => setHeroTab(tab)}
+              aria-controls={`match-panel-${tab.value}`}
+              aria-current={matchTab === tab.value ? "page" : undefined}
+              aria-selected={matchTab === tab.value}
+              className={matchTab === tab.value ? "active" : undefined}
+              id={`match-tab-${tab.value}`}
+              key={tab.value}
+              onClick={() => selectMatchTab(tab.value)}
+              role="tab"
               type="button"
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </nav>
         </div>
       </header>
 
-      <div className="mp2-layout">
-        <div className="mp2-main">
-      {finished ? (
-        <MatchMediaSection fixtureId={fixture.fixtureId} />
-      ) : null}
-      <section className="card mp2-stats-card" aria-labelledby="stats-heading">
-        <h2 className="mp2-stats-title" id="stats-heading">Stats</h2>
-        {notStarted ? (
-          <p className="muted">Stats appear once the match kicks off.</p>
-        ) : (
-        <>
-        {statSections.length ? (
-          <div className="mp2-stat-sections">
-            {statSections.map((section) => (
-              <section className="mp2-stat-section" key={section.label}>
-                <h3 className="mp2-stat-section-title">{section.label}</h3>
-                {section.rows.map((row) => {
-                  const total = row.home + row.away;
-                  const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
-                  const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
+      <section
+        aria-labelledby={`match-tab-${matchTab}`}
+        className={`mp2-tab-panel mp2-tab-panel-${matchTab}`}
+        id={`match-panel-${matchTab}`}
+        role="tabpanel"
+      >
+        {matchTab === "overview" ? (
+          <div className="mp2-layout mp2-overview-layout">
+            <div className="mp2-main">
+              {finished ? (
+                <MatchMediaSection fixtureId={fixture.fixtureId} />
+              ) : null}
 
-                  return (
-                    <div
-                      aria-label={`${row.label}: ${fixture.homeTeam} ${row.homeDisplay ?? row.home}, ${fixture.awayTeam} ${row.awayDisplay ?? row.away}`}
-                      className="mp2-stat-row"
-                      key={row.label}
-                      role="img"
-                    >
-                      <div className="mp2-stat-values">
-                        <span>{row.homeDisplay ?? row.home}</span>
+              <section className="card mp2-overview-card" aria-labelledby="glance-heading">
+                <div className="mp2-card-heading">
+                  <h2 id="glance-heading">Match at a glance</h2>
+                  <Button
+                    className="mp2-card-link"
+                    onClick={() => selectMatchTab("stats")}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Full stats <span aria-hidden>→</span>
+                  </Button>
+                </div>
+                {topStatRows.length ? (
+                  <div className="mp2-glance-stats">
+                    {topStatRows.slice(0, 4).map((row) => (
+                      <div className="mp2-glance-stat" key={row.label}>
+                        <strong>{row.homeDisplay ?? row.home}</strong>
                         <span>{row.label}</span>
-                        <span>{row.awayDisplay ?? row.away}</span>
+                        <strong>{row.awayDisplay ?? row.away}</strong>
                       </div>
-                      <div className="mp2-stat-bars" aria-hidden="true">
-                        <span className="mp2-stat-track home">
-                          <span
-                            className={row.home > row.away ? "leading" : ""}
-                            style={{ width: `${homeWidth}%` }}
-                          />
-                        </span>
-                        <span className="mp2-stat-track away">
-                          <span
-                            className={row.away > row.home ? "leading" : ""}
-                            style={{ width: `${awayWidth}%` }}
-                          />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted">
+                    {notStarted
+                      ? "Match statistics will appear after kickoff."
+                      : "No match statistics are available yet."}
+                  </p>
+                )}
               </section>
-            ))}
+
+              <section className="card mp2-overview-card" aria-labelledby="moments-heading">
+                <div className="mp2-card-heading">
+                  <h2 id="moments-heading">Key moments</h2>
+                  <Button
+                    className="mp2-card-link"
+                    onClick={() => selectMatchTab("timeline")}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Full timeline <span aria-hidden>→</span>
+                  </Button>
+                </div>
+                {overviewEvents.length ? (
+                  <ol className="mp2-overview-events">
+                    {overviewEvents.map((update) => (
+                      <li key={update.id}>{update.text}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="muted">No key match events yet.</p>
+                )}
+              </section>
+            </div>
+
+            <aside className="mp2-side">
+              {finished ? (
+                <OfficialHighlightsCard
+                  awayTeam={fixture.awayTeam}
+                  homeTeam={fixture.homeTeam}
+                  kickoffUtc={fixture.kickoffUtc}
+                />
+              ) : null}
+
+              <PredictionSection
+                key={fixture.fixtureId}
+                calls={extractSettleableCalls(combinedUpdates)}
+                fixture={fixture}
+                lineups={details.lineups?.data ?? null}
+                now={now}
+                odds1x2={
+                  details.odds?.data?.homeWinProbability &&
+                  details.odds.data.drawProbability &&
+                  details.odds.data.awayWinProbability
+                    ? {
+                        away: 100 / details.odds.data.awayWinProbability,
+                        draw: 100 / details.odds.data.drawProbability,
+                        home: 100 / details.odds.data.homeWinProbability,
+                      }
+                    : null
+                }
+                outcome={outcome}
+              />
+
+              <MatchInfoSection fixture={fixture} info={matchInfo} />
+            </aside>
           </div>
-        ) : (
-          <p>No stats available.</p>
-        )}
-        {possessionHomePct !== null || freeKicks.home + freeKicks.away > 0 ? (
-          <p className="muted">
-            Possession is ball-in-play time from TxLINE possession-phase
-            events; fouls are free kicks conceded to the opponent.
-          </p>
         ) : null}
-        </>
-        )}
+
+        {matchTab === "lineups" ? (
+          <div className="mp2-tab-stack">
+            <LineupsSection
+              goals={goals}
+              lineups={details.lineups}
+              playerStats={details.score?.data?.playerStats}
+              redCards={redCardedPlayerIds}
+              substitutions={substitutions}
+              yellowCards={yellowCardCounts}
+            />
+          </div>
+        ) : null}
+
+        {matchTab === "stats" ? (
+          <div className="mp2-tab-stack">
+            <section className="card mp2-stats-card" aria-labelledby="stats-heading">
+              <h2 className="mp2-stats-title" id="stats-heading">Stats</h2>
+              {notStarted ? (
+                <p className="muted">Stats appear once the match kicks off.</p>
+              ) : statSections.length ? (
+                <>
+                  <div className="mp2-stat-sections">
+                    {statSections.map((section) => (
+                      <section className="mp2-stat-section" key={section.label}>
+                        <h3 className="mp2-stat-section-title">{section.label}</h3>
+                        {section.rows.map((row) => {
+                          const total = row.home + row.away;
+                          const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
+                          const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
+
+                          return (
+                            <div
+                              aria-label={`${row.label}: ${fixture.homeTeam} ${row.homeDisplay ?? row.home}, ${fixture.awayTeam} ${row.awayDisplay ?? row.away}`}
+                              className="mp2-stat-row"
+                              key={row.label}
+                              role="img"
+                            >
+                              <div className="mp2-stat-values">
+                                <span>{row.homeDisplay ?? row.home}</span>
+                                <span>{row.label}</span>
+                                <span>{row.awayDisplay ?? row.away}</span>
+                              </div>
+                              <div className="mp2-stat-bars" aria-hidden="true">
+                                <span className="mp2-stat-track home">
+                                  <span
+                                    className={row.home > row.away ? "leading" : ""}
+                                    style={{ width: `${homeWidth}%` }}
+                                  />
+                                </span>
+                                <span className="mp2-stat-track away">
+                                  <span
+                                    className={row.away > row.home ? "leading" : ""}
+                                    style={{ width: `${awayWidth}%` }}
+                                  />
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </section>
+                    ))}
+                  </div>
+                  {possessionHomePct !== null || freeKicks.home + freeKicks.away > 0 ? (
+                    <p className="muted">
+                      Possession is ball-in-play time from TxLINE possession-phase
+                      events; fouls are free kicks conceded to the opponent.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p>No stats available.</p>
+              )}
+            </section>
+
+            <MomentumSection
+              awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
+              extraTime={hadExtraTime}
+              fixture={fixture}
+              goals={goals}
+              homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
+              momentum={momentum}
+            />
+
+            <section className="card" aria-labelledby="odds-heading">
+              <h2 id="odds-heading">Odds</h2>
+              {!(details.oddsUpdates?.data?.board ??
+              details.oddsUpdates?.data?.closingBoard) ? (
+                <p className="muted">
+                  {details.odds?.data?.marketNote ?? "No odds snapshot available."}
+                </p>
+              ) : null}
+              {liveOddsNote ? (
+                <p className="muted">Live from odds stream: {liveOddsNote}</p>
+              ) : null}
+              <OddsBoardView
+                board={
+                  finished
+                    ? details.oddsUpdates?.data?.closingBoard ??
+                      details.oddsUpdates?.data?.board
+                    : details.oddsUpdates?.data?.board
+                }
+                finished={finished}
+                fixture={fixture}
+              />
+              <OddsMovement oddsUpdates={details.oddsUpdates} />
+            </section>
+          </div>
+        ) : null}
+
+        {matchTab === "timeline" ? (
+          <div className="mp2-tab-stack">
+            <div className="mp2-timeline-grid">
+              <div className="mp2-timeline-main">
+                <UpdatesSection
+                  fixture={fixture}
+                  players={playerDirectory}
+                  updates={
+                    replayUpdates
+                      ? { ...replayUpdates, data: combinedUpdates }
+                      : streamUpdates.length
+                        ? { data: combinedUpdates, source: "TxLINE live score stream" }
+                        : replayUpdates
+                  }
+                />
+              </div>
+              <aside className="mp2-timeline-side">
+                <GoalCallsSection
+                  key={`calls-${fixture.fixtureId}`}
+                  calls={liveCalls}
+                  fixtureId={fixture.fixtureId}
+                  live={liveStreamEligible}
+                />
+              </aside>
+            </div>
+
+            <VerificationSection
+              detailsLoading={detailsLoading}
+              displayScore={displayScore}
+              finished={finished}
+              fixture={fixture}
+              fixtureValidation={details.fixtureValidation}
+              historicalUpdates={details.historicalUpdates}
+              liveStreamEligible={liveStreamEligible}
+              oddsSource={details.odds?.source ?? details.odds?.error ?? "Pending"}
+              oddsUpdates={details.oddsUpdates}
+              oddsValidation={details.oddsValidation}
+              scoreSource={scoreSource}
+              streamStatus={streamStatus}
+              streamUpdateCount={streamUpdates.length}
+              updates={details.updates}
+              validation={details.validation}
+            />
+          </div>
+        ) : null}
+
+        {matchTab === "knockout" ? (
+          <section className="card mp2-bracket-tab" aria-labelledby="bracket-heading">
+            <h2 id="bracket-heading">Tournament bracket</h2>
+            <Skiper107 fixtures={fixtures} now={now} scores={bracketScores} />
+          </section>
+        ) : null}
+
+        {matchTab === "head-to-head" ? (
+          <HeadToHeadSection fixture={fixture} />
+        ) : null}
       </section>
-
-      <MomentumSection
-        awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
-        extraTime={hadExtraTime}
-        fixture={fixture}
-        goals={goals}
-        homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
-        momentum={momentum}
-      />
-
-      <LineupsSection
-        goals={goals}
-        lineups={details.lineups}
-        playerStats={details.score?.data?.playerStats}
-        redCards={redCardedPlayerIds}
-        substitutions={substitutions}
-        yellowCards={yellowCardCounts}
-      />
-        </div>
-
-        <aside className="mp2-side">
-      {finished ? (
-        <OfficialHighlightsCard
-          awayTeam={fixture.awayTeam}
-          homeTeam={fixture.homeTeam}
-          kickoffUtc={fixture.kickoffUtc}
-        />
-      ) : null}
-
-      <PredictionSection
-        key={fixture.fixtureId}
-        calls={extractSettleableCalls(combinedUpdates)}
-        fixture={fixture}
-        lineups={details.lineups?.data ?? null}
-        now={now}
-        odds1x2={
-          details.odds?.data?.homeWinProbability &&
-          details.odds.data.drawProbability &&
-          details.odds.data.awayWinProbability
-            ? {
-                away: 100 / details.odds.data.awayWinProbability,
-                draw: 100 / details.odds.data.drawProbability,
-                home: 100 / details.odds.data.homeWinProbability,
-              }
-            : null
-        }
-        outcome={outcome}
-      />
-
-      <GoalCallsSection
-        key={`calls-${fixture.fixtureId}`}
-        calls={liveCalls}
-        fixtureId={fixture.fixtureId}
-        live={liveStreamEligible}
-      />
-
-      <MatchInfoSection fixture={fixture} info={matchInfo} />
-        </aside>
-
-        <div className="mp2-main mp2-main-wide">
-      <section className="card" aria-labelledby="odds-heading">
-        <h2 id="odds-heading">Odds</h2>
-        {!(details.oddsUpdates?.data?.board ??
-        details.oddsUpdates?.data?.closingBoard) ? (
-          <p className="muted">
-            {details.odds?.data?.marketNote ?? "No odds snapshot available."}
-          </p>
-        ) : null}
-        {liveOddsNote ? (
-          <p className="muted">Live from odds stream: {liveOddsNote}</p>
-        ) : null}
-        <OddsBoardView
-          board={
-            finished
-              ? details.oddsUpdates?.data?.closingBoard ??
-                details.oddsUpdates?.data?.board
-              : details.oddsUpdates?.data?.board
-          }
-          finished={finished}
-          fixture={fixture}
-        />
-        <OddsMovement oddsUpdates={details.oddsUpdates} />
-      </section>
-
-      <UpdatesSection
-        fixture={fixture}
-        players={playerDirectory}
-        updates={
-          replayUpdates
-            ? { ...replayUpdates, data: combinedUpdates }
-            : streamUpdates.length
-              ? { data: combinedUpdates, source: "TxLINE live score stream" }
-              : replayUpdates
-        }
-      />
-      <section className="card" aria-labelledby="data-heading">
-        <h2 id="data-heading">Data &amp; sources</h2>
-        <p className="muted">
-          Kickoff {formatDate(fixture.kickoffUtc)} UTC - Fixture #
-          {fixture.fixtureId}
-        </p>
-        {detailsLoading ? (
-          <p className="muted">Loading TxLINE details...</p>
-        ) : null}
-        {liveStreamEligible ? (
-          <p className="muted">
-            Live stream:{" "}
-            {streamStatus === "connected"
-              ? `connected - ${streamUpdates.length} live record(s) for this fixture so far`
-              : streamStatus === "unavailable"
-                ? "stream unavailable, showing snapshot and replay data"
-                : "connecting to TxLINE score stream..."}
-          </p>
-        ) : null}
-        <p className="muted">Score source: {scoreSource}</p>
-        <p className="muted">
-          Odds source:{" "}
-          {details.odds?.source ?? details.odds?.error ?? "Pending"}
-          {isOddsUpdatesData(details.oddsUpdates?.data)
-            ? ` · ${details.oddsUpdates.data.count} live update records${
-                details.oddsUpdates.data.marketTypes.length
-                  ? ` across ${details.oddsUpdates.data.marketTypes.length} market type(s)`
-                  : ""
-              }`
-            : ""}
-        </p>
-        {replayUpdates?.data?.length ? (
-          <p className="muted">
-            Displayed score uses the latest TxLINE update when it is newer than
-            the snapshot.
-          </p>
-        ) : null}
-      </section>
-
-      <VerificationSection
-        displayScore={displayScore}
-        finished={finished}
-        fixture={fixture}
-        fixtureValidation={details.fixtureValidation}
-        historicalUpdates={details.historicalUpdates}
-        oddsUpdates={details.oddsUpdates}
-        oddsValidation={details.oddsValidation}
-        updates={details.updates}
-        validation={details.validation}
-      />
-        </div>
-      </div>
     </main>
   );
 }
@@ -2210,29 +2349,27 @@ function LineupGoalMark() {
 function LineupPlayerAvatar({
   imageUrl,
   name,
-  size = 44,
+  size = "lg",
 }: {
   imageUrl?: string;
   name: string;
-  size?: 32 | 44;
+  size?: "default" | "lg";
 }) {
   return (
-    <span
+    <Avatar
       aria-hidden="true"
-      className="mp2-lineup-avatar"
-      style={{ height: size, width: size }}
+      className="mp2-lineup-avatar after:border-0"
+      size={size}
     >
-      {imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img alt="" height={size} loading="lazy" src={imageUrl} width={size} />
-      ) : (
+      {imageUrl ? <AvatarImage alt="" src={imageUrl} /> : null}
+      <AvatarFallback className="mp2-lineup-avatar-fallback">
         <svg viewBox="0 0 48 48">
           <circle cx="24" cy="18" fill="currentColor" r="9" />
           <path d="M8 45c1.3-10 7-15 16-15s14.7 5 16 15H8Z" fill="currentColor" />
         </svg>
-      )}
-      <span className="mp2-lineup-avatar-label">{name.charAt(0)}</span>
-    </span>
+        <span className="mp2-lineup-avatar-label">{name.charAt(0)}</span>
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -2391,6 +2528,7 @@ function LineupsSection({
         ? subOffMinutes.get(player.playerId)
         : undefined;
     const value = filterValue(player);
+    const displayName = pitchName(player);
 
     return (
       <div
@@ -2417,9 +2555,13 @@ function LineupsSection({
           ) : null}
           {renderPitchEvents(player)}
         </span>
-        <span className="mp2-lineup-player-name" title={fullName(player)}>
+        <span
+          className="mp2-lineup-player-name"
+          title={fullName(player)}
+        >
           <span>{player.number ?? "—"}</span>
-          {pitchName(player)}
+          {" "}
+          {displayName}
         </span>
       </div>
     );
@@ -2449,7 +2591,7 @@ function LineupsSection({
         <LineupPlayerAvatar
           imageUrl={player.imageUrl}
           name={fullName(player)}
-          size={32}
+          size="default"
         />
         {value !== null ? (
           <span className="mp2-lineup-bench-filter-value" title="Age">
@@ -2542,7 +2684,7 @@ function LineupsSection({
                         ) : (
                           <span className="mp2-lineup-team-placeholder" />
                         )}
-                        <span>
+                        <span className="mp2-lineup-team-copy">
                           <strong>{team.teamName}</strong>
                           <small>{formation(team.players)}</small>
                         </span>
@@ -3052,24 +3194,153 @@ function UpdatesSection({
   );
 }
 
+function HeadToHeadSection({ fixture }: { fixture: WorldCupFixture }) {
+  const kickoff = new Date(fixture.kickoffUtc).getTime();
+  const isPair = (home: string, away: string) =>
+    (home === fixture.homeTeam && away === fixture.awayTeam) ||
+    (home === fixture.awayTeam && away === fixture.homeTeam);
+  const directMeetings = worldCupResults
+    .filter(
+      (result) =>
+        result.fixtureId !== fixture.fixtureId &&
+        new Date(result.kickoffUtc).getTime() < kickoff &&
+        isPair(result.home, result.away),
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.kickoffUtc).getTime() -
+        new Date(left.kickoffUtc).getTime(),
+    );
+  const recentFor = (teamName: string) =>
+    worldCupResults
+      .filter(
+        (result) =>
+          result.fixtureId !== fixture.fixtureId &&
+          new Date(result.kickoffUtc).getTime() < kickoff &&
+          (result.home === teamName || result.away === teamName),
+      )
+      .sort(
+        (left, right) =>
+          new Date(right.kickoffUtc).getTime() -
+          new Date(left.kickoffUtc).getTime(),
+      )
+      .slice(0, 5);
+  const resultForTeam = (
+    result: (typeof worldCupResults)[number],
+    teamName: string,
+  ) => {
+    const isHome = result.home === teamName;
+    const scored = result.score[isHome ? 0 : 1];
+    const conceded = result.score[isHome ? 1 : 0];
+
+    return scored === conceded ? "D" : scored > conceded ? "W" : "L";
+  };
+  const renderForm = (teamName: string) => {
+    const results = recentFor(teamName);
+    const iso = teamFlag(teamName);
+
+    return (
+      <section className="card mp2-form-card" aria-label={`${teamName} recent form`}>
+        <div className="mp2-form-title">
+          {iso ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" src={`https://flagcdn.com/w80/${iso}.png`} />
+          ) : null}
+          <span>
+            <strong>{teamName}</strong>
+            <small>Last five tournament matches</small>
+          </span>
+        </div>
+        {results.length ? (
+          <ol className="mp2-form-list">
+            {results.map((result) => {
+              const isHome = result.home === teamName;
+              const opponent = isHome ? result.away : result.home;
+              const outcome = resultForTeam(result, teamName);
+
+              return (
+                <li key={result.fixtureId}>
+                  <Link href={`/demo/match/${result.fixtureId}`}>
+                    <span className={`mp2-form-result ${outcome.toLowerCase()}`}>
+                      {outcome}
+                    </span>
+                    <span>{opponent}</span>
+                    <strong>
+                      {result.score[isHome ? 0 : 1]} - {result.score[isHome ? 1 : 0]}
+                    </strong>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="muted">No recent tournament results available.</p>
+        )}
+      </section>
+    );
+  };
+
+  return (
+    <div className="mp2-tab-stack mp2-h2h-tab">
+      <section className="card mp2-direct-card" aria-labelledby="h2h-heading">
+        <h2 id="h2h-heading">Head-to-head</h2>
+        {directMeetings.length ? (
+          <ol className="mp2-direct-list">
+            {directMeetings.map((result) => (
+              <li key={result.fixtureId}>
+                <Link href={`/demo/match/${result.fixtureId}`}>
+                  <span>{result.home}</span>
+                  <strong>{result.score[0]} - {result.score[1]}</strong>
+                  <span>{result.away}</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div className="mp2-empty-state">
+            <strong>First meeting in this tournament</strong>
+            <span>No earlier 2026 World Cup meeting is available for these teams.</span>
+          </div>
+        )}
+      </section>
+      <div className="mp2-form-grid">
+        {renderForm(fixture.homeTeam)}
+        {renderForm(fixture.awayTeam)}
+      </div>
+    </div>
+  );
+}
+
 function VerificationSection({
+  detailsLoading,
   displayScore,
   finished,
   fixture,
   fixtureValidation,
   historicalUpdates,
+  liveStreamEligible,
+  oddsSource,
   oddsUpdates,
   oddsValidation,
+  scoreSource,
+  streamStatus,
+  streamUpdateCount,
   updates,
   validation,
 }: {
+  detailsLoading: boolean;
   displayScore: TxlineScoreData | null | undefined;
   finished: boolean;
   fixture: WorldCupFixture;
   fixtureValidation: ApiResult<unknown> | null;
   historicalUpdates: ApiResult<TxlineUpdateData[]> | null;
+  liveStreamEligible: boolean;
+  oddsSource: string;
   oddsUpdates: ApiResult<TxlineOddsUpdatesData> | null;
   oddsValidation: ApiResult<TxlineOddsValidationData> | null;
+  scoreSource: string;
+  streamStatus: StreamStatus;
+  streamUpdateCount: number;
   updates: ApiResult<TxlineUpdateData[]> | null;
   validation: ApiResult<TxlineValidationData> | null;
 }) {
@@ -3079,8 +3350,33 @@ function VerificationSection({
     : null;
 
   return (
-    <section className="card" aria-labelledby="verification-heading">
-      <h2 id="verification-heading">Verification</h2>
+    <section className="card mp2-verification-card" aria-labelledby="verification-heading">
+      <h2 className="sr-only" id="verification-heading">Data verification</h2>
+      <details className="mp2-verification-root">
+        <summary>
+          <span>
+            <span aria-hidden className="verified-check">✓</span>{" "}
+            Verified by TxLINE
+          </span>
+          <small>Data sources and proof</small>
+        </summary>
+        <div className="mp2-verification-content">
+          <p className="muted">
+            Fixture #{fixture.fixtureId} · Kickoff {formatDate(fixture.kickoffUtc)} UTC
+          </p>
+          {detailsLoading ? <p className="muted">Loading TxLINE details...</p> : null}
+          {liveStreamEligible ? (
+            <p className="muted">
+              Live stream:{" "}
+              {streamStatus === "connected"
+                ? `connected · ${streamUpdateCount} live record(s)`
+                : streamStatus === "unavailable"
+                  ? "unavailable · using snapshot and replay data"
+                  : "connecting…"}
+            </p>
+          ) : null}
+          <p className="muted">Score source: {scoreSource}</p>
+          <p className="muted">Odds source: {oddsSource}</p>
       {proof && displayScore ? (
         <>
           <p>
@@ -3183,6 +3479,8 @@ function VerificationSection({
             Odds stream proxy: <code>/api/txline/odds/stream</code>.
           </li>
         </ul>
+      </details>
+        </div>
       </details>
     </section>
   );
