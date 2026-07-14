@@ -3,6 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
+import { Feedback } from "@/components/feedback";
 import { Header } from "@/components/header";
 
 // Open Runde — a rounded variant of Inter (github.com/lauridskern/open-runde),
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <Header />
         {children}
+        <Feedback />
       </body>
     </html>
   );
