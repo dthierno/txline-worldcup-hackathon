@@ -566,6 +566,9 @@ export type DisplayUpdate = {
   action: string;
   id: string;
   minute: string;
+  playerId?: number;
+  playerInId?: number;
+  playerOutId?: number;
   score: string;
   text: string;
 };
@@ -618,14 +621,16 @@ export function getDisplayUpdates(
     }
   }
 
+  const resolvePlayerId = (update: TxlineUpdateData) =>
+    (update.eventId !== undefined
+      ? eventPlayerIds.get(`${update.action}-${update.eventId}`)
+      : undefined) ??
+    (typeof update.data?.PlayerId === "number"
+      ? update.data.PlayerId
+      : undefined);
+
   const resolvePlayerName = (update: TxlineUpdateData) => {
-    const playerId =
-      (update.eventId !== undefined
-        ? eventPlayerIds.get(`${update.action}-${update.eventId}`)
-        : undefined) ??
-      (typeof update.data?.PlayerId === "number"
-        ? update.data.PlayerId
-        : undefined);
+    const playerId = resolvePlayerId(update);
 
     return playerId !== undefined ? players?.get(playerId)?.name : undefined;
   };
@@ -678,6 +683,9 @@ export function getDisplayUpdates(
     const teamName = getTeamName(update, fixture);
     const scoreline = formatScoreline(update);
     let text = "";
+    let entryPlayerId: number | undefined;
+    let entryPlayerInId: number | undefined;
+    let entryPlayerOutId: number | undefined;
 
     if (
       action === "goal" &&
@@ -691,6 +699,8 @@ export function getDisplayUpdates(
           : fixture.awayTeam;
       const goalType = formatFeedLabel(String(update.data?.GoalType ?? ""));
       const scorer = resolvePlayerName(update);
+
+      entryPlayerId = resolvePlayerId(update);
 
       text = `${prefix}Goal for ${scoringTeam}${
         goalType ? ` (${goalType})` : ""
@@ -709,6 +719,8 @@ export function getDisplayUpdates(
           : fixture.awayTeam;
       const bookedPlayer = resolvePlayerName(update);
 
+      entryPlayerId = resolvePlayerId(update);
+
       text = `${prefix}Yellow card for ${cardTeam}${
         bookedPlayer ? ` (${bookedPlayer})` : ""
       }. Cards ${update.homeYellowCards}-${update.awayYellowCards}.`;
@@ -725,6 +737,10 @@ export function getDisplayUpdates(
           ? fixture.homeTeam
           : fixture.awayTeam;
 
+      entryPlayerId =
+        typeof update.data?.PlayerId === "number"
+          ? update.data.PlayerId
+          : undefined;
       text = `${prefix}Red card for ${cardTeam}. Red cards ${update.homeRedCards}-${update.awayRedCards}.`;
     }
 
@@ -886,6 +902,9 @@ export function getDisplayUpdates(
         const inLabel = playerIn?.name ?? `player ${playerInId}`;
         const outLabel = playerOut?.name ?? `player ${playerOutId}`;
 
+        entryPlayerInId = playerInId ? Number(playerInId) : undefined;
+        entryPlayerOutId = playerOutId ? Number(playerOutId) : undefined;
+
         text = `${prefix}Substitution for ${subTeam}${
           playerInId ? `: ${inLabel} on` : ""
         }${playerInId && playerOutId ? ", " : ""}${
@@ -903,6 +922,9 @@ export function getDisplayUpdates(
           action,
           id: update.id,
           minute,
+          playerId: entryPlayerId,
+          playerInId: entryPlayerInId,
+          playerOutId: entryPlayerOutId,
           score: scoreline,
           text,
         });
