@@ -3505,20 +3505,22 @@ function TicketCard({
   ];
 
   return (
-    <section aria-label="Your card" className="card mp2-ticket-card">
+    <section
+      aria-label={`Your card: ${fixture.homeTeam} vs ${fixture.awayTeam}`}
+      className="card mp2-ticket-card"
+    >
       <div aria-hidden className="mp2-ticket-art">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt="" src="/ticket-header.jpg" />
       </div>
       <div className="mp2-ticket-head">
-        <h2 className="mp2-ticket-title">Your card</h2>
+        <h2 className="mp2-ticket-title">
+          {fixture.homeTeam} vs {fixture.awayTeam}
+        </h2>
         <span className="mp2-play-pill">
           {ticketRows.length} pick{ticketRows.length === 1 ? "" : "s"}
         </span>
       </div>
-      <p className="mp2-ticket-meta">
-        Nº {fixture.fixtureId} · locks {formatDate(fixture.kickoffUtc)} UTC
-      </p>
       <ul className="mp2-ticket-list">
         {ticketRows.map((row, index) => (
           <li key={`${row.market}-${index}`}>
