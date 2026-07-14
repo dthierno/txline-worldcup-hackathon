@@ -13,6 +13,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
@@ -2969,6 +2970,8 @@ function PredictionSection({
   }
 
   const locked = isPredictionLocked(fixture, now);
+  const homeIso = teamFlag(fixture.homeTeam);
+  const awayIso = teamFlag(fixture.awayTeam);
   const draftSidePicks = draft.sidePicks ?? [];
   const sideOfferRows = buildSideOffers(board, fixture);
   const toggleSidePick = (offer: SideOffer) => {
@@ -3071,49 +3074,89 @@ function PredictionSection({
           <div className="mp2-play-group" role="group" aria-label="Match result">
             <div className="mp2-play-group-head">
               <span>Match result</span>
-              <small>pays 3× odds · up to 30 pts</small>
+              <small>
+                winner pays 3× odds · exact score +
+                {PREDICTION_POINTS.exactScore} pts
+              </small>
             </div>
-            <div className="mp2-odds-row cols-3">
-              {(
-                [
-                  { label: fixture.homeTeam, value: "home" },
-                  { label: "Draw", value: "draw" },
-                  { label: fixture.awayTeam, value: "away" },
-                ] as const
-              ).map((option) => (
-                <OddsButton
-                  active={draft.winner === option.value}
-                  key={option.value}
-                  label={option.label}
-                  odds={odds1x2?.[option.value]}
-                  onClick={() =>
-                    setDraft({ ...draft, winner: option.value })
-                  }
-                  points={winnerPoints(odds1x2?.[option.value])}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="mp2-play-group" role="group" aria-label="Exact score">
-            <div className="mp2-play-group-head">
-              <span>Exact score</span>
-              <small>+{PREDICTION_POINTS.exactScore} pts</small>
-            </div>
-            <div className="mp2-play-score">
-              <GoalStepper
-                label={fixture.homeTeam}
-                onChange={(value) => setDraft({ ...draft, homeGoals: value })}
-                value={draft.homeGoals}
-              />
-              <span aria-hidden className="mp2-play-score-sep">
-                –
-              </span>
-              <GoalStepper
-                label={fixture.awayTeam}
-                onChange={(value) => setDraft({ ...draft, awayGoals: value })}
-                value={draft.awayGoals}
-              />
+            <div
+              className="mp2-play-panel"
+              style={
+                {
+                  "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b46",
+                  "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b46",
+                } as CSSProperties
+              }
+            >
+              <div className="mp2-play-teams">
+                <div className="mp2-play-team">
+                  {homeIso ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt=""
+                      className="mp2-play-flag"
+                      src={`https://flagcdn.com/w80/${homeIso}.png`}
+                    />
+                  ) : (
+                    <span className="mp2-play-flag mp2-play-flag-tbd" />
+                  )}
+                  <span className="mp2-play-team-name">{fixture.homeTeam}</span>
+                </div>
+                <div className="mp2-play-center">
+                  <div className="mp2-play-scores">
+                    <GoalStepper
+                      label={fixture.homeTeam}
+                      onChange={(value) =>
+                        setDraft({ ...draft, homeGoals: value })
+                      }
+                      value={draft.homeGoals}
+                    />
+                    <GoalStepper
+                      label={fixture.awayTeam}
+                      onChange={(value) =>
+                        setDraft({ ...draft, awayGoals: value })
+                      }
+                      value={draft.awayGoals}
+                    />
+                  </div>
+                  <span className="mp2-play-exact-hint">
+                    Exact score +{PREDICTION_POINTS.exactScore}
+                  </span>
+                </div>
+                <div className="mp2-play-team">
+                  {awayIso ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt=""
+                      className="mp2-play-flag"
+                      src={`https://flagcdn.com/w80/${awayIso}.png`}
+                    />
+                  ) : (
+                    <span className="mp2-play-flag mp2-play-flag-tbd" />
+                  )}
+                  <span className="mp2-play-team-name">{fixture.awayTeam}</span>
+                </div>
+              </div>
+              <div className="mp2-odds-row cols-3 mp2-play-result">
+                {(
+                  [
+                    { label: fixture.homeTeam, value: "home" },
+                    { label: "Draw", value: "draw" },
+                    { label: fixture.awayTeam, value: "away" },
+                  ] as const
+                ).map((option) => (
+                  <OddsButton
+                    active={draft.winner === option.value}
+                    key={option.value}
+                    label={option.label}
+                    odds={odds1x2?.[option.value]}
+                    onClick={() =>
+                      setDraft({ ...draft, winner: option.value })
+                    }
+                    points={winnerPoints(odds1x2?.[option.value])}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -3196,7 +3239,7 @@ function PredictionSection({
                 <button
                   aria-pressed={draft.firstScorer === "none"}
                   className={`mp2-scorer-chip mp2-scorer-chip-none${
-                    draft.firstScorer === "none" ? " active" : ""
+                    draft.firstScorer === "none" ? " picked" : ""
                   }`}
                   onClick={() =>
                     setDraft({
@@ -3208,6 +3251,9 @@ function PredictionSection({
                   type="button"
                 >
                   <span className="mp2-scorer-chip-name">No goal scorer</span>
+                  <span aria-hidden className="mp2-odds-badge">
+                    +{PREDICTION_POINTS.firstScorer}
+                  </span>
                 </button>
                 {scorerGroups.flatMap((team) =>
                   team.players.map((player) => {
@@ -3219,7 +3265,7 @@ function PredictionSection({
                     return (
                       <button
                         aria-pressed={active}
-                        className={`mp2-scorer-chip${active ? " active" : ""}`}
+                        className={`mp2-scorer-chip${active ? " picked" : ""}`}
                         key={`${team.teamName}-${player.playerId}`}
                         onClick={() =>
                           setDraft({
@@ -3246,6 +3292,9 @@ function PredictionSection({
                         <span className="mp2-scorer-chip-team">
                           {team.teamName}
                         </span>
+                        <span aria-hidden className="mp2-odds-badge">
+                          +{PREDICTION_POINTS.firstScorer}
+                        </span>
                       </button>
                     );
                   }),
@@ -3261,7 +3310,7 @@ function PredictionSection({
 
           <div className="mp2-play-save">
             <Button type="submit">Save picks</Button>
-            <span className="muted">
+            <span className="mp2-play-payout">
               Perfect card pays {potentialPoints} pts
             </span>
           </div>
@@ -3362,7 +3411,9 @@ function PredictionSection({
 }
 
 // A tappable market outcome: label, the decimal odds it pays at (when the
-// TxLINE board quotes it), and the points it adds to the card.
+// TxLINE board quotes it), and the points it adds to the card. Picked chips
+// go solid white (the homepage pc-pill idiom) and the points jump out to a
+// floating badge on the corner - no rings, no tinted fills.
 function OddsButton({
   active,
   label,
@@ -3382,19 +3433,24 @@ function OddsButton({
     <button
       aria-label={`${label}${hasOdds ? `, odds ${odds.toFixed(2)}` : ""}, pays ${points} points`}
       aria-pressed={active}
-      className={`mp2-odds-btn${active ? " active" : ""}`}
+      className={`mp2-odds-btn${active ? " picked" : ""}`}
       onClick={onClick}
       type="button"
     >
       <span className="mp2-odds-btn-label">{label}</span>
-      <span className="mp2-odds-btn-meta">
+      <span className="mp2-odds-btn-value">
         {hasOdds ? <em>{odds.toFixed(2)}</em> : null}
-        <strong>+{points}</strong>
+        <span className="mp2-odds-btn-pts">+{points}</span>
+      </span>
+      <span aria-hidden className="mp2-odds-badge">
+        +{points}
       </span>
     </button>
   );
 }
 
+// Glassy vertical stepper column, straight from the homepage prediction
+// card: the animated team glow bleeds through the translucent fills.
 function GoalStepper({
   label,
   onChange,
@@ -3406,25 +3462,24 @@ function GoalStepper({
 }) {
   return (
     <div className="mp2-play-stepper">
-      <span className="mp2-play-stepper-team">{label}</span>
-      <div className="mp2-play-stepper-controls">
-        <button
-          aria-label={`Fewer ${label} goals`}
-          disabled={value <= 0}
-          onClick={() => onChange(clampGoals(value - 1))}
-          type="button"
-        >
-          −
-        </button>
-        <output aria-label={`${label} goals`}>{value}</output>
-        <button
-          aria-label={`More ${label} goals`}
-          onClick={() => onChange(clampGoals(value + 1))}
-          type="button"
-        >
-          +
-        </button>
-      </div>
+      <button
+        aria-label={`More ${label} goals`}
+        className="mp2-play-step up"
+        onClick={() => onChange(clampGoals(value + 1))}
+        type="button"
+      >
+        +
+      </button>
+      <output aria-label={`${label} goals`}>{value}</output>
+      <button
+        aria-label={`Fewer ${label} goals`}
+        className="mp2-play-step down"
+        disabled={value <= 0}
+        onClick={() => onChange(clampGoals(value - 1))}
+        type="button"
+      >
+        −
+      </button>
     </div>
   );
 }
