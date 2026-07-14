@@ -3512,12 +3512,16 @@ function TicketCard({
           {ticketRows.length} pick{ticketRows.length === 1 ? "" : "s"}
         </span>
       </div>
+      <p className="mp2-ticket-meta">
+        Nº {fixture.fixtureId} · locks {formatDate(fixture.kickoffUtc)} UTC
+      </p>
       <ul className="mp2-ticket-list">
         {ticketRows.map((row, index) => (
           <li key={`${row.market}-${index}`}>
             <span className="mp2-ticket-market">{row.market}</span>
             <span className="mp2-ticket-pts">+{row.pts}</span>
             <span className="mp2-ticket-pick">{row.pick}</span>
+            <span aria-hidden className="mp2-ticket-dots" />
             <span className="mp2-ticket-odds">
               {typeof row.odds === "number" ? row.odds.toFixed(2) : ""}
             </span>
@@ -3536,9 +3540,9 @@ function TicketCard({
       >
         Save picks
       </Button>
+      <span aria-hidden className="mp2-ticket-barcode" />
       <p className="mp2-ticket-note">
-        {confirmation ||
-          "Free game · points, not money. Locks at kickoff, stored in this browser only."}
+        {confirmation || "Free game · points, not money · stored in this browser."}
       </p>
     </section>
   );
