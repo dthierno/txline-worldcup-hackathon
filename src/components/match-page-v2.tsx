@@ -84,7 +84,9 @@ import {
 import {
   clampGoals,
   defaultPrediction,
+  doubleChanceLabel,
   handicapLineLabel,
+  linePickLabel,
   MAX_SIDE_PICKS,
   PREDICTION_LINES,
   PREDICTION_POINTS,
@@ -1347,11 +1349,21 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       >
         {matchTab === "overview" ? (
           <div className="mp2-layout mp2-overview-layout">
+            {/* The game is the product: before kickoff the play card spans
+                the full width - market board left, live ticket right - and
+                the head-to-head brief fills the page below. After full time
+                the result leads the main column; live matches keep the card
+                in the rail so the action stays front and centre. */}
+            {notStarted ? (
+              <div className="mp2-main-wide">{playSection}</div>
+            ) : null}
+            {notStarted ? (
+              <div className="mp2-main-wide">
+                <HeadToHeadSection fixture={fixture} />
+              </div>
+            ) : null}
             <div className="mp2-main">
-              {/* The game is the product: picks lead the page before kickoff
-                  and the result leads it after; live matches keep the card in
-                  the rail so the action stays front and centre. */}
-              {notStarted || finished ? playSection : null}
+              {finished ? playSection : null}
 
               {finished ? (
                 <MatchMediaSection fixtureId={fixture.fixtureId} />
@@ -3052,16 +3064,88 @@ function PredictionSection({
     );
 
   if (!locked) {
+    const winnerNames = {
+      away: fixture.awayTeam,
+      draw: "Draw",
+      home: fixture.homeTeam,
+    } as const;
+    // The live ticket in the rail: every pick on the card, as a slip row.
+    const ticketRows: Array<{
+      market: string;
+      odds?: number | null;
+      pick: string;
+      pts: number;
+    }> = [
+      {
+        market: "Winner",
+        odds: odds1x2?.[draft.winner],
+        pick: winnerNames[draft.winner],
+        pts: winnerPoints(odds1x2?.[draft.winner]),
+      },
+      {
+        market: "Exact score",
+        pick: `${draft.homeGoals} - ${draft.awayGoals}`,
+        pts: PREDICTION_POINTS.exactScore,
+      },
+      {
+        market: "Goals",
+        odds: goalsBoardLine?.prices[draft.totalGoals === "over" ? 0 : 1],
+        pick: linePickLabel(draft.totalGoals, PREDICTION_LINES.goals),
+        pts: PREDICTION_POINTS.line,
+      },
+      {
+        market: "Corners",
+        pick: linePickLabel(draft.totalCorners, PREDICTION_LINES.corners),
+        pts: PREDICTION_POINTS.line,
+      },
+      {
+        market: "Cards",
+        pick: linePickLabel(draft.totalCards, PREDICTION_LINES.cards),
+        pts: PREDICTION_POINTS.line,
+      },
+      ...(draft.firstScorer
+        ? [
+            {
+              market: "First scorer",
+              pick:
+                draft.firstScorer === "none"
+                  ? "No goal scorer"
+                  : shortPlayerName(draft.firstScorer.name),
+              pts: PREDICTION_POINTS.firstScorer,
+            },
+          ]
+        : []),
+      ...draftSidePicks.map((pick) =>
+        pick.kind === "double_chance"
+          ? {
+              market: "Double chance",
+              odds: pick.odds,
+              pick: doubleChanceLabel(pick.pick, fixture),
+              pts: sidePickPoints(pick.odds),
+            }
+          : pick.kind === "goals_line"
+            ? {
+                market: `Goals ${pick.line}`,
+                odds: pick.odds,
+                pick: linePickLabel(pick.pick, pick.line),
+                pts: sidePickPoints(pick.odds),
+              }
+            : {
+                market: `Handicap ${handicapLineLabel(pick.line)}`,
+                odds: pick.odds,
+                pick:
+                  pick.pick === "home" ? fixture.homeTeam : fixture.awayTeam,
+                pts: sidePickPoints(pick.odds),
+              },
+      ),
+    ];
+
     return (
       <section className="card mp2-play" aria-labelledby="prediction-heading">
         <div className="mp2-play-head">
           <h2 id="prediction-heading">Your picks</h2>
           <span className="mp2-play-pill">Free game · points, not money</span>
         </div>
-        <p className="muted">
-          Locks at kickoff: {formatDate(fixture.kickoffUtc)} UTC. Stored in this
-          browser only.
-        </p>
         <form
           className="mp2-play-form"
           onSubmit={(event) => {
@@ -3089,6 +3173,7 @@ function PredictionSection({
             );
           }}
         >
+          <div className="mp2-play-markets">
           <div className="mp2-play-group" role="group" aria-label="Match result">
             <div className="mp2-play-group-head">
               <span>Match result</span>
@@ -3398,14 +3483,41 @@ function PredictionSection({
             </p>
           )}
 
-          <div className="mp2-play-save">
-            <Button type="submit">Save picks</Button>
-            <span className="mp2-play-payout">
-              Perfect card pays {potentialPoints} pts
-            </span>
           </div>
+
+          <aside aria-label="Your card" className="mp2-ticket">
+            <div className="mp2-ticket-head">
+              <span className="mp2-ticket-title">Your card</span>
+              <span className="mp2-play-pill">
+                {ticketRows.length} pick{ticketRows.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <ul className="mp2-ticket-list">
+              {ticketRows.map((row, index) => (
+                <li key={`${row.market}-${index}`}>
+                  <span className="mp2-ticket-market">{row.market}</span>
+                  <span className="mp2-ticket-pts">+{row.pts}</span>
+                  <span className="mp2-ticket-pick">{row.pick}</span>
+                  <span className="mp2-ticket-odds">
+                    {typeof row.odds === "number" ? row.odds.toFixed(2) : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div aria-hidden className="mp2-ticket-tear" />
+            <div className="mp2-ticket-total">
+              <span>Perfect card</span>
+              <strong>+{potentialPoints} pts</strong>
+            </div>
+            <Button className="mp2-ticket-save" type="submit">
+              Save picks
+            </Button>
+            <p className="mp2-ticket-note">
+              {confirmation ||
+                "Locks at kickoff · stored in this browser only."}
+            </p>
+          </aside>
         </form>
-        {confirmation ? <p>{confirmation}</p> : null}
       </section>
     );
   }
