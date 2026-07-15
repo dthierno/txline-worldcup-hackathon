@@ -4488,11 +4488,11 @@ dt {
     font-size: 13px;
   }
 }
-/* Momentum chart (v2 match page): split area chart in the team colours,
+/* Momentum chart (v2 match page): diverging bars in the team colours,
    built on the shadcn chart component (recharts). */
 .mmt-chart {
   aspect-ratio: auto;
-  height: 200px;
+  height: 150px;
   width: 100%;
 }
 .mmt-tip {

@@ -2112,7 +2112,7 @@ function MomentumSection({
             }
             cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
           />
-          <Bar barSize={22} dataKey="net" isAnimationActive={false} radius={4}>
+          <Bar barSize={11} dataKey="net" isAnimationActive={false} radius={5.5}>
             {data.map((entry) => (
               <Cell
                 fill={entry.net >= 0 ? homeColor : chartAwayColor}
