@@ -1103,7 +1103,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     .replace("Semi-finals", "Semi-final")
     .replace("Quarter-finals", "Quarter-final")
     .replace("8th Finals", "Round of 16");
-  const kickoffLabel = formatKickoffLabel(kickoff, now);
   const shareMatch = async () => {
     const url = window.location.href;
     const title = `${fixture.homeTeam} vs ${fixture.awayTeam}`;
@@ -1283,7 +1282,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                       {formatKickoffTime(kickoff.getTime())}
                     </span>
                     <span className="mp2-hero-kickoff-label">
-                      {kickoffLabel}
+                      <KickoffCountdown kickoff={kickoff} now={now} />
                     </span>
                   </div>
                 )}
@@ -3049,6 +3048,37 @@ function solveTotalLambda(overProb: number): number {
   }
 
   return (low + high) / 2;
+}
+
+// Ticking pre-kickoff countdown. The shared clock only beats every 30s (a
+// full-page tick recomputes heavy derived data), so within the final day
+// this label runs its own 1s interval and re-renders alone.
+function KickoffCountdown({
+  kickoff,
+  now,
+}: {
+  kickoff: Date;
+  now: number | null;
+}) {
+  const [tick, setTick] = useState<number | null>(null);
+  const withinDay =
+    now !== null &&
+    kickoff.getTime() - now > 0 &&
+    kickoff.getTime() - now < 24 * 60 * 60 * 1000;
+
+  useEffect(() => {
+    if (!withinDay) {
+      return;
+    }
+
+    const timer = setInterval(() => setTick(Date.now()), 1000);
+
+    return () => clearInterval(timer);
+  }, [withinDay]);
+
+  // Until the first tick lands (or outside the final day), the 30s shared
+  // clock still gives a fresh-enough label.
+  return <>{formatKickoffLabel(kickoff, tick ?? now)}</>;
 }
 
 // Small outcome circle used on the market chips: a team's flag, or the

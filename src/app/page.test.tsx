@@ -613,7 +613,13 @@ describe("MatchPageV2 banner", () => {
     ).toBe("Tomorrow");
     expect(
       formatKickoffLabel(kickoff, Date.parse("2026-07-14T10:00:00.000Z")),
-    ).toBe("9h");
+    ).toBe("9h 00m 00s");
+    expect(
+      formatKickoffLabel(kickoff, Date.parse("2026-07-14T18:47:15.000Z")),
+    ).toBe("12m 45s");
+    expect(
+      formatKickoffLabel(kickoff, Date.parse("2026-07-14T18:59:18.000Z")),
+    ).toBe("42s");
     expect(
       formatKickoffLabel(kickoff, Date.parse("2026-07-12T10:00:00.000Z")),
     ).toBe("July 14");

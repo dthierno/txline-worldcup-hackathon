@@ -322,13 +322,18 @@ export function formatKickoffLabel(kickoff: Date, now: number | null) {
   const delta = kickoff.getTime() - now;
 
   if (delta > 0 && delta < 24 * 60 * 60 * 1000) {
-    const totalMinutes = Math.max(1, Math.ceil(delta / (60 * 1000)));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+    const totalSeconds = Math.max(1, Math.ceil(delta / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    // Lower units are zero-padded so the ticking label keeps a steady width.
+    const pad = (value: number) => String(value).padStart(2, "0");
 
     return hours > 0
-      ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`
-      : `${minutes}m`;
+      ? `${hours}h ${pad(minutes)}m ${pad(seconds)}s`
+      : minutes > 0
+        ? `${minutes}m ${pad(seconds)}s`
+        : `${seconds}s`;
   }
 
   return dateLabel;
