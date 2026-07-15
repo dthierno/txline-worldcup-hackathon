@@ -3442,75 +3442,72 @@ function MarketCards({
                   >
                     Your call
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    {homeIso ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        alt={fixture.homeTeam}
-                        className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                        src={`https://flagcdn.com/w40/${homeIso}.png`}
-                      />
-                    ) : null}
-                    <button
-                      aria-label={`One goal less for ${fixture.homeTeam}`}
-                      className={stepClass}
-                      disabled={draft.homeGoals <= 0}
-                      onClick={() => stepGoals("home", -1)}
-                      type="button"
-                    >
-                      <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
-                    </button>
-                    <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
-                      {draft.homeGoals}
-                    </span>
-                    <button
-                      aria-label={`One goal more for ${fixture.homeTeam}`}
-                      className={stepClass}
-                      disabled={draft.homeGoals >= 9}
-                      onClick={() => stepGoals("home", 1)}
-                      type="button"
-                    >
-                      <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
-                    </button>
-                    <span
-                      className={cn(
-                        "text-[13.5px] leading-5",
-                        isBoardScore
-                          ? "text-muted-foreground"
-                          : "text-primary-foreground/60",
-                      )}
-                    >
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-1.5">
+                      {homeIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={fixture.homeTeam}
+                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                          src={`https://flagcdn.com/w40/${homeIso}.png`}
+                        />
+                      ) : null}
+                      <button
+                        aria-label={`One goal less for ${fixture.homeTeam}`}
+                        className={stepClass}
+                        disabled={draft.homeGoals <= 0}
+                        onClick={() => stepGoals("home", -1)}
+                        type="button"
+                      >
+                        <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
+                      </button>
+                      <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
+                        {draft.homeGoals}
+                      </span>
+                      <button
+                        aria-label={`One goal more for ${fixture.homeTeam}`}
+                        className={stepClass}
+                        disabled={draft.homeGoals >= 9}
+                        onClick={() => stepGoals("home", 1)}
+                        type="button"
+                      >
+                        <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                    <span className="w-2.5 text-center text-[15px] leading-5 font-semibold">
                       -
                     </span>
-                    <button
-                      aria-label={`One goal less for ${fixture.awayTeam}`}
-                      className={stepClass}
-                      disabled={draft.awayGoals <= 0}
-                      onClick={() => stepGoals("away", -1)}
-                      type="button"
-                    >
-                      <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
-                    </button>
-                    <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
-                      {draft.awayGoals}
-                    </span>
-                    <button
-                      aria-label={`One goal more for ${fixture.awayTeam}`}
-                      className={stepClass}
-                      disabled={draft.awayGoals >= 9}
-                      onClick={() => stepGoals("away", 1)}
-                      type="button"
-                    >
-                      <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
-                    </button>
-                    {awayIso ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        alt={fixture.awayTeam}
-                        className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                        src={`https://flagcdn.com/w40/${awayIso}.png`}
-                      />
-                    ) : null}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        aria-label={`One goal less for ${fixture.awayTeam}`}
+                        className={stepClass}
+                        disabled={draft.awayGoals <= 0}
+                        onClick={() => stepGoals("away", -1)}
+                        type="button"
+                      >
+                        <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
+                      </button>
+                      <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
+                        {draft.awayGoals}
+                      </span>
+                      <button
+                        aria-label={`One goal more for ${fixture.awayTeam}`}
+                        className={stepClass}
+                        disabled={draft.awayGoals >= 9}
+                        onClick={() => stepGoals("away", 1)}
+                        type="button"
+                      >
+                        <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
+                      </button>
+                      {awayIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={fixture.awayTeam}
+                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                          src={`https://flagcdn.com/w40/${awayIso}.png`}
+                        />
+                      ) : null}
+                    </div>
                   </div>
                   <span
                     className={cn(
