@@ -3112,8 +3112,8 @@ function MarketCards({
             <HugeiconsIcon
               aria-label="How winner points work"
               icon={InformationCircleIcon}
-              size={15}
-              strokeWidth={1.8}
+              size={16}
+              strokeWidth={2.5}
             />
           </span>
         </div>
