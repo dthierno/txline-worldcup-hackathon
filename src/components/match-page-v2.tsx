@@ -3175,7 +3175,7 @@ function MarketCards({
 
     cells.sort((left, right) => right.prob - left.prob);
 
-    return cells.slice(0, 6).map((cell) => ({
+    return cells.slice(0, 8).map((cell) => ({
       ...cell,
       odds: Math.round((1 / cell.prob) * 100) / 100,
     }));
@@ -3316,7 +3316,7 @@ function MarketCards({
             <div className="mt-2 rounded-[18px] bg-black/25 p-3.5">
               <ToggleGroup
                 aria-label="Exact score"
-                className="grid w-full grid-cols-3 gap-2"
+                className="grid w-full grid-cols-4 gap-2"
                 onValueChange={(groupValue: unknown[]) => {
                   const picked = scorelines.find(
                     (cell) => `${cell.home}-${cell.away}` === groupValue[0],
