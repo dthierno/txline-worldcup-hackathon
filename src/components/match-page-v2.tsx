@@ -3313,61 +3313,64 @@ function MarketCards({
             </div>
           ) : null}
           {scorelines ? (
-            <div className="mt-2 rounded-[18px] bg-black/25 p-3.5">
-              <ToggleGroup
-                aria-label="Exact score"
-                className="grid w-full grid-cols-4 gap-2"
-                onValueChange={(groupValue: unknown[]) => {
-                  const picked = scorelines.find(
-                    (cell) => `${cell.home}-${cell.away}` === groupValue[0],
-                  );
+            <div className="mt-2">
+              <h3 className="mp2-subhead">Exact score</h3>
+              <div className="rounded-[18px] bg-black/25 p-3.5">
+                <ToggleGroup
+                  aria-label="Exact score"
+                  className="grid w-full grid-cols-4 gap-2"
+                  onValueChange={(groupValue: unknown[]) => {
+                    const picked = scorelines.find(
+                      (cell) => `${cell.home}-${cell.away}` === groupValue[0],
+                    );
 
-                  if (picked) {
-                    patchDraft((previous) => ({
-                      ...previous,
-                      awayGoals: picked.away,
-                      exactScoreOdds: picked.odds,
-                      homeGoals: picked.home,
-                    }));
-                  }
-                }}
-                value={[`${draft.homeGoals}-${draft.awayGoals}`]}
-              >
-                {scorelines.map((cell) => (
-                  <ToggleGroupItem
-                    aria-label={`${cell.home} - ${cell.away}, pays ${exactScorePoints(cell.odds)} points`}
-                    className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
-                    key={`${cell.home}-${cell.away}`}
-                    value={`${cell.home}-${cell.away}`}
-                    variant="outline"
-                  >
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      {homeIso ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt={fixture.homeTeam}
-                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                          src={`https://flagcdn.com/w40/${homeIso}.png`}
-                        />
-                      ) : null}
-                      <span className="text-[13.5px] leading-5 font-medium">
-                        {cell.home} - {cell.away}
+                    if (picked) {
+                      patchDraft((previous) => ({
+                        ...previous,
+                        awayGoals: picked.away,
+                        exactScoreOdds: picked.odds,
+                        homeGoals: picked.home,
+                      }));
+                    }
+                  }}
+                  value={[`${draft.homeGoals}-${draft.awayGoals}`]}
+                >
+                  {scorelines.map((cell) => (
+                    <ToggleGroupItem
+                      aria-label={`${cell.home} - ${cell.away}, pays ${exactScorePoints(cell.odds)} points`}
+                      className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+                      key={`${cell.home}-${cell.away}`}
+                      value={`${cell.home}-${cell.away}`}
+                      variant="outline"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {homeIso ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            alt={fixture.homeTeam}
+                            className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                            src={`https://flagcdn.com/w40/${homeIso}.png`}
+                          />
+                        ) : null}
+                        <span className="text-[13.5px] leading-5 font-medium">
+                          {cell.home} - {cell.away}
+                        </span>
+                        {awayIso ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            alt={fixture.awayTeam}
+                            className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                            src={`https://flagcdn.com/w40/${awayIso}.png`}
+                          />
+                        ) : null}
                       </span>
-                      {awayIso ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt={fixture.awayTeam}
-                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                          src={`https://flagcdn.com/w40/${awayIso}.png`}
-                        />
-                      ) : null}
-                    </span>
-                    <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
-                      +{exactScorePoints(cell.odds)}
-                    </span>
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+                      <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
+                        +{exactScorePoints(cell.odds)}
+                      </span>
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
             </div>
           ) : null}
         </div>
