@@ -4300,10 +4300,13 @@ function buildSideOffers(
     });
   }
 
+  // Goals 0.5 is skipped: its Under is exactly the 0-0 scoreline pill and
+  // its Over is a near-certainty - the exact-score board already covers both.
   for (const entry of (board.overUnder ?? [])
     .filter(
       (candidate) =>
         isHalfLine(candidate.line) &&
+        candidate.line >= 1.5 &&
         candidate.line !== PREDICTION_LINES.goals &&
         candidate.prices.length >= 2,
     )
@@ -4325,9 +4328,15 @@ function buildSideOffers(
     });
   }
 
+  // Half-goal handicaps duplicate markets already on the card (England -0.5
+  // is the 1X2 win; +0.5 is a double-chance cover). Only margins of 1.5+
+  // say something new: win by two or more.
   for (const entry of (board.asianHandicap ?? [])
     .filter(
-      (candidate) => isHalfLine(candidate.line) && candidate.prices.length >= 2,
+      (candidate) =>
+        isHalfLine(candidate.line) &&
+        Math.abs(candidate.line) >= 1.5 &&
+        candidate.prices.length >= 2,
     )
     .slice(0, 2)) {
     rows.push({
