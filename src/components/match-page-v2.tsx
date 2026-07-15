@@ -101,6 +101,7 @@ import {
 import {
   defaultPrediction,
   doubleChanceLabel,
+  exactScorePoints,
   handicapLineLabel,
   linePickLabel,
   MAX_SIDE_PICKS,
@@ -3007,6 +3008,38 @@ function usePlayCard(fixtureId: number) {
   };
 }
 
+// Tiny Poisson model over the TxLINE prices: total goals from the over 2.5
+// price, split home/away by the 1X2 shares, giving the most likely exact
+// scorelines and their fair odds.
+function poissonPmf(k: number, lambda: number): number {
+  let factorial = 1;
+
+  for (let i = 2; i <= k; i += 1) {
+    factorial *= i;
+  }
+
+  return (Math.exp(-lambda) * lambda ** k) / factorial;
+}
+
+function solveTotalLambda(overProb: number): number {
+  let low = 0.2;
+  let high = 6;
+
+  for (let i = 0; i < 40; i += 1) {
+    const mid = (low + high) / 2;
+    const under =
+      poissonPmf(0, mid) + poissonPmf(1, mid) + poissonPmf(2, mid);
+
+    if (1 - under > overProb) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+
+  return (low + high) / 2;
+}
+
 // Pre-kickoff market cards, kept to the shadcn preset: outline ToggleGroups
 // for every market (pressed = primary, the commitment colour), plain Inputs
 // for the exact score, an AvatarGroup for the league tally, and an Accordion
@@ -3094,6 +3127,73 @@ function MarketCards({
       share: resultShares[2] ?? 0,
     },
   ];
+  // Six most likely scorelines from the Poisson fit; hidden when the board
+  // has no goals line to anchor the model.
+  const goalsBoardLine = board?.overUnder?.find(
+    (entry) =>
+      entry.line === PREDICTION_LINES.goals && entry.prices.length >= 2,
+  );
+  const scorelines = (() => {
+    const overShare = impliedShares([
+      goalsBoardLine?.prices[0],
+      goalsBoardLine?.prices[1],
+    ])[0];
+    const [homeShare, drawShare, awayShare] = resultShares;
+
+    if (
+      overShare === null ||
+      homeShare === null ||
+      drawShare === null ||
+      awayShare === null
+    ) {
+      return null;
+    }
+
+    const lambda = solveTotalLambda(overShare / 100);
+    const homeWeight = (homeShare + drawShare / 2) / 100;
+    const homeLambda = Math.max(0.15, lambda * homeWeight);
+    const awayLambda = Math.max(0.15, lambda - homeLambda);
+    const cells: Array<{ away: number; home: number; prob: number }> = [];
+
+    for (let homeGoals = 0; homeGoals <= 4; homeGoals += 1) {
+      for (let awayGoals = 0; awayGoals <= 4; awayGoals += 1) {
+        cells.push({
+          away: awayGoals,
+          home: homeGoals,
+          prob:
+            poissonPmf(homeGoals, homeLambda) *
+            poissonPmf(awayGoals, awayLambda),
+        });
+      }
+    }
+
+    cells.sort((left, right) => right.prob - left.prob);
+
+    return cells.slice(0, 6).map((cell) => ({
+      ...cell,
+      odds: Math.round((1 / cell.prob) * 100) / 100,
+    }));
+  })();
+  // Keep the frozen scoreline odds in step with the draft score: the model
+  // prices whatever score is currently picked (or clears when the score
+  // isn't on the board), so the ticket and the pills always agree. Runs
+  // after every render with an equality guard - the model odds drift with
+  // the live prices, so a deps array would fight the board updates.
+  const draftScoreOdds =
+    scorelines?.find(
+      (cell) =>
+        cell.home === draft.homeGoals && cell.away === draft.awayGoals,
+    )?.odds ?? null;
+
+  useEffect(() => {
+    if ((draft.exactScoreOdds ?? null) !== draftScoreOdds) {
+      patchDraft((previous) => ({
+        ...previous,
+        exactScoreOdds: draftScoreOdds,
+      }));
+    }
+  });
+
   const itemClass =
     "flex-1 justify-between gap-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground";
   const ptsClass =
@@ -3209,6 +3309,54 @@ function MarketCards({
                   </span>
                 ))}
               </div>
+            </div>
+          ) : null}
+          {scorelines ? (
+            <div className="flex flex-col gap-2.5 rounded-[14px] bg-white/[0.045] p-3.5">
+              <div className="flex items-baseline justify-between">
+                <span className="text-muted-foreground text-[11px] font-bold tracking-[0.06em] uppercase">
+                  Exact score
+                </span>
+                <span className="text-muted-foreground text-[11px]">
+                  rarer scores pay more
+                </span>
+              </div>
+              <ToggleGroup
+                aria-label="Exact score"
+                className="grid w-full grid-cols-3 gap-2"
+                onValueChange={(groupValue: unknown[]) => {
+                  const picked = scorelines.find(
+                    (cell) => `${cell.home}-${cell.away}` === groupValue[0],
+                  );
+
+                  if (picked) {
+                    patchDraft((previous) => ({
+                      ...previous,
+                      awayGoals: picked.away,
+                      exactScoreOdds: picked.odds,
+                      homeGoals: picked.home,
+                    }));
+                  }
+                }}
+                value={[`${draft.homeGoals}-${draft.awayGoals}`]}
+              >
+                {scorelines.map((cell) => (
+                  <ToggleGroupItem
+                    aria-label={`${cell.home} - ${cell.away}, pays ${exactScorePoints(cell.odds)} points`}
+                    className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                    key={`${cell.home}-${cell.away}`}
+                    value={`${cell.home}-${cell.away}`}
+                    variant="outline"
+                  >
+                    <span className="text-[13.5px] leading-5 font-medium">
+                      {cell.home} - {cell.away}
+                    </span>
+                    <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
+                      +{exactScorePoints(cell.odds)}
+                    </span>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </div>
           ) : null}
         </div>
@@ -3503,6 +3651,7 @@ function TicketCard({
   } as const;
   const potentialPoints =
     winnerPoints(odds1x2?.[draft.winner]) +
+    exactScorePoints(draft.exactScoreOdds) +
     PREDICTION_POINTS.line * 3 +
     (draft.firstScorer ? PREDICTION_POINTS.firstScorer : 0) +
     draftSidePicks.reduce(
@@ -3518,6 +3667,11 @@ function TicketCard({
       market: "Winner",
       pick: winnerNames[draft.winner],
       pts: winnerPoints(odds1x2?.[draft.winner]),
+    },
+    {
+      market: "Exact score",
+      pick: `${draft.homeGoals} - ${draft.awayGoals}`,
+      pts: exactScorePoints(draft.exactScoreOdds),
     },
     {
       market: "Goals",

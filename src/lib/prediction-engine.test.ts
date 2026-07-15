@@ -239,6 +239,30 @@ describe("settlePrediction", () => {
     ).toBe(3);
   });
 
+  it("scales exact-score payout by the frozen scoreline odds", () => {
+    const settlement = settlePrediction(
+      makePrediction({ awayGoals: 3, exactScoreOdds: 12.4, homeGoals: 0 }),
+      makeOutcome(),
+      teams,
+    );
+
+    expect(
+      settlement.markets.find((market) => market.market === "Exact score")
+        ?.points,
+    ).toBe(12);
+
+    const capped = settlePrediction(
+      makePrediction({ exactScoreOdds: 80 }),
+      makeOutcome(),
+      teams,
+    );
+
+    expect(
+      capped.markets.find((market) => market.market === "Exact score")
+        ?.points,
+    ).toBe(30);
+  });
+
   it("is deterministic for the same inputs", () => {
     const first = settlePrediction(makePrediction(), makeOutcome(), teams);
     const second = settlePrediction(makePrediction(), makeOutcome(), teams);

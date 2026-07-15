@@ -26,6 +26,9 @@ export type MatchPrediction = {
   // TxLINE 1X2 decimal odds captured when the prediction was saved; the
   // winner market pays out scaled by the picked outcome's odds.
   oddsAtSave?: { away: number; draw: number; home: number } | null;
+  // Fair decimal odds of the picked exact score (Poisson model over the
+  // TxLINE prices), frozen at save; unlikely scorelines pay more.
+  exactScoreOdds?: number | null;
   homeGoals: number;
   savedAt: string;
   sidePicks?: SidePick[] | null;
@@ -88,6 +91,19 @@ export function sidePickPoints(odds: number): number {
   return Math.min(
     SIDE_PICK_POINTS.cap,
     Math.max(SIDE_PICK_POINTS.base, Math.round(SIDE_PICK_POINTS.base * odds)),
+  );
+}
+
+// Exact-score payout: the fair odds of the scoreline frozen at save time,
+// floored at the flat base and capped like the winner market.
+export function exactScorePoints(odds?: number | null): number {
+  if (!odds || !Number.isFinite(odds)) {
+    return PREDICTION_POINTS.exactScore;
+  }
+
+  return Math.min(
+    30,
+    Math.max(PREDICTION_POINTS.exactScore, Math.round(odds)),
   );
 }
 
@@ -202,7 +218,7 @@ export function settlePrediction(
       `${prediction.homeGoals}-${prediction.awayGoals}`,
       actualScore,
       exactScoreStatus,
-      PREDICTION_POINTS.exactScore,
+      exactScorePoints(prediction.exactScoreOdds),
     ),
     settledMarket(
       "Winner",
