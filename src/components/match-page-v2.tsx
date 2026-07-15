@@ -42,7 +42,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tooltip,
@@ -3611,12 +3610,28 @@ function MarketCards({
       <section aria-labelledby="market-totals-heading" className="card">
         <div className="mp2-card-heading">
           <h2 id="market-totals-heading">Markets</h2>
-          <span className="mp2-card-hint">
-            totals +{PREDICTION_POINTS.line} pts each
+          <span
+            className="text-muted-foreground cursor-help"
+            title="Totals pay a flat +2 each. The extra lines follow the live TxLINE odds - the bolder the call, the more it pays, up to 20."
+          >
+            <HugeiconsIcon
+              aria-label="How market points work"
+              icon={InformationCircleIcon}
+              size={16}
+              strokeWidth={2.5}
+            />
           </span>
         </div>
         <div className="mt-3.5 flex flex-col gap-3">
-          {totalsRows.map((row) => (
+          <div className="overflow-hidden rounded-[18px] bg-black/25">
+            <h3 className="mp2-subhead">
+              Totals
+              <span className="mp2-card-hint">
+                +{PREDICTION_POINTS.line} pts each
+              </span>
+            </h3>
+            <div className="flex flex-col gap-2.5 p-3.5">
+              {totalsRows.map((row) => (
             <div className={rowClass} key={row.field}>
               <span className={rowLabelClass}>{row.label}</span>
               <ToggleGroup
@@ -3653,26 +3668,24 @@ function MarketCards({
               </ToggleGroup>
             </div>
           ))}
-        </div>
-        {accordionRows?.length ? (
-          <>
-            <Separator className="my-4" />
-            <Accordion className="rounded-none border-0">
-              <AccordionItem
-                className="border-0 data-open:bg-transparent"
-                value="more-markets"
-              >
-                <AccordionTrigger className="items-center p-0 hover:no-underline">
-                  <span className="flex-1 text-[15px] font-bold text-white">
-                    More markets
-                  </span>
-                  <span className="mp2-card-hint">
-                    {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · long
-                    shots pay up to {SIDE_PICK_POINTS.cap} pts
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="-mx-4 pt-4 pb-0">
-                  <div className="flex flex-col gap-3">
+            </div>
+          </div>
+          {accordionRows?.length ? (
+            <div className="overflow-hidden rounded-[18px] bg-black/25">
+              <Accordion className="rounded-none border-0">
+                <AccordionItem
+                  className="border-0 data-open:bg-transparent"
+                  value="more-markets"
+                >
+                  <AccordionTrigger className="mp2-subhead items-center hover:no-underline">
+                    <span className="flex-1 text-left">More markets</span>
+                    <span className="mp2-card-hint">
+                      {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · long
+                      shots pay up to {SIDE_PICK_POINTS.cap} pts
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="-mx-0.5 pt-3.5 pb-3.5">
+                    <div className="flex flex-col gap-3">
                     {accordionRows.map((row) => {
                       const marketKey = row.offers[0]?.marketKey ?? row.label;
 
@@ -3741,16 +3754,13 @@ function MarketCards({
                         </div>
                       );
                     })}
-                  </div>
-                  <p className="text-muted-foreground mt-4 text-xs">
-                    Points follow the live TxLINE odds - the bolder the call,
-                    the more it pays.
-                  </p>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </>
-        ) : null}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       <section aria-labelledby="market-scorer-heading" className="card">
