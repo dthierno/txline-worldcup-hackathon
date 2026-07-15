@@ -1207,6 +1207,7 @@ export function extractMomentum(
     clockSeconds?: number;
     eventId?: number;
     participant?: number;
+    participant1IsHome?: boolean;
     possession?: number;
     seq?: number;
   }>,
@@ -1216,9 +1217,7 @@ export function extractMomentum(
   const seenEvents = new Set<string>();
   let participant1IsHome = true;
 
-  for (const update of updates as Array<
-    (typeof updates)[number] & { participant1IsHome?: boolean }
-  >) {
+  for (const update of updates) {
     if (typeof update.participant1IsHome === "boolean") {
       participant1IsHome = update.participant1IsHome;
     }

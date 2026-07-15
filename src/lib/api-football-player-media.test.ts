@@ -47,7 +47,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function providerFetch() {
-  return vi.fn(async (input: string | URL | Request) => {
+  return vi.fn<
+    (input: string | URL | Request, init?: RequestInit) => Promise<Response>
+  >(async (input) => {
     const url = new URL(String(input));
 
     if (url.pathname === "/teams" && url.searchParams.get("search") === "France") {
