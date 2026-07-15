@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   FootballIcon,
+  InformationCircleIcon,
   Share08Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -43,7 +44,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Avatar,
   AvatarFallback,
-  AvatarGroup,
   AvatarImage,
 } from "@/components/ui/avatar";
 import { KnockoutBracketLive } from "@/components/knockout-bracket-live";
@@ -60,7 +60,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
 import {
@@ -99,7 +98,6 @@ import {
   type TxlineValidationData,
 } from "@/lib/match-shared";
 import {
-  clampGoals,
   defaultPrediction,
   doubleChanceLabel,
   handicapLineLabel,
@@ -3008,23 +3006,6 @@ function usePlayCard(fixtureId: number) {
   };
 }
 
-// The same simulated trio as the homepage leaderboard. Until leagues have a
-// backend, their winner picks are derived deterministically from the fixture
-// (stable across reloads, no randomness) and labelled as simulated.
-const LEAGUE_RIVALS = ["Amina", "Sam", "Noah"] as const;
-
-function rivalWinnerPick(fixtureId: number, name: string): WinnerPick {
-  let hash = 5381;
-
-  for (const char of `${fixtureId}:${name}`) {
-    hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
-  }
-
-  const roll = hash % 100;
-
-  return roll < 45 ? "home" : roll < 70 ? "draw" : "away";
-}
-
 // Pre-kickoff market cards, kept to the shadcn preset: outline ToggleGroups
 // for every market (pressed = primary, the commitment colour), plain Inputs
 // for the exact score, an AvatarGroup for the league tally, and an Accordion
@@ -3112,36 +3093,6 @@ function MarketCards({
       share: resultShares[2] ?? 0,
     },
   ];
-  // Your league's winner picks: the simulated trio plus your current call,
-  // so switching your pick updates the tally live.
-  const winnerNames: Record<WinnerPick, string> = {
-    away: fixture.awayTeam,
-    draw: "a draw",
-    home: fixture.homeTeam,
-  };
-  const leaguePicks: Array<{ name: string; pick: WinnerPick }> = [
-    ...LEAGUE_RIVALS.map((name) => ({
-      name,
-      pick: rivalWinnerPick(fixture.fixtureId, name),
-    })),
-    { name: "You", pick: draft.winner },
-  ];
-  const leagueCounts = leaguePicks.reduce<Record<WinnerPick, number>>(
-    (counts, member) => {
-      counts[member.pick] += 1;
-
-      return counts;
-    },
-    { away: 0, draw: 0, home: 0 },
-  );
-  const leagueModal = (
-    Object.keys(leagueCounts) as WinnerPick[]
-  ).reduce((best, pick) =>
-    leagueCounts[pick] > leagueCounts[best] ? pick : best,
-  );
-  const leagueMembers = leaguePicks.filter(
-    (member) => member.pick === leagueModal,
-  );
   const itemClass =
     "flex-1 justify-between gap-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground";
   const ptsClass =
@@ -3154,7 +3105,17 @@ function MarketCards({
       <section aria-labelledby="market-result-heading" className="card">
         <div className="mp2-card-heading">
           <h2 id="market-result-heading">Match result</h2>
-          <span className="mp2-card-hint">bold winner calls pay more</span>
+          <span
+            className="text-muted-foreground cursor-help"
+            title="Bold winner calls pay more - points scale with the live TxLINE odds, up to 30."
+          >
+            <HugeiconsIcon
+              aria-label="How winner points work"
+              icon={InformationCircleIcon}
+              size={15}
+              strokeWidth={1.8}
+            />
+          </span>
         </div>
         <div className="mt-3.5 flex flex-col gap-3">
           <ToggleGroup
@@ -3240,67 +3201,6 @@ function MarketCards({
               </div>
             </div>
           ) : null}
-          <div className={rowClass}>
-            <span className={rowLabelClass}>Exact score</span>
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label={`${fixture.homeTeam} goals`}
-                className="h-8 w-14 text-center"
-                max={12}
-                min={0}
-                onChange={(event) =>
-                  patchDraft((previous) => ({
-                    ...previous,
-                    homeGoals: clampGoals(event.target.valueAsNumber),
-                  }))
-                }
-                type="number"
-                value={draft.homeGoals}
-              />
-              <span className="text-muted-foreground">–</span>
-              <Input
-                aria-label={`${fixture.awayTeam} goals`}
-                className="h-8 w-14 text-center"
-                max={12}
-                min={0}
-                onChange={(event) =>
-                  patchDraft((previous) => ({
-                    ...previous,
-                    awayGoals: clampGoals(event.target.valueAsNumber),
-                  }))
-                }
-                type="number"
-                value={draft.awayGoals}
-              />
-              <span className="text-muted-foreground text-xs">
-                +{PREDICTION_POINTS.exactScore} pts
-              </span>
-            </div>
-          </div>
-          <div className="text-muted-foreground flex items-center gap-2.5 text-xs">
-            <AvatarGroup aria-hidden>
-              {leagueMembers.map((member) => (
-                <Avatar key={member.name} size="sm">
-                  <AvatarFallback
-                    className={
-                      member.name === "You"
-                        ? "bg-primary text-primary-foreground"
-                        : undefined
-                    }
-                  >
-                    {member.name[0]}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-            </AvatarGroup>
-            <span>
-              <strong className="text-foreground font-semibold">
-                {leagueMembers.length} of {leaguePicks.length}
-              </strong>{" "}
-              in your league took {winnerNames[leagueModal]}
-              <span className="opacity-75"> · simulated</span>
-            </span>
-          </div>
         </div>
       </section>
 
@@ -3592,7 +3492,6 @@ function TicketCard({
     home: fixture.homeTeam,
   } as const;
   const potentialPoints =
-    PREDICTION_POINTS.exactScore +
     winnerPoints(odds1x2?.[draft.winner]) +
     PREDICTION_POINTS.line * 3 +
     (draft.firstScorer ? PREDICTION_POINTS.firstScorer : 0) +
@@ -3609,11 +3508,6 @@ function TicketCard({
       market: "Winner",
       pick: winnerNames[draft.winner],
       pts: winnerPoints(odds1x2?.[draft.winner]),
-    },
-    {
-      market: "Exact score",
-      pick: `${draft.homeGoals} - ${draft.awayGoals}`,
-      pts: PREDICTION_POINTS.exactScore,
     },
     {
       market: "Goals",
@@ -4165,9 +4059,6 @@ function CommentaryFeed({
 
     return (iso && teamGlow[iso]) || "#5f6368";
   };
-  const homeIso = teamFlag(fixture.homeTeam);
-  const awayIso = teamFlag(fixture.awayTeam);
-
   return (
     <ol className="cf-list" reversed>
       <AnimatePresence initial={false}>
