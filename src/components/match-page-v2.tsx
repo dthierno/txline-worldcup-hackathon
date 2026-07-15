@@ -3449,16 +3449,18 @@ function MarketCards({
                       ? "Show fewer scorelines"
                       : "Show more scorelines"
                   }
-                  className="text-muted-foreground hover:text-foreground mt-2 flex h-9 w-full items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-colors hover:bg-white/[0.04]"
+                  className="text-muted-foreground hover:text-foreground mt-2 flex h-9 w-full items-center justify-center gap-1 rounded-2xl bg-white/[0.03] transition-colors hover:bg-white/[0.06]"
                   onClick={() => setScoresExpanded((value) => !value)}
                   type="button"
                 >
-                  {scoresExpanded
-                    ? "Fewer scores"
-                    : `More scores (${scorelines.length - SCORE_FOLD})`}
+                  <span className="text-xs leading-4 font-medium">
+                    {scoresExpanded
+                      ? "Fewer scores"
+                      : `More scores (${scorelines.length - SCORE_FOLD})`}
+                  </span>
                   <HugeiconsIcon
                     icon={scoresExpanded ? ArrowUp01Icon : ArrowDown01Icon}
-                    size={14}
+                    size={12}
                     strokeWidth={2.5}
                   />
                 </button>
