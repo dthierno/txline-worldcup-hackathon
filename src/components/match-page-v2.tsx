@@ -27,8 +27,9 @@ import {
   type ReactNode,
 } from "react";
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
+  Cell,
   ReferenceDot,
   ReferenceLine,
   XAxis,
@@ -1559,7 +1560,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             <MomentumSection
               awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
               extraTime={hadExtraTime}
-              finished={finished}
               fixture={fixture}
               goals={goals}
               homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
@@ -1939,15 +1939,14 @@ function MomentumTooltip({
   );
 }
 
-// Attack momentum as a split area chart (shadcn chart / recharts): one
-// signed series - home pressure minus away pressure - so the curve swings
-// above the zero baseline in the home colour and "upside down" below it in
-// the away colour. The flip is just negative values plus a two-stop
-// gradient split exactly at the zero crossing of the area's bounding box.
+// Attack momentum as FotMob-style diverging bars (shadcn chart / recharts):
+// one signed value per 5-minute bucket - home pressure minus away pressure -
+// drawn upward in the home colour and downward in the away colour. Discrete
+// bars mean a live match simply stops at its latest bucket; nothing
+// interpolates across the unplayed timeline.
 function MomentumSection({
   awayColor,
   extraTime,
-  finished,
   fixture,
   goals,
   homeColor,
@@ -1955,7 +1954,6 @@ function MomentumSection({
 }: {
   awayColor: string;
   extraTime: boolean;
-  finished: boolean;
   fixture: WorldCupFixture;
   goals: GoalEvent[];
   homeColor: string;
@@ -2023,39 +2021,19 @@ function MomentumSection({
     });
   }
 
-  const data = [
-    { away: 0, home: 0, minute: 0, net: 0 },
-    ...[...bucketPoints.entries()]
-      .sort(([left], [right]) => left - right)
-      .map(([minute, bucket]) => ({
-        away: bucket.away,
-        home: bucket.home,
-        label: bucket.label,
-        minute,
-        net: bucket.home - bucket.away,
-      })),
-    // Close the area at the whistle only once the match is over; live, the
-    // series must stop at the latest bucket instead of interpolating one
-    // long wedge across the untouched rest of the timeline.
-    ...(finished
-      ? [{ away: 0, home: 0, minute: maxMinute, net: 0 }]
-      : []),
-  ];
+  const data = [...bucketPoints.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([minute, bucket]) => ({
+      away: bucket.away,
+      home: bucket.home,
+      label: bucket.label,
+      minute,
+      net: bucket.home - bucket.away,
+    }));
   const peak = Math.max(1, ...data.map((entry) => Math.abs(entry.net)));
   // Symmetric Y domain keeps the zero baseline dead centre; padding leaves
   // room for the goal badges pinned near the edges.
   const lim = peak * 1.3;
-  // The colour split anchors in user space exactly on the zero baseline:
-  // with a symmetric Y domain that is the vertical centre of the plot area.
-  // (Deriving it from the area's bounding box is unreliable - "natural"
-  // smoothing overshoots the data extremes.) Geometry is fixed: the
-  // container is 200px tall (see .mmt-chart), margins below.
-  const CHART_HEIGHT = 200;
-  const MARGIN_TOP = 6;
-  const XAXIS_HEIGHT = 24;
-  const PLOT_TOP = MARGIN_TOP;
-  const PLOT_BOTTOM = CHART_HEIGHT - XAXIS_HEIGHT;
-  const gradientId = `mmt-split-${fixture.fixtureId}`;
   const separators = [45, ...(extraTime ? [90] : [])];
   const tickLabel = (minute: number) =>
     minute === 0
@@ -2096,28 +2074,15 @@ function MomentumSection({
     <section className="card" aria-labelledby="momentum-heading">
       <h2 id="momentum-heading">Momentum</h2>
       <ChartContainer className="mmt-chart" config={chartConfig}>
-        <AreaChart
+        <BarChart
           data={data}
           margin={{ bottom: 0, left: 10, right: 10, top: 6 }}
         >
-          <defs>
-            <linearGradient
-              gradientUnits="userSpaceOnUse"
-              id={gradientId}
-              x1="0"
-              x2="0"
-              y1={PLOT_TOP}
-              y2={PLOT_BOTTOM}
-            >
-              <stop offset={0.5} stopColor={homeColor} />
-              <stop offset={0.5} stopColor={chartAwayColor} />
-            </linearGradient>
-          </defs>
           <XAxis
             axisLine={false}
             dataKey="minute"
             domain={[0, maxMinute]}
-            height={XAXIS_HEIGHT}
+            height={24}
             interval={0}
             tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 700 }}
             tickFormatter={tickLabel}
@@ -2145,18 +2110,16 @@ function MomentumSection({
                 homeTeam={fixture.homeTeam}
               />
             }
-            cursor={{ stroke: "rgba(255, 255, 255, 0.18)" }}
+            cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
           />
-          <Area
-            dataKey="net"
-            fill={`url(#${gradientId})`}
-            fillOpacity={0.85}
-            isAnimationActive={false}
-            stroke={`url(#${gradientId})`}
-            // Monotone keeps the curve smooth without natural's overshoot
-            // hooks on sparse early-match data.
-            type="monotone"
-          />
+          <Bar barSize={22} dataKey="net" isAnimationActive={false} radius={4}>
+            {data.map((entry) => (
+              <Cell
+                fill={entry.net >= 0 ? homeColor : chartAwayColor}
+                key={entry.minute}
+              />
+            ))}
+          </Bar>
           {goals.map((goal) => (
             <ReferenceDot
               key={goal.seq}
@@ -2169,7 +2132,7 @@ function MomentumSection({
               y={goal.scoringSide === "home" ? lim * 0.82 : -lim * 0.82}
             />
           ))}
-        </AreaChart>
+        </BarChart>
       </ChartContainer>
       <p className="momentum-legend muted">
         <span
