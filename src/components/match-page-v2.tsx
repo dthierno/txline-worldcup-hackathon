@@ -3201,7 +3201,7 @@ function MarketCards({
   });
 
   const itemClass =
-    "flex-1 justify-between gap-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground";
+    "flex-1 justify-between gap-2 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground";
   const ptsClass =
     "text-muted-foreground text-xs font-semibold group-aria-pressed/toggle:text-primary-foreground/70";
   const rowClass = "grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3";
@@ -3246,7 +3246,7 @@ function MarketCards({
             ).map((option) => (
               <ToggleGroupItem
                 aria-label={`${option.label}, pays ${winnerPoints(odds1x2?.[option.value])} points`}
-                className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
                 key={option.value}
                 value={option.value}
                 variant="outline"
@@ -3336,7 +3336,7 @@ function MarketCards({
                 {scorelines.map((cell) => (
                   <ToggleGroupItem
                     aria-label={`${cell.home} - ${cell.away}, pays ${exactScorePoints(cell.odds)} points`}
-                    className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                    className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
                     key={`${cell.home}-${cell.away}`}
                     value={`${cell.home}-${cell.away}`}
                     variant="outline"
@@ -3460,7 +3460,7 @@ function MarketCards({
                               {row.offers.map((offer) => (
                                 <ToggleGroupItem
                                   aria-label={`${offer.label}, pays ${sidePickPoints(offer.pick.odds)} points`}
-                                  className="w-full justify-between gap-2 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                                  className="w-full justify-between gap-2 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
                                   key={offer.key}
                                   value={offer.key}
                                   variant="outline"
@@ -3568,7 +3568,7 @@ function MarketCards({
           >
             <ToggleGroupItem
               aria-label="No goal scorer"
-              className="aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+              className="aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
               value="none"
               variant="outline"
             >
@@ -3577,7 +3577,7 @@ function MarketCards({
             {scorerPlayers.map(({ player, teamName }) => (
               <ToggleGroupItem
                 aria-label={`${formatPlayerDisplayName(player.name)}, ${teamName}`}
-                className="aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                className="aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
                 key={player.playerId}
                 title={teamName}
                 value={String(player.playerId)}
