@@ -3155,9 +3155,9 @@ function MarketCards({
           >
             {(
               [
-                { label: fixture.homeTeam, value: "home" },
-                { label: "Draw", value: "draw" },
-                { label: fixture.awayTeam, value: "away" },
+                { iso: teamFlag(fixture.homeTeam), label: fixture.homeTeam, value: "home" },
+                { iso: null, label: "Draw", value: "draw" },
+                { iso: teamFlag(fixture.awayTeam), label: fixture.awayTeam, value: "away" },
               ] as const
             ).map((option) => (
               <ToggleGroupItem
@@ -3167,7 +3167,19 @@ function MarketCards({
                 value={option.value}
                 variant="outline"
               >
-                <span className="truncate">{option.label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {option.iso ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt=""
+                      className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                      src={`https://flagcdn.com/w40/${option.iso}.png`}
+                    />
+                  ) : null}
+                  <span className="truncate text-[12.5px] font-medium">
+                    {option.label}
+                  </span>
+                </span>
                 <span className={ptsClass}>
                   +{winnerPoints(odds1x2?.[option.value])}
                 </span>
