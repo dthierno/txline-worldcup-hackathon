@@ -1559,6 +1559,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             <MomentumSection
               awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
               extraTime={hadExtraTime}
+              finished={finished}
               fixture={fixture}
               goals={goals}
               homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
@@ -1946,6 +1947,7 @@ function MomentumTooltip({
 function MomentumSection({
   awayColor,
   extraTime,
+  finished,
   fixture,
   goals,
   homeColor,
@@ -1953,6 +1955,7 @@ function MomentumSection({
 }: {
   awayColor: string;
   extraTime: boolean;
+  finished: boolean;
   fixture: WorldCupFixture;
   goals: GoalEvent[];
   homeColor: string;
@@ -2031,7 +2034,12 @@ function MomentumSection({
         minute,
         net: bucket.home - bucket.away,
       })),
-    { away: 0, home: 0, minute: maxMinute, net: 0 },
+    // Close the area at the whistle only once the match is over; live, the
+    // series must stop at the latest bucket instead of interpolating one
+    // long wedge across the untouched rest of the timeline.
+    ...(finished
+      ? [{ away: 0, home: 0, minute: maxMinute, net: 0 }]
+      : []),
   ];
   const peak = Math.max(1, ...data.map((entry) => Math.abs(entry.net)));
   // Symmetric Y domain keeps the zero baseline dead centre; padding leaves
@@ -2145,7 +2153,9 @@ function MomentumSection({
             fillOpacity={0.85}
             isAnimationActive={false}
             stroke={`url(#${gradientId})`}
-            type="natural"
+            // Monotone keeps the curve smooth without natural's overshoot
+            // hooks on sparse early-match data.
+            type="monotone"
           />
           {goals.map((goal) => (
             <ReferenceDot
