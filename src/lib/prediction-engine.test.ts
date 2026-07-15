@@ -285,7 +285,7 @@ describe("settlePrediction", () => {
       (market) => market.market === "Double chance",
     );
 
-    expect(covered?.pick).toBe("draw or Morocco");
+    expect(covered?.pick).toBe("Draw or Morocco");
     expect(covered?.status).toBe("won");
     // 2 x 1.31 rounds to 3, floored at the base of 2 anyway
     expect(covered?.points).toBe(3);

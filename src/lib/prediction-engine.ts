@@ -331,7 +331,7 @@ export function doubleChanceLabel(
 ): string {
   const names: Record<WinnerPick, string> = {
     away: teams.awayTeam,
-    draw: "draw",
+    draw: "Draw",
     home: teams.homeTeam,
   };
   const [first, second] = DOUBLE_CHANCE_COVERS[pick];

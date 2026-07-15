@@ -3051,6 +3051,32 @@ function solveTotalLambda(overProb: number): number {
   return (low + high) / 2;
 }
 
+// Small outcome circle used on the market chips: a team's flag, or the
+// neutral equals badge standing in for the draw.
+function OutcomeCircle({ iso }: { iso: string | null | undefined }) {
+  if (iso) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        alt=""
+        className="size-5 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+        src={`https://flagcdn.com/w40/${iso}.png`}
+      />
+    );
+  }
+
+  return (
+    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#3f3f46] text-white/85 ring-1 ring-white/10">
+      <HugeiconsIcon
+        aria-hidden
+        icon={EqualSignIcon}
+        size={12}
+        strokeWidth={2.5}
+      />
+    </span>
+  );
+}
+
 // Pre-kickoff market cards, kept to the shadcn preset: outline ToggleGroups
 // for every market (pressed = primary, the commitment colour), plain Inputs
 // for the exact score, an AvatarGroup for the league tally, and an Accordion
@@ -3072,6 +3098,12 @@ function MarketCards({
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
   const sideOfferRows = buildSideOffers(board, fixture);
+  // Double chance gets its own panel on the Match result card; the accordion
+  // keeps the rest of the side markets.
+  const doubleChanceRow =
+    sideOfferRows?.find((row) => row.offers[0]?.marketKey === "dc") ?? null;
+  const accordionRows =
+    sideOfferRows?.filter((row) => row.offers[0]?.marketKey !== "dc") ?? null;
   // One outcome per market; an empty group value means the pick was
   // toggled off.
   const sideGroupValue = (marketKey: string) => {
@@ -3467,6 +3499,82 @@ function MarketCards({
               </div>
             </div>
           ) : null}
+          {doubleChanceRow ? (
+            <div className="mt-2 overflow-hidden rounded-[18px] bg-black/25">
+              <h3 className="mp2-subhead">
+                Double chance
+                <span
+                  className="text-muted-foreground cursor-help"
+                  title="Cover two results with one pick - points pay double the TxLINE odds, up to 20."
+                >
+                  <HugeiconsIcon
+                    aria-label="How double-chance points work"
+                    icon={InformationCircleIcon}
+                    size={16}
+                    strokeWidth={2.5}
+                  />
+                </span>
+              </h3>
+              <div className="p-3.5">
+                <ToggleGroup
+                  aria-label="Double chance"
+                  className="w-full flex-col items-stretch"
+                  onValueChange={onSideGroupChange(
+                    "dc",
+                    doubleChanceRow.offers,
+                  )}
+                  value={sideGroupValue("dc")}
+                >
+                  {doubleChanceRow.offers.map((offer) => {
+                    const cover =
+                      offer.pick.kind === "double_chance"
+                        ? offer.pick.pick
+                        : null;
+                    const icons =
+                      cover === "home_draw"
+                        ? [homeIso, null]
+                        : cover === "home_away"
+                          ? [homeIso, awayIso]
+                          : [null, awayIso];
+                    const label =
+                      cover === "home_draw"
+                        ? `${fixture.homeTeam} or Draw`
+                        : cover === "home_away"
+                          ? `${fixture.homeTeam} or ${fixture.awayTeam}`
+                          : `Draw or ${fixture.awayTeam}`;
+
+                    return (
+                      <ToggleGroupItem
+                        aria-label={`${label}, pays ${sidePickPoints(offer.pick.odds)} points`}
+                        className="h-10 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+                        key={offer.key}
+                        value={offer.key}
+                        variant="outline"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="flex shrink-0 items-center">
+                            <OutcomeCircle iso={icons[0]} />
+                            <span className="-ml-2 flex">
+                              <OutcomeCircle iso={icons[1]} />
+                            </span>
+                          </span>
+                          <span
+                            className="truncate text-[13.5px] leading-5 font-medium"
+                            title={label}
+                          >
+                            {label}
+                          </span>
+                        </span>
+                        <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
+                          +{sidePickPoints(offer.pick.odds)}
+                        </span>
+                      </ToggleGroupItem>
+                    );
+                  })}
+                </ToggleGroup>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -3516,7 +3624,7 @@ function MarketCards({
             </div>
           ))}
         </div>
-        {sideOfferRows ? (
+        {accordionRows?.length ? (
           <>
             <Separator className="my-4" />
             <Accordion className="rounded-none border-0">
@@ -3535,7 +3643,7 @@ function MarketCards({
                 </AccordionTrigger>
                 <AccordionContent className="-mx-4 pt-4 pb-0">
                   <div className="flex flex-col gap-3">
-                    {sideOfferRows.map((row) => {
+                    {accordionRows.map((row) => {
                       const marketKey = row.offers[0]?.marketKey ?? row.label;
 
                       if (row.layout === "rows") {
@@ -4131,7 +4239,7 @@ function buildSideOffers(
   if (board.result) {
     const { away, draw, home } = board.result;
     const covers: Array<[DoubleChancePick, string, number]> = [
-      ["home_draw", `${fixture.homeTeam} or draw`, doubleChanceOdds(home, draw)],
+      ["home_draw", `${fixture.homeTeam} or Draw`, doubleChanceOdds(home, draw)],
       [
         "home_away",
         `${fixture.homeTeam} or ${fixture.awayTeam}`,
