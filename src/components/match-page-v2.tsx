@@ -5,6 +5,8 @@ import {
   EqualSignIcon,
   FootballIcon,
   InformationCircleIcon,
+  MinusSignIcon,
+  PlusSignIcon,
   Share08Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -3139,7 +3141,7 @@ function MarketCards({
     (entry) =>
       entry.line === PREDICTION_LINES.goals && entry.prices.length >= 2,
   );
-  const scorelines = (() => {
+  const scoreModel = (() => {
     const overShare = impliedShares([
       goalsBoardLine?.prices[0],
       goalsBoardLine?.prices[1],
@@ -3175,21 +3177,28 @@ function MarketCards({
 
     cells.sort((left, right) => right.prob - left.prob);
 
-    return cells.slice(0, 8).map((cell) => ({
-      ...cell,
-      odds: Math.round((1 / cell.prob) * 100) / 100,
-    }));
+    const price = (home: number, away: number) =>
+      Math.round(
+        100 / (poissonPmf(home, homeLambda) * poissonPmf(away, awayLambda)),
+      ) / 100;
+
+    return {
+      board: cells.slice(0, 8).map((cell) => ({
+        ...cell,
+        odds: price(cell.home, cell.away),
+      })),
+      price,
+    };
   })();
+  const scorelines = scoreModel?.board ?? null;
   // Keep the frozen scoreline odds in step with the draft score: the model
-  // prices whatever score is currently picked (or clears when the score
-  // isn't on the board), so the ticket and the pills always agree. Runs
-  // after every render with an equality guard - the model odds drift with
-  // the live prices, so a deps array would fight the board updates.
-  const draftScoreOdds =
-    scorelines?.find(
-      (cell) =>
-        cell.home === draft.homeGoals && cell.away === draft.awayGoals,
-    )?.odds ?? null;
+  // prices whatever score is currently picked (board pill or custom call),
+  // so the ticket and the pills always agree. Runs after every render with
+  // an equality guard - the model odds drift with the live prices, so a
+  // deps array would fight the board updates.
+  const draftScoreOdds = scoreModel
+    ? scoreModel.price(draft.homeGoals, draft.awayGoals)
+    : null;
 
   useEffect(() => {
     if ((draft.exactScoreOdds ?? null) !== draftScoreOdds) {
@@ -3199,6 +3208,28 @@ function MarketCards({
       }));
     }
   });
+
+  const stepGoals = (side: "home" | "away", delta: number) => {
+    if (!scoreModel) return;
+    patchDraft((previous) => {
+      const homeGoals = Math.min(
+        9,
+        Math.max(0, previous.homeGoals + (side === "home" ? delta : 0)),
+      );
+      const awayGoals = Math.min(
+        9,
+        Math.max(0, previous.awayGoals + (side === "away" ? delta : 0)),
+      );
+      return {
+        ...previous,
+        awayGoals,
+        exactScoreOdds: scoreModel.price(homeGoals, awayGoals),
+        homeGoals,
+      };
+    });
+  };
+  const stepClass =
+    "flex size-7 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-white transition-colors hover:bg-white/[0.14] disabled:pointer-events-none disabled:opacity-40";
 
   const itemClass =
     "flex-1 justify-between gap-2 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground";
@@ -3383,6 +3414,77 @@ function MarketCards({
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
+                <div className="mt-3 flex items-center justify-between gap-3 px-1">
+                  <span className="text-muted-foreground text-xs font-medium">
+                    Your call
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {homeIso ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt={fixture.homeTeam}
+                        className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                        src={`https://flagcdn.com/w40/${homeIso}.png`}
+                      />
+                    ) : null}
+                    <button
+                      aria-label={`One goal less for ${fixture.homeTeam}`}
+                      className={stepClass}
+                      disabled={draft.homeGoals <= 0}
+                      onClick={() => stepGoals("home", -1)}
+                      type="button"
+                    >
+                      <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
+                    </button>
+                    <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
+                      {draft.homeGoals}
+                    </span>
+                    <button
+                      aria-label={`One goal more for ${fixture.homeTeam}`}
+                      className={stepClass}
+                      disabled={draft.homeGoals >= 9}
+                      onClick={() => stepGoals("home", 1)}
+                      type="button"
+                    >
+                      <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
+                    </button>
+                    <span className="text-muted-foreground text-[13.5px] leading-5">
+                      -
+                    </span>
+                    <button
+                      aria-label={`One goal less for ${fixture.awayTeam}`}
+                      className={stepClass}
+                      disabled={draft.awayGoals <= 0}
+                      onClick={() => stepGoals("away", -1)}
+                      type="button"
+                    >
+                      <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
+                    </button>
+                    <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
+                      {draft.awayGoals}
+                    </span>
+                    <button
+                      aria-label={`One goal more for ${fixture.awayTeam}`}
+                      className={stepClass}
+                      disabled={draft.awayGoals >= 9}
+                      onClick={() => stepGoals("away", 1)}
+                      type="button"
+                    >
+                      <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
+                    </button>
+                    {awayIso ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt={fixture.awayTeam}
+                        className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                        src={`https://flagcdn.com/w40/${awayIso}.png`}
+                      />
+                    ) : null}
+                    <span className="text-muted-foreground min-w-7 text-right text-[12.5px] leading-5 font-semibold tabular-nums">
+                      +{exactScorePoints(draftScoreOdds)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           ) : null}
