@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  EqualSignIcon,
   FootballIcon,
   InformationCircleIcon,
   Share08Icon,
@@ -3152,7 +3153,16 @@ function MarketCards({
                       className="size-5 shrink-0 rounded-full object-cover ring-1 ring-white/10"
                       src={`https://flagcdn.com/w40/${option.iso}.png`}
                     />
-                  ) : null}
+                  ) : (
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#3f3f46] text-white/85 ring-1 ring-white/10">
+                      <HugeiconsIcon
+                        aria-hidden
+                        icon={EqualSignIcon}
+                        size={12}
+                        strokeWidth={2.5}
+                      />
+                    </span>
+                  )}
                   <span className="truncate text-[13.5px] leading-5 font-medium">
                     {option.label}
                   </span>
