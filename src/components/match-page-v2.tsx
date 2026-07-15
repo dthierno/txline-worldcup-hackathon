@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import {
+  ArrowDown01Icon,
+  ArrowUp01Icon,
   EqualSignIcon,
   FootballIcon,
   InformationCircleIcon,
-  MinusSignIcon,
-  PlusSignIcon,
   Share08Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -70,7 +70,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
 
 import {
   buildOutcome,
@@ -3017,6 +3016,9 @@ function usePlayCard(fixtureId: number) {
   };
 }
 
+// Scoreline pills shown before the fan expands the board (three rows of 4).
+const SCORE_FOLD = 12;
+
 // Tiny Poisson model over the TxLINE prices: total goals from the over 2.5
 // price, split home/away by the 1X2 shares, giving the most likely exact
 // scorelines and their fair odds.
@@ -3164,8 +3166,10 @@ function MarketCards({
     const awayLambda = Math.max(0.15, lambda - homeLambda);
     const cells: Array<{ away: number; home: number; prob: number }> = [];
 
-    for (let homeGoals = 0; homeGoals <= 4; homeGoals += 1) {
-      for (let awayGoals = 0; awayGoals <= 4; awayGoals += 1) {
+    // The full realistic universe up to 8-8, most likely first; the pill
+    // board folds it to three rows until the fan asks for more.
+    for (let homeGoals = 0; homeGoals <= 8; homeGoals += 1) {
+      for (let awayGoals = 0; awayGoals <= 8; awayGoals += 1) {
         cells.push({
           away: awayGoals,
           home: homeGoals,
@@ -3184,7 +3188,7 @@ function MarketCards({
       ) / 100;
 
     return {
-      board: cells.slice(0, 8).map((cell) => ({
+      board: cells.map((cell) => ({
         ...cell,
         odds: price(cell.home, cell.away),
       })),
@@ -3212,39 +3216,47 @@ function MarketCards({
     }
   });
 
-  // Stepping a side with no score picked yet starts the call from 0-0.
-  const stepGoals = (side: "home" | "away", delta: number) => {
-    if (!scoreModel) return;
-    patchDraft((previous) => {
-      const homeGoals = Math.min(
-        9,
-        Math.max(0, (previous.homeGoals ?? 0) + (side === "home" ? delta : 0)),
-      );
-      const awayGoals = Math.min(
-        9,
-        Math.max(0, (previous.awayGoals ?? 0) + (side === "away" ? delta : 0)),
-      );
-      return {
-        ...previous,
-        awayGoals,
-        exactScoreOdds: scoreModel.price(homeGoals, awayGoals),
-        homeGoals,
-      };
-    });
-  };
-  const isBoardScore =
-    !hasScorePick ||
-    (scorelines?.some(
-      (cell) =>
-        cell.home === draft.homeGoals && cell.away === draft.awayGoals,
-    ) ??
-      true);
-  const stepClass = cn(
-    "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-40",
-    isBoardScore
-      ? "bg-white/[0.07] text-white hover:bg-white/[0.14]"
-      : "bg-black/10 hover:bg-black/[0.18]",
-  );
+  const [scoresExpanded, setScoresExpanded] = useState(false);
+  // The picked score never leaves the visible board: it swaps in for the
+  // last collapsed pill, and a legacy score beyond 8-8 gets a synthetic
+  // pill (priced by the model) that disappears once the pick changes.
+  const pickedCell = (() => {
+    const home = draft.homeGoals;
+    const away = draft.awayGoals;
+
+    if (!scoreModel || home == null || away == null) {
+      return null;
+    }
+
+    return (
+      scoreModel.board.find(
+        (cell) => cell.home === home && cell.away === away,
+      ) ?? { away, home, odds: scoreModel.price(home, away), prob: 0 }
+    );
+  })();
+  const visibleScorelines = (() => {
+    if (!scorelines) {
+      return null;
+    }
+
+    const base = scoresExpanded
+      ? scorelines
+      : scorelines.slice(0, SCORE_FOLD);
+
+    if (
+      !pickedCell ||
+      base.some(
+        (cell) =>
+          cell.home === pickedCell.home && cell.away === pickedCell.away,
+      )
+    ) {
+      return base;
+    }
+
+    return scoresExpanded
+      ? [...base, pickedCell]
+      : [...base.slice(0, SCORE_FOLD - 1), pickedCell];
+  })();
 
   const itemClass =
     "flex-1 justify-between gap-2 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground";
@@ -3396,7 +3408,7 @@ function MarketCards({
                       : []
                   }
                 >
-                  {scorelines.map((cell) => (
+                  {(visibleScorelines ?? []).map((cell) => (
                     <ToggleGroupItem
                       aria-label={`${cell.home} - ${cell.away}, pays ${exactScorePoints(cell.odds)} points`}
                       className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
@@ -3431,114 +3443,25 @@ function MarketCards({
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
-                <div
-                  className={cn(
-                    "mt-2 flex h-10 w-full items-center justify-between gap-2 rounded-2xl border px-3 transition-colors",
-                    isBoardScore
-                      ? "border-input"
-                      : "border-transparent bg-primary/85 text-primary-foreground",
-                  )}
+                <button
+                  aria-label={
+                    scoresExpanded
+                      ? "Show fewer scorelines"
+                      : "Show more scorelines"
+                  }
+                  className="text-muted-foreground hover:text-foreground mt-2 flex h-9 w-full items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-colors hover:bg-white/[0.04]"
+                  onClick={() => setScoresExpanded((value) => !value)}
+                  type="button"
                 >
-                  <span
-                    className={cn(
-                      "text-[13.5px] leading-5 font-medium",
-                      isBoardScore
-                        ? "text-muted-foreground"
-                        : "text-primary-foreground/70",
-                    )}
-                  >
-                    Your call
-                  </span>
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-1.5">
-                      {homeIso ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt={fixture.homeTeam}
-                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                          src={`https://flagcdn.com/w40/${homeIso}.png`}
-                        />
-                      ) : null}
-                      <button
-                        aria-label={`One goal less for ${fixture.homeTeam}`}
-                        className={stepClass}
-                        disabled={(draft.homeGoals ?? 0) <= 0}
-                        onClick={() => stepGoals("home", -1)}
-                        type="button"
-                      >
-                        <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
-                      </button>
-                      <span
-                        className={cn(
-                          "w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums",
-                          !hasScorePick && "text-muted-foreground",
-                        )}
-                      >
-                        {draft.homeGoals ?? "–"}
-                      </span>
-                      <button
-                        aria-label={`One goal more for ${fixture.homeTeam}`}
-                        className={stepClass}
-                        disabled={(draft.homeGoals ?? 0) >= 9}
-                        onClick={() => stepGoals("home", 1)}
-                        type="button"
-                      >
-                        <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
-                      </button>
-                    </div>
-                    <span className="w-2.5 text-center text-[15px] leading-5 font-semibold">
-                      -
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        aria-label={`One goal less for ${fixture.awayTeam}`}
-                        className={stepClass}
-                        disabled={(draft.awayGoals ?? 0) <= 0}
-                        onClick={() => stepGoals("away", -1)}
-                        type="button"
-                      >
-                        <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
-                      </button>
-                      <span
-                        className={cn(
-                          "w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums",
-                          !hasScorePick && "text-muted-foreground",
-                        )}
-                      >
-                        {draft.awayGoals ?? "–"}
-                      </span>
-                      <button
-                        aria-label={`One goal more for ${fixture.awayTeam}`}
-                        className={stepClass}
-                        disabled={(draft.awayGoals ?? 0) >= 9}
-                        onClick={() => stepGoals("away", 1)}
-                        type="button"
-                      >
-                        <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
-                      </button>
-                      {awayIso ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt={fixture.awayTeam}
-                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-                          src={`https://flagcdn.com/w40/${awayIso}.png`}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "min-w-7 text-right text-[12.5px] leading-5 font-semibold tabular-nums",
-                      isBoardScore
-                        ? "text-muted-foreground"
-                        : "text-primary-foreground/70",
-                    )}
-                  >
-                    {hasScorePick
-                      ? `+${exactScorePoints(draftScoreOdds)}`
-                      : ""}
-                  </span>
-                </div>
+                  {scoresExpanded
+                    ? "Fewer scores"
+                    : `More scores (${scorelines.length - SCORE_FOLD})`}
+                  <HugeiconsIcon
+                    icon={scoresExpanded ? ArrowUp01Icon : ArrowDown01Icon}
+                    size={14}
+                    strokeWidth={2.5}
+                  />
+                </button>
               </div>
             </div>
           ) : null}
