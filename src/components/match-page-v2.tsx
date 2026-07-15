@@ -3096,6 +3096,22 @@ function MarketCards({
   ]);
   const pct = (share: number | null) =>
     share === null ? null : `${Math.round(share)}%`;
+  // Win-chance bar segments: each team in its glow colour, draw neutral.
+  const homeIso = teamFlag(fixture.homeTeam);
+  const awayIso = teamFlag(fixture.awayTeam);
+  const shareSegments = [
+    {
+      color: (homeIso && teamGlow[homeIso]) || "#8b8b96",
+      label: fixture.homeTeam,
+      share: resultShares[0] ?? 0,
+    },
+    { color: "#3f3f46", label: "Draw", share: resultShares[1] ?? 0 },
+    {
+      color: (awayIso && teamGlow[awayIso]) || "#8b8b96",
+      label: fixture.awayTeam,
+      share: resultShares[2] ?? 0,
+    },
+  ];
   // Your league's winner picks: the simulated trio plus your current call,
   // so switching your pick updates the tally live.
   const winnerNames: Record<WinnerPick, string> = {
@@ -3187,11 +3203,42 @@ function MarketCards({
             ))}
           </ToggleGroup>
           {resultShares[0] !== null ? (
-            <p className="text-muted-foreground text-xs">
-              Market chance: {fixture.homeTeam} {pct(resultShares[0])} · draw{" "}
-              {pct(resultShares[1])} · {fixture.awayTeam}{" "}
-              {pct(resultShares[2])} — implied by the live TxLINE prices.
-            </p>
+            <div
+              className="flex flex-col gap-1.5"
+              title="Implied by the live TxLINE prices"
+            >
+              <div
+                aria-label={`Market chance: ${fixture.homeTeam} ${pct(resultShares[0])}, draw ${pct(resultShares[1])}, ${fixture.awayTeam} ${pct(resultShares[2])}`}
+                className="flex h-1.5 gap-[3px] overflow-hidden rounded-full"
+                role="img"
+              >
+                {shareSegments.map((segment) => (
+                  <span
+                    className="h-full rounded-full"
+                    key={segment.label}
+                    style={{
+                      background: segment.color,
+                      width: `${segment.share}%`,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="text-muted-foreground flex justify-between text-[11px] font-medium">
+                {shareSegments.map((segment) => (
+                  <span
+                    className="flex items-center gap-1.5"
+                    key={segment.label}
+                  >
+                    <span
+                      aria-hidden
+                      className="size-1.5 rounded-full"
+                      style={{ background: segment.color }}
+                    />
+                    {segment.label} {pct(segment.share)}
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : null}
           <div className={rowClass}>
             <span className={rowLabelClass}>Exact score</span>
