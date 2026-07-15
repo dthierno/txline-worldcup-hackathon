@@ -3031,10 +3031,13 @@ dt {
 /* Sub-market headers: the card-title idiom one step smaller, drawn as the
    header band of an inset panel so it reads as a card within the card. */
 .mp2 .card .mp2-subhead {
+  align-items: center;
   background: rgba(255, 255, 255, 0.045);
   color: #fff;
+  display: flex;
   font-size: 13.5px;
   font-weight: 700;
+  justify-content: space-between;
   letter-spacing: 0;
   margin: 0;
   padding: 10px 14px;

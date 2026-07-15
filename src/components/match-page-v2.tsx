@@ -3314,7 +3314,20 @@ function MarketCards({
           ) : null}
           {scorelines ? (
             <div className="mt-2 overflow-hidden rounded-[18px] bg-black/25">
-              <h3 className="mp2-subhead">Exact score</h3>
+              <h3 className="mp2-subhead">
+                Exact score
+                <span
+                  className="text-muted-foreground cursor-help"
+                  title="Rarer scorelines pay more - points follow the fair odds from the live TxLINE prices, from 5 up to 30."
+                >
+                  <HugeiconsIcon
+                    aria-label="How exact-score points work"
+                    icon={InformationCircleIcon}
+                    size={16}
+                    strokeWidth={2.5}
+                  />
+                </span>
+              </h3>
               <div className="p-3.5">
                 <ToggleGroup
                   aria-label="Exact score"
