@@ -3139,25 +3139,25 @@ function MarketCards({
             ).map((option) => (
               <ToggleGroupItem
                 aria-label={`${option.label}, pays ${winnerPoints(odds1x2?.[option.value])} points`}
-                className={itemClass}
+                className="h-10 flex-1 justify-between gap-2 px-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
                 key={option.value}
                 value={option.value}
                 variant="outline"
               >
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="flex min-w-0 items-center gap-2.5">
                   {option.iso ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       alt=""
-                      className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                      className="size-5 shrink-0 rounded-full object-cover ring-1 ring-white/10"
                       src={`https://flagcdn.com/w40/${option.iso}.png`}
                     />
                   ) : null}
-                  <span className="truncate text-[12.5px] leading-4 font-medium">
+                  <span className="truncate text-[13.5px] leading-5 font-medium">
                     {option.label}
                   </span>
                 </span>
-                <span className={ptsClass}>
+                <span className="text-muted-foreground text-[12.5px] font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
                   +{winnerPoints(odds1x2?.[option.value])}
                 </span>
               </ToggleGroupItem>
@@ -3170,7 +3170,7 @@ function MarketCards({
             >
               <div
                 aria-label={`Market chance: ${fixture.homeTeam} ${pct(resultShares[0])}, draw ${pct(resultShares[1])}, ${fixture.awayTeam} ${pct(resultShares[2])}`}
-                className="flex h-1.5 gap-[3px] overflow-hidden rounded-full"
+                className="flex h-2 gap-[3px] overflow-hidden rounded-full"
                 role="img"
               >
                 {shareSegments.map((segment) => (
@@ -3184,7 +3184,7 @@ function MarketCards({
                   />
                 ))}
               </div>
-              <div className="text-muted-foreground flex justify-between text-[11px] font-medium">
+              <div className="text-muted-foreground flex justify-between text-xs font-medium">
                 {shareSegments.map((segment) => (
                   <span
                     className="flex items-center gap-1.5"
@@ -3192,7 +3192,7 @@ function MarketCards({
                   >
                     <span
                       aria-hidden
-                      className="size-1.5 rounded-full"
+                      className="size-2 rounded-full"
                       style={{ background: segment.color }}
                     />
                     {segment.label} {pct(segment.share)}
