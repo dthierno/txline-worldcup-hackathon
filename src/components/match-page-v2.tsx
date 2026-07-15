@@ -3313,9 +3313,9 @@ function MarketCards({
             </div>
           ) : null}
           {scorelines ? (
-            <div className="mt-2">
+            <div className="mt-2 overflow-hidden rounded-[18px] bg-black/25">
               <h3 className="mp2-subhead">Exact score</h3>
-              <div className="rounded-[18px] bg-black/25 p-3.5">
+              <div className="p-3.5">
                 <ToggleGroup
                   aria-label="Exact score"
                   className="grid w-full grid-cols-4 gap-2"
