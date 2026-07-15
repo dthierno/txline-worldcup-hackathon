@@ -1210,6 +1210,8 @@ function PredictionCard({
   const winnerHit =
     prediction &&
     ftScore &&
+    prediction.homeGoals != null &&
+    prediction.awayGoals != null &&
     Math.sign(prediction.homeGoals - prediction.awayGoals) ===
       Math.sign(ftScore[0] - ftScore[1]);
   // Real live score from TxLINE; 0–0 until the feed reports goals.

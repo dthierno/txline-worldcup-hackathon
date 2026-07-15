@@ -1541,8 +1541,19 @@ function PredictionSection({
   const [saved, setSaved] = useState<MatchPrediction | null>(() =>
     loadPrediction(fixture.fixtureId),
   );
+  // The legacy form has no notion of skipped markets, so a fresh draft seeds
+  // every pick the way this page always did (the v2 page starts empty).
   const [draft, setDraft] = useState<MatchPrediction>(
-    () => loadPrediction(fixture.fixtureId) ?? defaultPrediction(fixture.fixtureId),
+    () =>
+      loadPrediction(fixture.fixtureId) ?? {
+        ...defaultPrediction(fixture.fixtureId),
+        awayGoals: 1,
+        homeGoals: 1,
+        totalCards: "under",
+        totalCorners: "under",
+        totalGoals: "under",
+        winner: "draw",
+      },
   );
   const [confirmation, setConfirmation] = useState("");
 
@@ -1641,7 +1652,7 @@ function PredictionSection({
                 type="number"
                 min={0}
                 max={12}
-                value={draft.homeGoals}
+                value={draft.homeGoals ?? 1}
                 onChange={(event) =>
                   setDraft({
                     ...draft,
@@ -1656,7 +1667,7 @@ function PredictionSection({
                 type="number"
                 min={0}
                 max={12}
-                value={draft.awayGoals}
+                value={draft.awayGoals ?? 1}
                 onChange={(event) =>
                   setDraft({
                     ...draft,
@@ -1669,7 +1680,7 @@ function PredictionSection({
           <label>
             Winner{" "}
             <select
-              value={draft.winner}
+              value={draft.winner ?? "draw"}
               onChange={(event) =>
                 setDraft({ ...draft, winner: event.target.value as WinnerPick })
               }
@@ -1682,19 +1693,19 @@ function PredictionSection({
           <LinePickSelect
             label={`Total goals (line ${PREDICTION_LINES.goals})`}
             line={PREDICTION_LINES.goals}
-            value={draft.totalGoals}
+            value={draft.totalGoals ?? "under"}
             onChange={(pick) => setDraft({ ...draft, totalGoals: pick })}
           />
           <LinePickSelect
             label={`Total corners (line ${PREDICTION_LINES.corners})`}
             line={PREDICTION_LINES.corners}
-            value={draft.totalCorners}
+            value={draft.totalCorners ?? "under"}
             onChange={(pick) => setDraft({ ...draft, totalCorners: pick })}
           />
           <LinePickSelect
             label={`Total cards (line ${PREDICTION_LINES.cards})`}
             line={PREDICTION_LINES.cards}
-            value={draft.totalCards}
+            value={draft.totalCards ?? "under"}
             onChange={(pick) => setDraft({ ...draft, totalCards: pick })}
           />
           {lineups?.teams.length ? (

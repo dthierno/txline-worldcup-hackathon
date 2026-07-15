@@ -18,8 +18,10 @@ export type SidePick =
   | { kind: "goals_line"; line: number; odds: number; pick: LinePick }
   | { kind: "handicap"; line: number; odds: number; pick: "away" | "home" };
 
+// Every market is optional: null means the player skipped it, and skipped
+// markets neither settle nor score.
 export type MatchPrediction = {
-  awayGoals: number;
+  awayGoals: number | null;
   // Only present when a verified TxLINE player list existed at prediction time.
   firstScorer?: FirstScorerPick | null;
   fixtureId: number;
@@ -29,13 +31,13 @@ export type MatchPrediction = {
   // Fair decimal odds of the picked exact score (Poisson model over the
   // TxLINE prices), frozen at save; unlikely scorelines pay more.
   exactScoreOdds?: number | null;
-  homeGoals: number;
+  homeGoals: number | null;
   savedAt: string;
   sidePicks?: SidePick[] | null;
-  totalCards: LinePick;
-  totalCorners: LinePick;
-  totalGoals: LinePick;
-  winner: WinnerPick;
+  totalCards: LinePick | null;
+  totalCorners: LinePick | null;
+  totalGoals: LinePick | null;
+  winner: WinnerPick | null;
 };
 
 export type MatchOutcome = {
@@ -133,17 +135,32 @@ export function clampGoals(value: number): number {
   return Math.max(0, Math.min(MAX_PREDICTED_GOALS, Math.trunc(value)));
 }
 
+// A fresh card carries no picks: every market starts skipped and the player
+// opts into the ones they want.
 export function defaultPrediction(fixtureId: number): MatchPrediction {
   return {
-    awayGoals: 1,
+    awayGoals: null,
     fixtureId,
-    homeGoals: 1,
+    homeGoals: null,
     savedAt: "",
-    totalCards: "under",
-    totalCorners: "under",
-    totalGoals: "under",
-    winner: "draw",
+    totalCards: null,
+    totalCorners: null,
+    totalGoals: null,
+    winner: null,
   };
+}
+
+// Number of markets the prediction actually plays.
+export function pickCount(prediction: MatchPrediction): number {
+  return (
+    (prediction.winner != null ? 1 : 0) +
+    (prediction.homeGoals != null && prediction.awayGoals != null ? 1 : 0) +
+    (prediction.totalGoals != null ? 1 : 0) +
+    (prediction.totalCorners != null ? 1 : 0) +
+    (prediction.totalCards != null ? 1 : 0) +
+    (prediction.firstScorer != null ? 1 : 0) +
+    (prediction.sidePicks?.length ?? 0)
+  );
 }
 
 export function outcomeWinner(outcome: MatchOutcome): WinnerPick {
@@ -194,9 +211,8 @@ export function settlePrediction(
   const actualScore = `${outcome.homeGoals}-${outcome.awayGoals}`;
   const totalGoals = outcome.homeGoals + outcome.awayGoals;
 
-  const winnerOdds = prediction.oddsAtSave?.[prediction.winner];
-  const winnerPointsIfWon = winnerPoints(winnerOdds);
-
+  const hasScorePick =
+    prediction.homeGoals != null && prediction.awayGoals != null;
   const exactScoreStatus: MarketStatus = !outcome.finished
     ? "open"
     : prediction.homeGoals === outcome.homeGoals &&
@@ -209,60 +225,83 @@ export function settlePrediction(
       ? "won"
       : "lost";
 
+  // Skipped markets (null picks) stay off the settlement sheet entirely.
   const markets: SettledMarket[] = [
     ...(prediction.firstScorer != null
       ? [settleFirstScorer(prediction.firstScorer, outcome)]
       : []),
-    settledMarket(
-      "Exact score",
-      `${prediction.homeGoals}-${prediction.awayGoals}`,
-      actualScore,
-      exactScoreStatus,
-      exactScorePoints(prediction.exactScoreOdds),
-    ),
-    settledMarket(
-      "Winner",
-      winnerLabels[prediction.winner],
-      outcome.finished ? winnerLabels[outcomeWinner(outcome)] : actualScore,
-      winnerStatus,
-      winnerPointsIfWon,
-    ),
-    settledMarket(
-      `Goals over/under ${PREDICTION_LINES.goals}`,
-      linePickLabel(prediction.totalGoals, PREDICTION_LINES.goals),
-      `${totalGoals} goal(s)`,
-      settleLinePick(
-        prediction.totalGoals,
-        totalGoals,
-        PREDICTION_LINES.goals,
-        outcome.finished,
-      ),
-      PREDICTION_POINTS.line,
-    ),
-    settledMarket(
-      `Corners over/under ${PREDICTION_LINES.corners}`,
-      linePickLabel(prediction.totalCorners, PREDICTION_LINES.corners),
-      `${outcome.totalCorners} corner(s)`,
-      settleLinePick(
-        prediction.totalCorners,
-        outcome.totalCorners,
-        PREDICTION_LINES.corners,
-        outcome.finished,
-      ),
-      PREDICTION_POINTS.line,
-    ),
-    settledMarket(
-      `Cards over/under ${PREDICTION_LINES.cards}`,
-      linePickLabel(prediction.totalCards, PREDICTION_LINES.cards),
-      `${outcome.totalCards} card(s)`,
-      settleLinePick(
-        prediction.totalCards,
-        outcome.totalCards,
-        PREDICTION_LINES.cards,
-        outcome.finished,
-      ),
-      PREDICTION_POINTS.line,
-    ),
+    ...(hasScorePick
+      ? [
+          settledMarket(
+            "Exact score",
+            `${prediction.homeGoals}-${prediction.awayGoals}`,
+            actualScore,
+            exactScoreStatus,
+            exactScorePoints(prediction.exactScoreOdds),
+          ),
+        ]
+      : []),
+    ...(prediction.winner != null
+      ? [
+          settledMarket(
+            "Winner",
+            winnerLabels[prediction.winner],
+            outcome.finished
+              ? winnerLabels[outcomeWinner(outcome)]
+              : actualScore,
+            winnerStatus,
+            winnerPoints(prediction.oddsAtSave?.[prediction.winner]),
+          ),
+        ]
+      : []),
+    ...(prediction.totalGoals != null
+      ? [
+          settledMarket(
+            `Goals over/under ${PREDICTION_LINES.goals}`,
+            linePickLabel(prediction.totalGoals, PREDICTION_LINES.goals),
+            `${totalGoals} goal(s)`,
+            settleLinePick(
+              prediction.totalGoals,
+              totalGoals,
+              PREDICTION_LINES.goals,
+              outcome.finished,
+            ),
+            PREDICTION_POINTS.line,
+          ),
+        ]
+      : []),
+    ...(prediction.totalCorners != null
+      ? [
+          settledMarket(
+            `Corners over/under ${PREDICTION_LINES.corners}`,
+            linePickLabel(prediction.totalCorners, PREDICTION_LINES.corners),
+            `${outcome.totalCorners} corner(s)`,
+            settleLinePick(
+              prediction.totalCorners,
+              outcome.totalCorners,
+              PREDICTION_LINES.corners,
+              outcome.finished,
+            ),
+            PREDICTION_POINTS.line,
+          ),
+        ]
+      : []),
+    ...(prediction.totalCards != null
+      ? [
+          settledMarket(
+            `Cards over/under ${PREDICTION_LINES.cards}`,
+            linePickLabel(prediction.totalCards, PREDICTION_LINES.cards),
+            `${outcome.totalCards} card(s)`,
+            settleLinePick(
+              prediction.totalCards,
+              outcome.totalCards,
+              PREDICTION_LINES.cards,
+              outcome.finished,
+            ),
+            PREDICTION_POINTS.line,
+          ),
+        ]
+      : []),
     ...(prediction.sidePicks ?? [])
       .slice(0, MAX_SIDE_PICKS)
       .map((sidePick) => settleSidePick(sidePick, outcome, teams)),

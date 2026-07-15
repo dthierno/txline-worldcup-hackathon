@@ -4987,6 +4987,17 @@ dt {
   margin: 2px 0 0;
   padding: 0;
 }
+/* Blank-card note shown until the first market is picked. */
+.mp2-ticket-empty {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 2px 0 0;
+  padding: 12px 11px;
+  text-align: center;
+}
 /* Each pick sits on its own glassy card so the colour wash glows through.
    The margin reset beats the app-wide li spacing, which otherwise
    stretches the stack. */

@@ -3197,9 +3197,11 @@ function MarketCards({
   // so the ticket and the pills always agree. Runs after every render with
   // an equality guard - the model odds drift with the live prices, so a
   // deps array would fight the board updates.
-  const draftScoreOdds = scoreModel
-    ? scoreModel.price(draft.homeGoals, draft.awayGoals)
-    : null;
+  const hasScorePick = draft.homeGoals != null && draft.awayGoals != null;
+  const draftScoreOdds =
+    scoreModel && draft.homeGoals != null && draft.awayGoals != null
+      ? scoreModel.price(draft.homeGoals, draft.awayGoals)
+      : null;
 
   useEffect(() => {
     if ((draft.exactScoreOdds ?? null) !== draftScoreOdds) {
@@ -3210,16 +3212,17 @@ function MarketCards({
     }
   });
 
+  // Stepping a side with no score picked yet starts the call from 0-0.
   const stepGoals = (side: "home" | "away", delta: number) => {
     if (!scoreModel) return;
     patchDraft((previous) => {
       const homeGoals = Math.min(
         9,
-        Math.max(0, previous.homeGoals + (side === "home" ? delta : 0)),
+        Math.max(0, (previous.homeGoals ?? 0) + (side === "home" ? delta : 0)),
       );
       const awayGoals = Math.min(
         9,
-        Math.max(0, previous.awayGoals + (side === "away" ? delta : 0)),
+        Math.max(0, (previous.awayGoals ?? 0) + (side === "away" ? delta : 0)),
       );
       return {
         ...previous,
@@ -3230,10 +3233,12 @@ function MarketCards({
     });
   };
   const isBoardScore =
-    scorelines?.some(
+    !hasScorePick ||
+    (scorelines?.some(
       (cell) =>
         cell.home === draft.homeGoals && cell.away === draft.awayGoals,
-    ) ?? true;
+    ) ??
+      true);
   const stepClass = cn(
     "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-40",
     isBoardScore
@@ -3270,13 +3275,11 @@ function MarketCards({
             aria-label="Match result"
             className="w-full"
             onValueChange={(groupValue: unknown[]) => {
-              const pick = groupValue[0] as WinnerPick | undefined;
+              const pick = (groupValue[0] as WinnerPick | undefined) ?? null;
 
-              if (pick) {
-                patchDraft((previous) => ({ ...previous, winner: pick }));
-              }
+              patchDraft((previous) => ({ ...previous, winner: pick }));
             }}
-            value={[draft.winner]}
+            value={draft.winner ? [draft.winner] : []}
           >
             {(
               [
@@ -3378,16 +3381,20 @@ function MarketCards({
                       (cell) => `${cell.home}-${cell.away}` === groupValue[0],
                     );
 
-                    if (picked) {
-                      patchDraft((previous) => ({
-                        ...previous,
-                        awayGoals: picked.away,
-                        exactScoreOdds: picked.odds,
-                        homeGoals: picked.home,
-                      }));
-                    }
+                    // Re-clicking the pressed pill empties the group: the
+                    // score market is skipped, not reassigned.
+                    patchDraft((previous) => ({
+                      ...previous,
+                      awayGoals: picked ? picked.away : null,
+                      exactScoreOdds: picked ? picked.odds : null,
+                      homeGoals: picked ? picked.home : null,
+                    }));
                   }}
-                  value={[`${draft.homeGoals}-${draft.awayGoals}`]}
+                  value={
+                    hasScorePick
+                      ? [`${draft.homeGoals}-${draft.awayGoals}`]
+                      : []
+                  }
                 >
                   {scorelines.map((cell) => (
                     <ToggleGroupItem
@@ -3455,19 +3462,24 @@ function MarketCards({
                       <button
                         aria-label={`One goal less for ${fixture.homeTeam}`}
                         className={stepClass}
-                        disabled={draft.homeGoals <= 0}
+                        disabled={(draft.homeGoals ?? 0) <= 0}
                         onClick={() => stepGoals("home", -1)}
                         type="button"
                       >
                         <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
                       </button>
-                      <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
-                        {draft.homeGoals}
+                      <span
+                        className={cn(
+                          "w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums",
+                          !hasScorePick && "text-muted-foreground",
+                        )}
+                      >
+                        {draft.homeGoals ?? "–"}
                       </span>
                       <button
                         aria-label={`One goal more for ${fixture.homeTeam}`}
                         className={stepClass}
-                        disabled={draft.homeGoals >= 9}
+                        disabled={(draft.homeGoals ?? 0) >= 9}
                         onClick={() => stepGoals("home", 1)}
                         type="button"
                       >
@@ -3481,19 +3493,24 @@ function MarketCards({
                       <button
                         aria-label={`One goal less for ${fixture.awayTeam}`}
                         className={stepClass}
-                        disabled={draft.awayGoals <= 0}
+                        disabled={(draft.awayGoals ?? 0) <= 0}
                         onClick={() => stepGoals("away", -1)}
                         type="button"
                       >
                         <HugeiconsIcon icon={MinusSignIcon} size={13} strokeWidth={2.5} />
                       </button>
-                      <span className="w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums">
-                        {draft.awayGoals}
+                      <span
+                        className={cn(
+                          "w-3 text-center text-[13.5px] leading-5 font-medium tabular-nums",
+                          !hasScorePick && "text-muted-foreground",
+                        )}
+                      >
+                        {draft.awayGoals ?? "–"}
                       </span>
                       <button
                         aria-label={`One goal more for ${fixture.awayTeam}`}
                         className={stepClass}
-                        disabled={draft.awayGoals >= 9}
+                        disabled={(draft.awayGoals ?? 0) >= 9}
                         onClick={() => stepGoals("away", 1)}
                         type="button"
                       >
@@ -3517,7 +3534,9 @@ function MarketCards({
                         : "text-primary-foreground/70",
                     )}
                   >
-                    +{exactScorePoints(draftScoreOdds)}
+                    {hasScorePick
+                      ? `+${exactScorePoints(draftScoreOdds)}`
+                      : ""}
                   </span>
                 </div>
               </div>
@@ -3543,14 +3562,12 @@ function MarketCards({
                 onValueChange={(groupValue: unknown[]) => {
                   const pick = groupValue[0] as "over" | "under" | undefined;
 
-                  if (pick) {
-                    patchDraft((previous) => ({
-                      ...previous,
-                      [row.field]: pick,
-                    }));
-                  }
+                  patchDraft((previous) => ({
+                    ...previous,
+                    [row.field]: pick ?? null,
+                  }));
                 }}
-                value={[draft[row.field]]}
+                value={draft[row.field] ? [draft[row.field] as string] : []}
               >
                 <ToggleGroupItem
                   aria-label={`Over ${row.line}, pays ${PREDICTION_POINTS.line} points`}
@@ -3813,45 +3830,58 @@ function TicketCard({
     draw: "Draw",
     home: fixture.homeTeam,
   } as const;
-  const potentialPoints =
-    winnerPoints(odds1x2?.[draft.winner]) +
-    exactScorePoints(draft.exactScoreOdds) +
-    PREDICTION_POINTS.line * 3 +
-    (draft.firstScorer ? PREDICTION_POINTS.firstScorer : 0) +
-    draftSidePicks.reduce(
-      (total, pick) => total + sidePickPoints(pick.odds),
-      0,
-    );
+  // Only played markets appear on the ticket; skipped ones cost nothing and
+  // pay nothing.
   const ticketRows: Array<{
     market: string;
     pick: string;
     pts: number;
   }> = [
-    {
-      market: "Winner",
-      pick: winnerNames[draft.winner],
-      pts: winnerPoints(odds1x2?.[draft.winner]),
-    },
-    {
-      market: "Exact score",
-      pick: `${draft.homeGoals} - ${draft.awayGoals}`,
-      pts: exactScorePoints(draft.exactScoreOdds),
-    },
-    {
-      market: "Goals",
-      pick: linePickLabel(draft.totalGoals, PREDICTION_LINES.goals),
-      pts: PREDICTION_POINTS.line,
-    },
-    {
-      market: "Corners",
-      pick: linePickLabel(draft.totalCorners, PREDICTION_LINES.corners),
-      pts: PREDICTION_POINTS.line,
-    },
-    {
-      market: "Cards",
-      pick: linePickLabel(draft.totalCards, PREDICTION_LINES.cards),
-      pts: PREDICTION_POINTS.line,
-    },
+    ...(draft.winner != null
+      ? [
+          {
+            market: "Winner",
+            pick: winnerNames[draft.winner],
+            pts: winnerPoints(odds1x2?.[draft.winner]),
+          },
+        ]
+      : []),
+    ...(draft.homeGoals != null && draft.awayGoals != null
+      ? [
+          {
+            market: "Exact score",
+            pick: `${draft.homeGoals} - ${draft.awayGoals}`,
+            pts: exactScorePoints(draft.exactScoreOdds),
+          },
+        ]
+      : []),
+    ...(draft.totalGoals != null
+      ? [
+          {
+            market: "Goals",
+            pick: linePickLabel(draft.totalGoals, PREDICTION_LINES.goals),
+            pts: PREDICTION_POINTS.line,
+          },
+        ]
+      : []),
+    ...(draft.totalCorners != null
+      ? [
+          {
+            market: "Corners",
+            pick: linePickLabel(draft.totalCorners, PREDICTION_LINES.corners),
+            pts: PREDICTION_POINTS.line,
+          },
+        ]
+      : []),
+    ...(draft.totalCards != null
+      ? [
+          {
+            market: "Cards",
+            pick: linePickLabel(draft.totalCards, PREDICTION_LINES.cards),
+            pts: PREDICTION_POINTS.line,
+          },
+        ]
+      : []),
     ...(draft.firstScorer
       ? [
           {
@@ -3884,6 +3914,7 @@ function TicketCard({
             },
     ),
   ];
+  const potentialPoints = ticketRows.reduce((total, row) => total + row.pts, 0);
 
   return (
     <section
@@ -3902,19 +3933,26 @@ function TicketCard({
           {ticketRows.length} pick{ticketRows.length === 1 ? "" : "s"}
         </span>
       </div>
-      <ul className="mp2-ticket-list">
-        {ticketRows.map((row, index) => (
-          <li key={`${row.market}-${index}`}>
-            <span className="mp2-ticket-market">{row.market}</span>
-            <span className="mp2-ticket-pts">+{row.pts}</span>
-            <span className="mp2-ticket-pick">{row.pick}</span>
-          </li>
-        ))}
-      </ul>
+      {ticketRows.length > 0 ? (
+        <ul className="mp2-ticket-list">
+          {ticketRows.map((row, index) => (
+            <li key={`${row.market}-${index}`}>
+              <span className="mp2-ticket-market">{row.market}</span>
+              <span className="mp2-ticket-pts">+{row.pts}</span>
+              <span className="mp2-ticket-pick">{row.pick}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mp2-ticket-empty">
+          No picks yet - tap any market to put it on your card.
+        </p>
+      )}
       <div aria-hidden className="mp2-ticket-tear" />
       <PotentialPoints points={potentialPoints} />
       <Button
         className="mp2-ticket-save"
+        disabled={ticketRows.length === 0}
         onClick={() => onSave(odds1x2)}
         type="button"
       >
