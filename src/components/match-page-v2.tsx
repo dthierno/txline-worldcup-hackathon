@@ -3176,7 +3176,7 @@ function MarketCards({
                       src={`https://flagcdn.com/w40/${option.iso}.png`}
                     />
                   ) : null}
-                  <span className="truncate text-[12.5px] font-medium">
+                  <span className="truncate text-[12.5px] leading-4 font-medium">
                     {option.label}
                   </span>
                 </span>
