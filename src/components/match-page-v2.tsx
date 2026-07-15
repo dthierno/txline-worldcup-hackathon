@@ -2002,14 +2002,15 @@ function MomentumSection({
       : rawMinute;
   };
   const maxMinute = extraTime ? 120 : 90;
-  // Buckets past the timeline end (stoppage) fold into the final position.
+  // Buckets past the timeline end (stoppage) fold into the final slot,
+  // grid-aligned so every bar sits centred in a 5-minute band.
   const bucketPoints = new Map<
     number,
     { away: number; home: number; label: string }
   >();
 
   for (const bucket of momentum) {
-    const minute = Math.min(bucket.startMinute + 2.5, maxMinute - 0.5);
+    const minute = Math.min(bucket.startMinute + 2.5, maxMinute - 2.5);
     const existing = bucketPoints.get(minute);
 
     bucketPoints.set(minute, {
@@ -2021,15 +2022,23 @@ function MomentumSection({
     });
   }
 
-  const data = [...bucketPoints.entries()]
-    .sort(([left], [right]) => left - right)
-    .map(([minute, bucket]) => ({
-      away: bucket.away,
-      home: bucket.home,
-      label: bucket.label,
+  // Every 5-minute slot up to the latest active bucket gets an entry (quiet
+  // spells as zero), so the bars form one contiguous band and recharts sizes
+  // each bar to its slot instead of a fixed width.
+  const lastBucketMinute = Math.max(...bucketPoints.keys());
+  const data = [];
+
+  for (let minute = 2.5; minute <= lastBucketMinute; minute += 5) {
+    const bucket = bucketPoints.get(minute);
+
+    data.push({
+      away: bucket?.away ?? 0,
+      home: bucket?.home ?? 0,
+      label: bucket?.label ?? `${minute - 2.5}-${minute + 2.5}'`,
       minute,
-      net: bucket.home - bucket.away,
-    }));
+      net: (bucket?.home ?? 0) - (bucket?.away ?? 0),
+    });
+  }
   const peak = Math.max(1, ...data.map((entry) => Math.abs(entry.net)));
   // Symmetric Y domain keeps the zero baseline dead centre; padding leaves
   // room for the goal badges pinned near the edges.
@@ -2075,6 +2084,7 @@ function MomentumSection({
       <h2 id="momentum-heading">Momentum</h2>
       <ChartContainer className="mmt-chart" config={chartConfig}>
         <BarChart
+          barCategoryGap={1}
           data={data}
           margin={{ bottom: 0, left: 10, right: 10, top: 6 }}
         >
@@ -2112,7 +2122,7 @@ function MomentumSection({
             }
             cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
           />
-          <Bar barSize={11} dataKey="net" isAnimationActive={false} radius={5.5}>
+          <Bar dataKey="net" isAnimationActive={false} radius={3}>
             {data.map((entry) => (
               <Cell
                 fill={entry.net >= 0 ? homeColor : chartAwayColor}
