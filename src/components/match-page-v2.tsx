@@ -3449,7 +3449,7 @@ function MarketCards({
                       ? "Show fewer scorelines"
                       : "Show more scorelines"
                   }
-                  className="text-muted-foreground hover:text-foreground mt-2 flex h-9 w-full items-center justify-center gap-1 rounded-2xl bg-white/[0.03] transition-colors hover:bg-white/[0.06]"
+                  className="text-muted-foreground hover:text-foreground mt-3 flex h-9 w-full items-center justify-center gap-1 rounded-2xl bg-white/[0.03] transition-colors hover:bg-white/[0.06]"
                   onClick={() => setScoresExpanded((value) => !value)}
                   type="button"
                 >
