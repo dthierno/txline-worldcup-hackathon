@@ -43,6 +43,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -3278,49 +3284,42 @@ function MarketCards({
               className="flex flex-col gap-1.5"
               title="Implied by the live TxLINE prices"
             >
-              <div
-                aria-label={`Market chance: ${fixture.homeTeam} ${pct(resultShares[0])}, draw ${pct(resultShares[1])}, ${fixture.awayTeam} ${pct(resultShares[2])}`}
-                className="flex h-2 gap-[3px] overflow-hidden rounded-full"
-                role="img"
-              >
-                {shareSegments.map((segment) => (
-                  <span
-                    className="h-full rounded-full"
-                    key={segment.label}
-                    style={{
-                      background: segment.color,
-                      width: `${segment.share}%`,
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="text-muted-foreground flex justify-between text-xs font-medium">
-                {shareSegments.map((segment) => (
-                  <span
-                    className="flex items-center gap-1.5"
-                    key={segment.label}
-                  >
-                    <span
-                      aria-hidden
-                      className="size-2 rounded-full"
-                      style={{ background: segment.color }}
-                    />
-                    {segment.label} {pct(segment.share)}
-                  </span>
-                ))}
-              </div>
+              <TooltipProvider delay={80}>
+                <div
+                  aria-label={`Market chance: ${fixture.homeTeam} ${pct(resultShares[0])}, draw ${pct(resultShares[1])}, ${fixture.awayTeam} ${pct(resultShares[2])}`}
+                  className="flex h-2 gap-[3px] overflow-hidden rounded-full"
+                  role="img"
+                >
+                  {shareSegments.map((segment) => (
+                    <Tooltip key={segment.label}>
+                      <TooltipTrigger
+                        render={
+                          <span
+                            className="h-full rounded-full"
+                            style={{
+                              background: segment.color,
+                              width: `${segment.share}%`,
+                            }}
+                          />
+                        }
+                      />
+                      <TooltipContent>
+                        {segment.label} · {pct(segment.share)}
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </TooltipProvider>
             </div>
           ) : null}
           {scorelines ? (
-            <div className="flex flex-col gap-2.5 rounded-[14px] bg-white/[0.045] p-3.5">
-              <div className="flex items-baseline justify-between">
-                <span className="text-muted-foreground text-[11px] font-bold tracking-[0.06em] uppercase">
-                  Exact score
-                </span>
-                <span className="text-muted-foreground text-[11px]">
-                  rarer scores pay more
-                </span>
-              </div>
+            <div className="flex flex-col gap-2.5 rounded-[18px] bg-white/[0.045] p-3.5">
+              <span
+                className="text-muted-foreground text-[11px] font-bold tracking-[0.06em] uppercase"
+                title="Rarer scores pay more - fair odds from the live TxLINE prices"
+              >
+                Exact score
+              </span>
               <ToggleGroup
                 aria-label="Exact score"
                 className="grid w-full grid-cols-3 gap-2"
@@ -3348,8 +3347,26 @@ function MarketCards({
                     value={`${cell.home}-${cell.away}`}
                     variant="outline"
                   >
-                    <span className="text-[13.5px] leading-5 font-medium">
-                      {cell.home} - {cell.away}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {homeIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={fixture.homeTeam}
+                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                          src={`https://flagcdn.com/w40/${homeIso}.png`}
+                        />
+                      ) : null}
+                      <span className="text-[13.5px] leading-5 font-medium">
+                        {cell.home} - {cell.away}
+                      </span>
+                      {awayIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={fixture.awayTeam}
+                          className="size-4 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                          src={`https://flagcdn.com/w40/${awayIso}.png`}
+                        />
+                      ) : null}
                     </span>
                     <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
                       +{exactScorePoints(cell.odds)}
