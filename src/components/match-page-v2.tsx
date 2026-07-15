@@ -3167,7 +3167,7 @@ function MarketCards({
                     {option.label}
                   </span>
                 </span>
-                <span className="text-muted-foreground text-[12.5px] font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
+                <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
                   +{winnerPoints(odds1x2?.[option.value])}
                 </span>
               </ToggleGroupItem>
