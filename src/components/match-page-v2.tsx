@@ -3313,13 +3313,7 @@ function MarketCards({
             </div>
           ) : null}
           {scorelines ? (
-            <div className="flex flex-col gap-2.5 rounded-[18px] bg-white/[0.045] p-3.5">
-              <span
-                className="text-muted-foreground text-[11px] font-bold tracking-[0.06em] uppercase"
-                title="Rarer scores pay more - fair odds from the live TxLINE prices"
-              >
-                Exact score
-              </span>
+            <div className="rounded-[18px] bg-black/25 p-3.5">
               <ToggleGroup
                 aria-label="Exact score"
                 className="grid w-full grid-cols-3 gap-2"
