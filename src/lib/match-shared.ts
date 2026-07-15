@@ -442,6 +442,7 @@ export function buildOutcome(
   score: TxlineScoreData | null | undefined,
   finished: boolean,
   firstGoal: MatchOutcome["firstGoal"],
+  goals: MatchOutcome["goals"] = null,
 ): MatchOutcome | null {
   if (!score) {
     return null;
@@ -451,6 +452,7 @@ export function buildOutcome(
     awayGoals: score.awayGoals,
     finished,
     firstGoal,
+    goals,
     homeGoals: score.homeGoals,
     totalCards:
       score.homeYellowCards +

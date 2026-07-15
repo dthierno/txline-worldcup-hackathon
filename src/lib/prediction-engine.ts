@@ -21,9 +21,12 @@ export type SidePick =
 // Every market is optional: null means the player skipped it, and skipped
 // markets neither settle nor score.
 export type MatchPrediction = {
+  // Scorer markets share the first-scorer pick shape and need a verified
+  // TxLINE player list at prediction time.
+  anytimeScorer?: FirstScorerPick | null;
   awayGoals: number | null;
-  // Only present when a verified TxLINE player list existed at prediction time.
   firstScorer?: FirstScorerPick | null;
+  lastScorer?: FirstScorerPick | null;
   fixtureId: number;
   // TxLINE 1X2 decimal odds captured when the prediction was saved; the
   // winner market pays out scaled by the picked outcome's odds.
@@ -46,6 +49,9 @@ export type MatchOutcome = {
   // First goal of the match, when one has happened; scorerName is resolved
   // from the TxLINE lineups when the playerId is known.
   firstGoal?: { playerId?: number; scorerName?: string } | null;
+  // Every goal in order, for the anytime and last-scorer markets. Absent on
+  // outcomes built before these markets existed.
+  goals?: Array<{ playerId?: number; scorerName?: string }> | null;
   homeGoals: number;
   totalCards: number;
   totalCorners: number;
@@ -74,8 +80,10 @@ export const PREDICTION_LINES = {
 } as const;
 
 export const PREDICTION_POINTS = {
+  anytimeScorer: 4,
   exactScore: 5,
   firstScorer: 6,
+  lastScorer: 6,
   line: 2,
   winner: 3,
 } as const;
@@ -159,6 +167,8 @@ export function pickCount(prediction: MatchPrediction): number {
     (prediction.totalCorners != null ? 1 : 0) +
     (prediction.totalCards != null ? 1 : 0) +
     (prediction.firstScorer != null ? 1 : 0) +
+    (prediction.anytimeScorer != null ? 1 : 0) +
+    (prediction.lastScorer != null ? 1 : 0) +
     (prediction.sidePicks?.length ?? 0)
   );
 }
@@ -229,6 +239,12 @@ export function settlePrediction(
   const markets: SettledMarket[] = [
     ...(prediction.firstScorer != null
       ? [settleFirstScorer(prediction.firstScorer, outcome)]
+      : []),
+    ...(prediction.anytimeScorer != null
+      ? [settleAnytimeScorer(prediction.anytimeScorer, outcome)]
+      : []),
+    ...(prediction.lastScorer != null
+      ? [settleLastScorer(prediction.lastScorer, outcome)]
       : []),
     ...(hasScorePick
       ? [
@@ -399,20 +415,27 @@ function settleSidePick(
   );
 }
 
+function scorerGoalLabel(
+  goal: { playerId?: number; scorerName?: string } | null,
+  finished: boolean,
+): string {
+  return goal
+    ? goal.scorerName ??
+        (typeof goal.playerId === "number"
+          ? `Player ${goal.playerId}`
+          : "Scorer unrecorded")
+    : finished
+      ? "No goal scored"
+      : "No goal yet";
+}
+
 function settleFirstScorer(
   pick: FirstScorerPick,
   outcome: MatchOutcome,
 ): SettledMarket {
   const firstGoal = outcome.firstGoal ?? null;
   const pickLabel = pick === "none" ? "No goal scorer" : pick.name;
-  const result = firstGoal
-    ? firstGoal.scorerName ??
-      (typeof firstGoal.playerId === "number"
-        ? `Player ${firstGoal.playerId}`
-        : "Scorer unrecorded")
-    : outcome.finished
-      ? "No goal scored"
-      : "No goal yet";
+  const result = scorerGoalLabel(firstGoal, outcome.finished);
 
   let status: MarketStatus;
 
@@ -433,6 +456,92 @@ function settleFirstScorer(
     result,
     status,
     PREDICTION_POINTS.firstScorer,
+  );
+}
+
+// Goals known to this outcome, oldest first. Falls back to the first goal
+// for outcomes recorded before the goals list existed.
+function outcomeGoals(
+  outcome: MatchOutcome,
+): Array<{ playerId?: number; scorerName?: string }> {
+  return outcome.goals ?? (outcome.firstGoal ? [outcome.firstGoal] : []);
+}
+
+function settleAnytimeScorer(
+  pick: FirstScorerPick,
+  outcome: MatchOutcome,
+): SettledMarket {
+  const goals = outcomeGoals(outcome);
+  const pickLabel = pick === "none" ? "No goal scorer" : pick.name;
+  const named = goals
+    .map((goal) => goal.scorerName)
+    .filter((name): name is string => Boolean(name));
+  const result = goals.length
+    ? named.length
+      ? named.join(", ")
+      : "Scorer unrecorded"
+    : outcome.finished
+      ? "No goal scored"
+      : "No goal yet";
+
+  let status: MarketStatus;
+
+  if (pick === "none") {
+    status = goals.length ? "lost" : outcome.finished ? "won" : "open";
+  } else if (
+    goals.some((goal) => goal.playerId === pick.playerId)
+  ) {
+    // The pick can land mid-match; a scored goal cannot be unscored.
+    status = "won";
+  } else if (!outcome.finished) {
+    status = "open";
+  } else if (goals.some((goal) => typeof goal.playerId !== "number")) {
+    // Unattributed goals at full time: the pick cannot be ruled out.
+    status = "void";
+  } else {
+    status = "lost";
+  }
+
+  return settledMarket(
+    "Anytime scorer",
+    pickLabel,
+    result,
+    status,
+    PREDICTION_POINTS.anytimeScorer,
+  );
+}
+
+function settleLastScorer(
+  pick: FirstScorerPick,
+  outcome: MatchOutcome,
+): SettledMarket {
+  const goals = outcomeGoals(outcome);
+  const lastGoal = goals.at(-1) ?? null;
+  const pickLabel = pick === "none" ? "No goal scorer" : pick.name;
+  const result = scorerGoalLabel(lastGoal, outcome.finished);
+
+  let status: MarketStatus;
+
+  if (!outcome.finished) {
+    // Any later goal changes the answer; the market only closes at the
+    // final whistle.
+    status = "open";
+  } else if (pick === "none") {
+    status = lastGoal ? "lost" : "won";
+  } else if (!lastGoal) {
+    status = "lost";
+  } else if (typeof lastGoal.playerId !== "number") {
+    status = "void";
+  } else {
+    status = lastGoal.playerId === pick.playerId ? "won" : "lost";
+  }
+
+  return settledMarket(
+    "Last scorer",
+    pickLabel,
+    result,
+    status,
+    PREDICTION_POINTS.lastScorer,
   );
 }
 

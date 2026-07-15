@@ -270,6 +270,57 @@ describe("settlePrediction", () => {
     expect(second).toEqual(first);
   });
 
+  it("wins an anytime-scorer pick mid-match but keeps last scorer open", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        anytimeScorer: { name: "Hakimi, Achraf", playerId: 7 },
+        lastScorer: { name: "Hakimi, Achraf", playerId: 7 },
+      }),
+      makeOutcome({
+        finished: false,
+        goals: [
+          { playerId: 7, scorerName: "Hakimi, Achraf" },
+          { playerId: 9, scorerName: "En-Nesyri, Youssef" },
+        ],
+      }),
+      teams,
+    );
+    const byMarket = Object.fromEntries(
+      settlement.markets.map((market) => [market.market, market]),
+    );
+
+    // A scored goal cannot be unscored; the anytime call banks live.
+    expect(byMarket["Anytime scorer"].status).toBe("won");
+    expect(byMarket["Anytime scorer"].points).toBe(4);
+    // A later goal could still change the last scorer.
+    expect(byMarket["Last scorer"].status).toBe("open");
+  });
+
+  it("settles the last scorer against the final goal at full time", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        anytimeScorer: "none",
+        lastScorer: { name: "En-Nesyri, Youssef", playerId: 9 },
+      }),
+      makeOutcome({
+        goals: [
+          { playerId: 7, scorerName: "Hakimi, Achraf" },
+          { playerId: 9, scorerName: "En-Nesyri, Youssef" },
+        ],
+      }),
+      teams,
+    );
+    const byMarket = Object.fromEntries(
+      settlement.markets.map((market) => [market.market, market]),
+    );
+
+    expect(byMarket["Last scorer"].status).toBe("won");
+    expect(byMarket["Last scorer"].points).toBe(6);
+    expect(byMarket["Last scorer"].result).toBe("En-Nesyri, Youssef");
+    // Goals were scored, so "no goal scorer" loses.
+    expect(byMarket["Anytime scorer"].status).toBe("lost");
+  });
+
   it("settles double-chance side picks at full time, scaled by odds", () => {
     const settlement = settlePrediction(
       makePrediction({

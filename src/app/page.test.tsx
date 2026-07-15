@@ -737,7 +737,20 @@ describe("MatchPageV2 banner", () => {
     expect(homePick).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: /Over 2\.5/ }));
-    await user.click(screen.getByRole("button", { name: "No goal scorer" }));
+    // Three scorer markets each offer a "No goal scorer" chip; scope to the
+    // first-scorer group.
+    await user.click(
+      within(screen.getByRole("group", { name: "First scorer" })).getByRole(
+        "button",
+        { name: "No goal scorer" },
+      ),
+    );
+    await user.click(
+      within(screen.getByRole("group", { name: "Anytime scorer" })).getByRole(
+        "button",
+        { name: /Ounahi/ },
+      ),
+    );
     await user.click(screen.getByRole("button", { name: "Save picks" }));
 
     // Saving flips the ticket CTA into update mode.
@@ -750,6 +763,7 @@ describe("MatchPageV2 banner", () => {
     );
 
     expect(stored["999001"]).toMatchObject({
+      anytimeScorer: { playerId: 222 },
       firstScorer: "none",
       totalGoals: "over",
       winner: "home",

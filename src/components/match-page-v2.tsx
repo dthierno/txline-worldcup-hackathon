@@ -35,12 +35,6 @@ import {
   YAxis,
 } from "recharts";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -115,7 +109,6 @@ import {
   PREDICTION_LINES,
   PREDICTION_POINTS,
   settlePrediction,
-  SIDE_PICK_POINTS,
   sidePickPoints,
   winnerPoints,
   type DoubleChancePick,
@@ -769,6 +762,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           )?.name,
         }
       : null,
+    goals.map((goal) => ({
+      playerId: goal.playerId,
+      scorerName: lineupPlayers.find(
+        (player) => player.playerId === goal.playerId,
+      )?.name,
+    })),
   );
   const possessionSplit = computePossessionSplit(combinedUpdates);
   const participant1IsHome = displayScore?.participant1IsHome !== false;
@@ -3126,13 +3125,9 @@ function MarketCards({
   patchDraft: (recipe: (previous: MatchPrediction) => MatchPrediction) => void;
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
-  const sideOfferRows = buildSideOffers(board, fixture);
-  // Double chance gets its own panel on the Match result card; the accordion
-  // keeps the rest of the side markets.
-  const doubleChanceRow =
-    sideOfferRows?.find((row) => row.offers[0]?.marketKey === "dc") ?? null;
-  const accordionRows =
-    sideOfferRows?.filter((row) => row.offers[0]?.marketKey !== "dc") ?? null;
+  // Double chance is the one side market on offer; it panels into the Match
+  // result card.
+  const doubleChanceOffers = buildSideOffers(board, fixture);
   // One outcome per market; an empty group value means the pick was
   // toggled off.
   const sideGroupValue = (marketKey: string) => {
@@ -3528,7 +3523,7 @@ function MarketCards({
               </div>
             </div>
           ) : null}
-          {doubleChanceRow ? (
+          {doubleChanceOffers ? (
             <div className="mt-2 overflow-hidden rounded-[18px] bg-black/25">
               <h3 className="mp2-subhead">
                 Double chance
@@ -3550,11 +3545,11 @@ function MarketCards({
                   className="w-full flex-col items-stretch"
                   onValueChange={onSideGroupChange(
                     "dc",
-                    doubleChanceRow.offers,
+                    doubleChanceOffers,
                   )}
                   value={sideGroupValue("dc")}
                 >
-                  {doubleChanceRow.offers.map((offer) => {
+                  {doubleChanceOffers.map((offer) => {
                     const cover =
                       offer.pick.kind === "double_chance"
                         ? offer.pick.pick
@@ -3670,176 +3665,132 @@ function MarketCards({
           ))}
             </div>
           </div>
-          {accordionRows?.length ? (
-            <div className="overflow-hidden rounded-[18px] bg-black/25">
-              <Accordion className="rounded-none border-0">
-                <AccordionItem
-                  className="border-0 data-open:bg-transparent"
-                  value="more-markets"
-                >
-                  <AccordionTrigger className="mp2-subhead items-center hover:no-underline">
-                    <span className="flex-1 text-left">More markets</span>
-                    <span className="mp2-card-hint">
-                      {draftSidePicks.length}/{MAX_SIDE_PICKS} picks · long
-                      shots pay up to {SIDE_PICK_POINTS.cap} pts
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="-mx-0.5 pt-3.5 pb-3.5">
-                    <div className="flex flex-col gap-3">
-                    {accordionRows.map((row) => {
-                      const marketKey = row.offers[0]?.marketKey ?? row.label;
-
-                      if (row.layout === "rows") {
-                        return (
-                          <div className="flex flex-col gap-1.5" key={row.label}>
-                            <span className={rowLabelClass}>{row.label}</span>
-                            <ToggleGroup
-                              aria-label={row.label}
-                              className="w-full"
-                              onValueChange={onSideGroupChange(
-                                marketKey,
-                                row.offers,
-                              )}
-                              orientation="vertical"
-                              value={sideGroupValue(marketKey)}
-                            >
-                              {row.offers.map((offer) => (
-                                <ToggleGroupItem
-                                  aria-label={`${offer.label}, pays ${sidePickPoints(offer.pick.odds)} points`}
-                                  className="w-full justify-between gap-2 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
-                                  key={offer.key}
-                                  value={offer.key}
-                                  variant="outline"
-                                >
-                                  <span className="truncate">
-                                    {offer.label}
-                                  </span>
-                                  <span className={ptsClass}>
-                                    +{sidePickPoints(offer.pick.odds)}
-                                  </span>
-                                </ToggleGroupItem>
-                              ))}
-                            </ToggleGroup>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className={rowClass} key={row.label}>
-                          <span className={rowLabelClass}>{row.label}</span>
-                          <ToggleGroup
-                            aria-label={row.label}
-                            className="w-full"
-                            onValueChange={onSideGroupChange(
-                              marketKey,
-                              row.offers,
-                            )}
-                            value={sideGroupValue(marketKey)}
-                          >
-                            {row.offers.map((offer) => (
-                              <ToggleGroupItem
-                                aria-label={`${offer.label}, pays ${sidePickPoints(offer.pick.odds)} points`}
-                                className={itemClass}
-                                key={offer.key}
-                                value={offer.key}
-                                variant="outline"
-                              >
-                                <span className="truncate">{offer.label}</span>
-                                <span className={ptsClass}>
-                                  +{sidePickPoints(offer.pick.odds)}
-                                </span>
-                              </ToggleGroupItem>
-                            ))}
-                          </ToggleGroup>
-                        </div>
-                      );
-                    })}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          ) : null}
         </div>
       </section>
 
       <section aria-labelledby="market-scorer-heading" className="card">
         <div className="mp2-card-heading">
-          <h2 id="market-scorer-heading">First scorer</h2>
-          <span className="mp2-card-hint">
-            +{PREDICTION_POINTS.firstScorer} pts
+          <h2 id="market-scorer-heading">Goal scorers</h2>
+          <span
+            className="text-muted-foreground cursor-help"
+            title="Flat points per call, settled from the TxLINE goal feed: first scorer +6, anytime scorer +4, last scorer +6."
+          >
+            <HugeiconsIcon
+              aria-label="How scorer points work"
+              icon={InformationCircleIcon}
+              size={16}
+              strokeWidth={2.5}
+            />
           </span>
         </div>
         {scorerPlayers.length ? (
-          <ToggleGroup
-            aria-label="First scorer"
-            className="mt-3.5 w-full flex-wrap justify-start"
-            onValueChange={(groupValue: unknown[]) => {
-              const picked = groupValue[0] as string | undefined;
+          <div className="mt-3.5 flex flex-col gap-3">
+            {(
+              [
+                {
+                  field: "firstScorer",
+                  pts: PREDICTION_POINTS.firstScorer,
+                  title: "First scorer",
+                },
+                {
+                  field: "anytimeScorer",
+                  pts: PREDICTION_POINTS.anytimeScorer,
+                  title: "Anytime scorer",
+                },
+                {
+                  field: "lastScorer",
+                  pts: PREDICTION_POINTS.lastScorer,
+                  title: "Last scorer",
+                },
+              ] as const
+            ).map((market) => {
+              const current = draft[market.field];
 
-              patchDraft((previous) => {
-                if (picked === undefined) {
-                  return { ...previous, firstScorer: null };
-                }
+              return (
+                <div
+                  className="overflow-hidden rounded-[18px] bg-black/25"
+                  key={market.field}
+                >
+                  <h3 className="mp2-subhead">
+                    {market.title}
+                    <span className="mp2-card-hint">+{market.pts} pts</span>
+                  </h3>
+                  <div className="p-3.5">
+                    <ToggleGroup
+                      aria-label={market.title}
+                      className="w-full gap-2 overflow-x-auto pb-1"
+                      onValueChange={(groupValue: unknown[]) => {
+                        const picked = groupValue[0] as string | undefined;
 
-                if (picked === "none") {
-                  return { ...previous, firstScorer: "none" };
-                }
+                        patchDraft((previous) => {
+                          if (picked === undefined) {
+                            return { ...previous, [market.field]: null };
+                          }
 
-                const found = scorerPlayers.find(
-                  (candidate) => String(candidate.player.playerId) === picked,
-                );
+                          if (picked === "none") {
+                            return { ...previous, [market.field]: "none" };
+                          }
 
-                return {
-                  ...previous,
-                  firstScorer: found
-                    ? {
-                        name: found.player.name,
-                        playerId: found.player.playerId as number,
+                          const found = scorerPlayers.find(
+                            (candidate) =>
+                              String(candidate.player.playerId) === picked,
+                          );
+
+                          return {
+                            ...previous,
+                            [market.field]: found
+                              ? {
+                                  name: found.player.name,
+                                  playerId: found.player.playerId as number,
+                                }
+                              : null,
+                          };
+                        });
+                      }}
+                      value={
+                        current === "none"
+                          ? ["none"]
+                          : current?.playerId != null
+                            ? [String(current.playerId)]
+                            : []
                       }
-                    : null,
-                };
-              });
-            }}
-            value={
-              draft.firstScorer === "none"
-                ? ["none"]
-                : draft.firstScorer?.playerId != null
-                  ? [String(draft.firstScorer.playerId)]
-                  : []
-            }
-          >
-            <ToggleGroupItem
-              aria-label="No goal scorer"
-              className="aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
-              value="none"
-              variant="outline"
-            >
-              No goal scorer
-            </ToggleGroupItem>
-            {scorerPlayers.map(({ player, teamName }) => (
-              <ToggleGroupItem
-                aria-label={`${formatPlayerDisplayName(player.name)}, ${teamName}`}
-                className="aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
-                key={player.playerId}
-                title={teamName}
-                value={String(player.playerId)}
-                variant="outline"
-              >
-                <Avatar size="sm">
-                  {player.imageUrl ? (
-                    <AvatarImage alt="" src={player.imageUrl} />
-                  ) : null}
-                  <AvatarFallback>{player.name[0]}</AvatarFallback>
-                </Avatar>
-                {shortPlayerName(player.name)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+                    >
+                      <ToggleGroupItem
+                        aria-label="No goal scorer"
+                        className="shrink-0 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+                        value="none"
+                        variant="outline"
+                      >
+                        No goal scorer
+                      </ToggleGroupItem>
+                      {scorerPlayers.map(({ player, teamName }) => (
+                        <ToggleGroupItem
+                          aria-label={`${formatPlayerDisplayName(player.name)}, ${teamName}`}
+                          className="shrink-0 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+                          key={player.playerId}
+                          title={teamName}
+                          value={String(player.playerId)}
+                          variant="outline"
+                        >
+                          <Avatar size="sm">
+                            {player.imageUrl ? (
+                              <AvatarImage alt="" src={player.imageUrl} />
+                            ) : null}
+                            <AvatarFallback>{player.name[0]}</AvatarFallback>
+                          </Avatar>
+                          {shortPlayerName(player.name)}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <p className="muted">
-            First scorer picks unavailable: TxLINE has not published a player
-            list for this fixture yet.
+            Scorer picks unavailable: TxLINE has not published a player list
+            for this fixture yet.
           </p>
         )}
       </section>
@@ -3964,6 +3915,30 @@ function TicketCard({
                 ? "No goal scorer"
                 : shortPlayerName(draft.firstScorer.name),
             pts: PREDICTION_POINTS.firstScorer,
+          },
+        ]
+      : []),
+    ...(draft.anytimeScorer
+      ? [
+          {
+            market: "Anytime scorer",
+            pick:
+              draft.anytimeScorer === "none"
+                ? "No goal scorer"
+                : shortPlayerName(draft.anytimeScorer.name),
+            pts: PREDICTION_POINTS.anytimeScorer,
+          },
+        ]
+      : []),
+    ...(draft.lastScorer
+      ? [
+          {
+            market: "Last scorer",
+            pick:
+              draft.lastScorer === "none"
+                ? "No goal scorer"
+                : shortPlayerName(draft.lastScorer.name),
+            pts: PREDICTION_POINTS.lastScorer,
           },
         ]
       : []),
@@ -4255,108 +4230,34 @@ function doubleChanceOdds(first: number, second: number): number {
   return roundOdds(1 / (1 / first + 1 / second));
 }
 
-// Extra markets straight off the TxLINE odds board: double chance (derived),
-// the .5 goals lines around the core 2.5, and .5 home handicaps. Quarter and
-// integer lines are skipped so every pick settles cleanly won or lost.
-type SideOfferRow = {
-  label: string;
-  layout: "chips" | "rows";
-  offers: SideOffer[];
-};
-
+// The one side market on offer: double chance, derived from the live TxLINE
+// 1X2 prices. (Goals lines and half-goal handicaps were dropped as
+// duplicates of the exact-score board, the 1X2, and these covers.)
 function buildSideOffers(
   board: OddsBoard | undefined,
   fixture: WorldCupFixture,
-): SideOfferRow[] | null {
-  if (!board) {
+): SideOffer[] | null {
+  if (!board?.result) {
     return null;
   }
 
-  const rows: SideOfferRow[] = [];
-  const isHalfLine = (line: number) =>
-    line % 1 !== 0 && (line * 2) % 1 === 0;
+  const { away, draw, home } = board.result;
+  const covers: Array<[DoubleChancePick, string, number]> = [
+    ["home_draw", `${fixture.homeTeam} or Draw`, doubleChanceOdds(home, draw)],
+    [
+      "home_away",
+      `${fixture.homeTeam} or ${fixture.awayTeam}`,
+      doubleChanceOdds(home, away),
+    ],
+    ["draw_away", `Draw or ${fixture.awayTeam}`, doubleChanceOdds(draw, away)],
+  ];
 
-  if (board.result) {
-    const { away, draw, home } = board.result;
-    const covers: Array<[DoubleChancePick, string, number]> = [
-      ["home_draw", `${fixture.homeTeam} or Draw`, doubleChanceOdds(home, draw)],
-      [
-        "home_away",
-        `${fixture.homeTeam} or ${fixture.awayTeam}`,
-        doubleChanceOdds(home, away),
-      ],
-      ["draw_away", `Draw or ${fixture.awayTeam}`, doubleChanceOdds(draw, away)],
-    ];
-
-    rows.push({
-      label: "Double chance",
-      layout: "rows",
-      offers: covers.map(([pick, label, odds]) => ({
-        key: `dc:${pick}`,
-        label,
-        marketKey: "dc",
-        pick: { kind: "double_chance", odds, pick },
-      })),
-    });
-  }
-
-  // Goals 0.5 is skipped: its Under is exactly the 0-0 scoreline pill and
-  // its Over is a near-certainty - the exact-score board already covers both.
-  for (const entry of (board.overUnder ?? [])
-    .filter(
-      (candidate) =>
-        isHalfLine(candidate.line) &&
-        candidate.line >= 1.5 &&
-        candidate.line !== PREDICTION_LINES.goals &&
-        candidate.prices.length >= 2,
-    )
-    .slice(0, 2)) {
-    rows.push({
-      label: `Goals ${entry.line}`,
-      layout: "chips",
-      offers: (["over", "under"] as const).map((pick, index) => ({
-        key: `gl:${entry.line}:${pick}`,
-        label: `${pick === "over" ? "Over" : "Under"} ${entry.line}`,
-        marketKey: `gl:${entry.line}`,
-        pick: {
-          kind: "goals_line",
-          line: entry.line,
-          odds: roundOdds(entry.prices[index]),
-          pick,
-        },
-      })),
-    });
-  }
-
-  // Half-goal handicaps duplicate markets already on the card (England -0.5
-  // is the 1X2 win; +0.5 is a double-chance cover). Only margins of 1.5+
-  // say something new: win by two or more.
-  for (const entry of (board.asianHandicap ?? [])
-    .filter(
-      (candidate) =>
-        isHalfLine(candidate.line) &&
-        Math.abs(candidate.line) >= 1.5 &&
-        candidate.prices.length >= 2,
-    )
-    .slice(0, 2)) {
-    rows.push({
-      label: `Handicap ${fixture.homeTeam} ${handicapLineLabel(entry.line)}`,
-      layout: "chips",
-      offers: (["home", "away"] as const).map((pick, index) => ({
-        key: `ah:${entry.line}:${pick}`,
-        label: pick === "home" ? fixture.homeTeam : fixture.awayTeam,
-        marketKey: `ah:${entry.line}`,
-        pick: {
-          kind: "handicap",
-          line: entry.line,
-          odds: roundOdds(entry.prices[index]),
-          pick,
-        },
-      })),
-    });
-  }
-
-  return rows.length ? rows : null;
+  return covers.map(([pick, label, odds]) => ({
+    key: `dc:${pick}`,
+    label,
+    marketKey: "dc",
+    pick: { kind: "double_chance", odds, pick },
+  }));
 }
 
 function OddsMovement({
