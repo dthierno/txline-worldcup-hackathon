@@ -70,6 +70,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 import {
   buildOutcome,
@@ -3228,8 +3229,17 @@ function MarketCards({
       };
     });
   };
-  const stepClass =
-    "flex size-7 shrink-0 items-center justify-center rounded-full bg-white/[0.07] text-white transition-colors hover:bg-white/[0.14] disabled:pointer-events-none disabled:opacity-40";
+  const isBoardScore =
+    scorelines?.some(
+      (cell) =>
+        cell.home === draft.homeGoals && cell.away === draft.awayGoals,
+    ) ?? true;
+  const stepClass = cn(
+    "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-40",
+    isBoardScore
+      ? "bg-white/[0.07] text-white hover:bg-white/[0.14]"
+      : "bg-black/10 hover:bg-black/[0.18]",
+  );
 
   const itemClass =
     "flex-1 justify-between gap-2 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground";
@@ -3414,11 +3424,25 @@ function MarketCards({
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
-                <div className="mt-3 flex items-center justify-between gap-3 px-1">
-                  <span className="text-muted-foreground text-xs font-medium">
+                <div
+                  className={cn(
+                    "mt-2 flex h-10 w-full items-center justify-between gap-2 rounded-2xl border px-3 transition-colors",
+                    isBoardScore
+                      ? "border-input"
+                      : "border-transparent bg-primary/85 text-primary-foreground",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "text-[13.5px] leading-5 font-medium",
+                      isBoardScore
+                        ? "text-muted-foreground"
+                        : "text-primary-foreground/70",
+                    )}
+                  >
                     Your call
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {homeIso ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -3448,7 +3472,14 @@ function MarketCards({
                     >
                       <HugeiconsIcon icon={PlusSignIcon} size={13} strokeWidth={2.5} />
                     </button>
-                    <span className="text-muted-foreground text-[13.5px] leading-5">
+                    <span
+                      className={cn(
+                        "text-[13.5px] leading-5",
+                        isBoardScore
+                          ? "text-muted-foreground"
+                          : "text-primary-foreground/60",
+                      )}
+                    >
                       -
                     </span>
                     <button
@@ -3480,10 +3511,17 @@ function MarketCards({
                         src={`https://flagcdn.com/w40/${awayIso}.png`}
                       />
                     ) : null}
-                    <span className="text-muted-foreground min-w-7 text-right text-[12.5px] leading-5 font-semibold tabular-nums">
-                      +{exactScorePoints(draftScoreOdds)}
-                    </span>
                   </div>
+                  <span
+                    className={cn(
+                      "min-w-7 text-right text-[12.5px] leading-5 font-semibold tabular-nums",
+                      isBoardScore
+                        ? "text-muted-foreground"
+                        : "text-primary-foreground/70",
+                    )}
+                  >
+                    +{exactScorePoints(draftScoreOdds)}
+                  </span>
                 </div>
               </div>
             </div>
