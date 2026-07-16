@@ -5389,3 +5389,39 @@ dt {
   margin: 0;
   padding: 12px 18px;
 }
+
+/* Match-event icons on a bench row, riding just inside the sub-minute badge.
+   The badge normally owns the margin auto that pushes the cluster to the
+   row's end; when events are present they take it over so the pair sits
+   together. Empty spans (players with no events) vanish entirely. */
+.mp2-lineup-bench-events {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+.mp2-lineup-bench-events:empty {
+  display: none;
+}
+.mp2-lineup-bench-events:not(:empty) {
+  margin-left: auto;
+}
+.mp2-lineup-bench-events:not(:empty) + .mp2-lineup-bench-sub {
+  margin-left: 10px;
+}
+.mp2-lineup-bench-player.away .mp2-lineup-bench-events:not(:empty) {
+  margin-left: 0;
+  margin-right: auto;
+}
+.mp2-lineup-bench-player.away
+  .mp2-lineup-bench-events:not(:empty)
+  + .mp2-lineup-bench-sub {
+  margin-left: 0;
+  margin-right: 10px;
+}
+.mp2-lineup-bench-events .mp2-lineup-event {
+  display: inline-flex;
+  gap: 2px;
+  /* The pitch view pins these to the avatar marker; in a bench row they flow
+     inline with the minute badge. */
+  position: static;
+}

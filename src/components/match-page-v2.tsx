@@ -2816,6 +2816,12 @@ function LineupsSection({
           </strong>
           <span>{positionLabel}</span>
         </span>
+        {/* Same match events as the pitch view - a substitute's goal deserves
+            its ball too. Own flex item so the away side's row-reverse mirrors
+            it with the minute badge. */}
+        <span className="mp2-lineup-bench-events">
+          {renderPitchEvents(player)}
+        </span>
         {subMinute ? (
           <span className="mp2-lineup-bench-sub">
             <span>{subMinute}</span>
