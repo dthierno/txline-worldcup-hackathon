@@ -2831,6 +2831,13 @@ function LineupsSection({
       <h2 className="mp2-lineup-accessible-title" id="lineups-heading">
         Lineups
       </h2>
+      {lineups?.data?.predicted ? (
+        <p className="mp2-lineup-predicted">
+          <span className="mp2-play-pill">Predicted XI</span>
+          Based on each side&apos;s previous match - the official lineups land
+          about an hour before kickoff and replace this view.
+        </p>
+      ) : null}
       {teams?.length ? (
         (() => {
             const home = teams.find((team) => team.isHome) ?? teams[0];

@@ -5,11 +5,11 @@ import {
   type ScorerPool,
   type ScorerPoolTeam,
 } from "@/lib/api-football-player-media";
+import { fixtureTeams } from "@/lib/fixture-teams";
 import { readLatestPackLineupTeam } from "@/lib/replay-store";
 import { getTxlineConfig } from "@/lib/txline-config";
-import { fetchTxlineFixtures, fetchTxlineLineups } from "@/lib/txline-client";
+import { fetchTxlineLineups } from "@/lib/txline-client";
 import type { NormalizedLineups } from "@/lib/txline-normalize";
-import { txlineWorldCupFixtures } from "@/lib/world-cup-fixtures";
 
 export const dynamic = "force-dynamic";
 
@@ -18,33 +18,6 @@ type RouteContext = {
     fixtureId: string;
   }>;
 };
-
-// Only needed before TxLINE publishes an XI, since the XI names its own teams.
-async function fixtureTeams(
-  id: number,
-  configured: boolean,
-): Promise<Array<{ isHome: boolean; teamName: string }>> {
-  let fixtures = txlineWorldCupFixtures;
-
-  if (configured) {
-    try {
-      fixtures = await fetchTxlineFixtures();
-    } catch {
-      // The seeded schedule still names the teams when the snapshot is down.
-    }
-  }
-
-  const fixture =
-    fixtures.find((entry) => entry.fixtureId === id) ??
-    txlineWorldCupFixtures.find((entry) => entry.fixtureId === id);
-
-  return fixture
-    ? [
-        { isHome: true, teamName: fixture.homeTeam },
-        { isHome: false, teamName: fixture.awayTeam },
-      ]
-    : [];
-}
 
 export async function GET(_request: Request, context: RouteContext) {
   const config = getTxlineConfig();

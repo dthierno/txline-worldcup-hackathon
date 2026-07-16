@@ -5371,3 +5371,16 @@ dt {
     transform: translate(2.5%, 3%) scale(1.1);
   }
 }
+
+/* Unofficial-XI notice on the lineups card: the pill carries the state, the
+   sentence carries the caveat. */
+.mp2 .mp2-lineup-predicted {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}

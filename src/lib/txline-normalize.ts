@@ -134,6 +134,10 @@ export type NormalizedLineupTeam = {
 };
 
 export type NormalizedLineups = {
+  // True when this is a projection from each side's previous match rather
+  // than TxLINE's published XI. The UI labels it and swaps it out the moment
+  // the official record lands.
+  predicted?: boolean;
   teams: NormalizedLineupTeam[];
   ts?: number;
 };

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { enrichLineupsWithApiFootballImages } from "@/lib/api-football-player-media";
+import { fixtureTeams } from "@/lib/fixture-teams";
+import { readLatestPackLineupTeam } from "@/lib/replay-store";
+import type { NormalizedLineupTeam } from "@/lib/txline-normalize";
 import { getTxlineConfig } from "@/lib/txline-config";
 import { fetchTxlineLineups } from "@/lib/txline-client";
 
@@ -30,7 +33,31 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   try {
-    const lineups = await fetchTxlineLineups(id);
+    let lineups = await fetchTxlineLineups(id);
+    let source = "TxLINE score feed lineups records";
+
+    // TxLINE publishes the official XI about an hour before kickoff. Until
+    // then, project each side's previous recorded lineup - clearly flagged,
+    // and replaced by the real one the moment it lands. isHome is remapped:
+    // a side's last match may have had them on the other side of the fixture.
+    if (!lineups) {
+      const teams = await fixtureTeams(id, config.configured);
+      const projected = teams.map((team) => {
+        const previous = readLatestPackLineupTeam(team.teamName);
+
+        return previous ? { ...previous, isHome: team.isHome } : null;
+      });
+
+      if (teams.length === 2 && projected.every(Boolean)) {
+        lineups = {
+          predicted: true,
+          teams: projected as NormalizedLineupTeam[],
+        };
+        source =
+          "Predicted XI from each side's previous match; TxLINE publishes official lineups about an hour before kickoff";
+      }
+    }
+
     const media = await enrichLineupsWithApiFootballImages(lineups);
 
     return NextResponse.json({
@@ -41,7 +68,7 @@ export async function GET(_request: Request, context: RouteContext) {
         resolved: media.resolved,
       },
       mode: "txline",
-      source: "TxLINE score feed lineups records",
+      source,
     });
   } catch (error) {
     return NextResponse.json(
