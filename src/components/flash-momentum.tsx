@@ -5,15 +5,16 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import type { TxlineUpdateData } from "@/lib/match-shared";
 import type { GoalEvent } from "@/lib/txline-normalize";
+import { teamGlow } from "@/lib/team-visuals";
 import type { WorldCupFixture } from "@/lib/world-cup-fixtures";
 
 // Flashscore's match-momentum widget, rebuilt to its exact geometry from the
 // rendered SVG (640x158 viewBox stretched to width, per-minute bars on a
 // shared pitch with 1px-radius tips, dotted amplitude guides, one block per
-// period) and to its measured palette (period #0f2d37, dots and connector
-// lines #555e61, home bars #fff, away #777e81, captions #c8cdcd). Data is
-// TxLINE's: pressure per minute from the possession/chance weights, goals and
-// red cards as badges hanging off the timeline.
+// period), reskinned to this app's tokens: glass period blocks on the card
+// black, each side's bars in its team glow, our hairlines and muted captions.
+// Data is TxLINE's: pressure per minute from the possession/chance weights,
+// goals and red cards as badges hanging off the timeline.
 
 const WIDTH = 640;
 const HEIGHT = 158;
@@ -301,6 +302,8 @@ export function FlashMomentum({
       center: slotByMinute.get(minute)!.x + barWidth / 2,
       minute,
     }));
+  const homeColor = (homeIso && teamGlow[homeIso]) || "#e4e4e7";
+  const awayColor = (awayIso && teamGlow[awayIso]) || "#8b8b96";
   const shortName = (team: string) =>
     team.replaceAll(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
 
@@ -349,15 +352,14 @@ export function FlashMomentum({
                   <g key={slot.minute}>
                     {slot.net !== 0 ? (
                       <path
-                        className={
-                          slot.net > 0 ? "fsm-bar" : "fsm-bar fsm-bar-away"
-                        }
+                        className="fsm-bar"
                         d={roundedBar(
                           slot.x,
                           barWidth,
                           barHeight(slot.net),
                           slot.net > 0,
                         )}
+                        style={{ fill: slot.net > 0 ? homeColor : awayColor }}
                       />
                     ) : null}
                     <rect

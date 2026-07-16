@@ -5439,10 +5439,9 @@ dt {
   position: static;
 }
 
-/* Flashscore-style momentum widget: measured palette and metrics from their
-   rendered widget (period #0f2d37, guides/lines #555e61, home bars #fff, away
-   #777e81, captions #c8cdcd; 26px header/footer rows around a 158px chart;
-   20px incident badges on #00141e with #555e61 hairlines). */
+/* Momentum widget: Flashscore's measured geometry (26px header/footer rows
+   around a 158px chart, 20px incident badges on hairlines) in this app's
+   skin - glass period blocks, team-glow bars, our muted captions. */
 .mp2 .fsm-card {
   padding: 16px;
 }
@@ -5473,7 +5472,7 @@ dt {
 }
 .fsm-legend {
   align-items: center;
-  color: #c8cdcd;
+  color: var(--muted-foreground);
   display: flex;
   gap: 4px;
   justify-content: flex-end;
@@ -5485,24 +5484,18 @@ dt {
   font-weight: 700;
 }
 .fsm-period {
-  fill: #0f2d37;
+  fill: rgba(255, 255, 255, 0.045);
 }
 .fsm-dot {
-  fill: #555e61;
-}
-.fsm-bar {
-  fill: #fff;
-}
-.fsm-bar-away {
-  fill: #777e81;
+  fill: rgba(255, 255, 255, 0.16);
 }
 .fsm-hit {
   fill: transparent;
 }
 .fsm-incident {
   align-items: center;
-  background: #00141e;
-  border: 1px solid #555e61;
+  background: #17171c;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 4px;
   color: #eee;
   display: flex;
@@ -5518,7 +5511,7 @@ dt {
   top: 142px;
 }
 .fsm-redcard {
-  background: #dc0000;
+  background: #fa3d3d;
   border-radius: 1.5px;
   display: block;
   height: 12px;
@@ -5526,14 +5519,14 @@ dt {
   width: 9px;
 }
 .fsm-incident-line {
-  background: #555e61;
+  background: rgba(255, 255, 255, 0.18);
   position: absolute;
   width: 1px;
   z-index: 1;
 }
 .fsm-time {
-  color: #c8cdcd;
-  font-size: 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
   position: absolute;
   bottom: -22px;
   transform: translateX(-50%);
