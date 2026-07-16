@@ -5036,7 +5036,7 @@ dt {
 .mp2-ticket-empty {
   display: flex;
   flex-direction: column;
-  margin: 14px 0 12px;
+  margin: 8px 0 12px;
 }
 .mp2-ticket-ghosts {
   display: flex;
