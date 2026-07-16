@@ -60,7 +60,7 @@ type Period = {
 };
 
 type Incident = {
-  kind: "goal" | "red";
+  kind: "goal" | "red" | "yellow";
   minute: number;
   side: "away" | "home";
 };
@@ -240,26 +240,26 @@ export function FlashMomentum({
     ),
     ...(() => {
       const seen = new Set<string>();
-      const reds: Incident[] = [];
+      const cards: Incident[] = [];
 
       for (const update of updates) {
         if (
-          update.action !== "red_card" ||
+          (update.action !== "red_card" && update.action !== "yellow_card") ||
           (update.participant !== 1 && update.participant !== 2) ||
           typeof update.clockSeconds !== "number"
         ) {
           continue;
         }
 
-        const key = String(update.eventId ?? `seq-${update.seq}`);
+        const key = `${update.action}-${update.eventId ?? `seq-${update.seq}`}`;
 
         if (seen.has(key)) {
           continue;
         }
 
         seen.add(key);
-        reds.push({
-          kind: "red",
+        cards.push({
+          kind: update.action === "red_card" ? "red" : "yellow",
           minute: Math.floor(update.clockSeconds / 60),
           side:
             participant1IsHome === (update.participant === 1)
@@ -268,7 +268,17 @@ export function FlashMomentum({
         });
       }
 
-      return reds;
+      // A second yellow arrives alongside its red; one badge tells the story.
+      return cards.filter(
+        (card) =>
+          card.kind !== "yellow" ||
+          !cards.some(
+            (other) =>
+              other.kind === "red" &&
+              other.side === card.side &&
+              Math.abs(other.minute - card.minute) <= 1,
+          ),
+      );
     })(),
   ] as Incident[])
     .map((incident) => ({
@@ -402,7 +412,12 @@ export function FlashMomentum({
                     strokeWidth={2}
                   />
                 ) : (
-                  <span aria-label="Red card" className="fsm-redcard" />
+                  <span
+                    aria-label={incident.kind === "red" ? "Red card" : "Yellow card"}
+                    className={
+                      incident.kind === "red" ? "fsm-redcard" : "fsm-yellowcard"
+                    }
+                  />
                 )}
               </div>
               <div

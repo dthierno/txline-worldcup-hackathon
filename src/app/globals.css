@@ -5510,6 +5510,14 @@ dt {
 .fsm-incident-away {
   top: 142px;
 }
+.fsm-yellowcard {
+  background: #fcd34d;
+  border-radius: 1.5px;
+  display: block;
+  height: 12px;
+  transform: rotate(8deg);
+  width: 9px;
+}
 .fsm-redcard {
   background: #fa3d3d;
   border-radius: 1.5px;
