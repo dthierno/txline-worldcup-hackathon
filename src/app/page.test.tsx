@@ -766,19 +766,13 @@ describe("MatchPageV2 banner", () => {
     expect(homePick).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: /Over 2\.5/ }));
-    // Three scorer markets each offer a "No goal scorer" chip; scope to the
-    // first-scorer group.
+    // The scorer board is a row per player against a column per market, so each
+    // cell names both.
     await user.click(
-      within(screen.getByRole("group", { name: "First scorer" })).getByRole(
-        "button",
-        { name: "No goal scorer" },
-      ),
+      screen.getByRole("button", { name: /No goal scorer, first scorer/ }),
     );
     await user.click(
-      within(screen.getByRole("group", { name: "Anytime scorer" })).getByRole(
-        "button",
-        { name: /Ounahi/ },
-      ),
+      screen.getByRole("button", { name: /Ounahi.*anytime scorer/ }),
     );
     await user.click(screen.getByRole("button", { name: "Save picks" }));
 
