@@ -101,6 +101,8 @@ and integration tests first-class.
   `PlayerId`. We built a "most shots" leaderboard for the stats tab and had
   to remove it. Either populate the field or add the player id to shot
   actions (which would also unlock shots-per-player props).
+- **`var` records carry no `Participant`** (2026-07-16) — VAR reviews can't
+  be counted per side, only listed chronologically.
 - **No foul or offside actions** (2026-07-16) — free kicks conceded are the
   only foul proxy, and offsides are absent entirely; both are staple match
   stats fans expect.

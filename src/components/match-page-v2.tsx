@@ -73,6 +73,8 @@ import type {
 } from "@/lib/api-football-player-media";
 import {
   buildOutcome,
+  countHeadedGoals,
+  countShotOutcomes,
   countShotsOnTarget,
   countTeamEvents,
   fetchJson,
@@ -797,6 +799,25 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const freeKicks = countTeamEvents(combinedUpdates, "free_kick");
   const shots = countTeamEvents(combinedUpdates, "shot");
   const shotsOnTarget = countShotsOnTarget(combinedUpdates);
+  const shotOutcomes = countShotOutcomes(combinedUpdates);
+  const headedGoals = countHeadedGoals(combinedUpdates);
+  // Possession per half: the phase records carry the match phase, so the
+  // same split recomputes over each half's slice.
+  const halfPossession = (statusId: number) => {
+    const split = computePossessionSplit(
+      combinedUpdates.filter((update) => update.statusId === statusId),
+    );
+
+    if (!split) {
+      return null;
+    }
+
+    const home = participant1IsHome ? split.team1Pct : split.team2Pct;
+
+    return { away: 100 - home, home };
+  };
+  const firstHalfPossession = halfPossession(2);
+  const secondHalfPossession = halfPossession(4);
   const throwIns = countTeamEvents(combinedUpdates, "throw_in");
   const goalKicks = countTeamEvents(combinedUpdates, "goal_kick");
   // Possession-quality phases double as attack counters: every attack /
@@ -902,6 +923,33 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       : []),
   ];
   const attackStatRows: MatchStatRow[] = [
+    ...(shotOutcomes.home.offTarget + shotOutcomes.away.offTarget > 0
+      ? [
+          {
+            away: shotOutcomes.away.offTarget,
+            home: shotOutcomes.home.offTarget,
+            label: "Shots off target",
+          },
+        ]
+      : []),
+    ...(shotOutcomes.home.blocked + shotOutcomes.away.blocked > 0
+      ? [
+          {
+            away: shotOutcomes.away.blocked,
+            home: shotOutcomes.home.blocked,
+            label: "Blocked shots",
+          },
+        ]
+      : []),
+    ...(shotOutcomes.home.woodwork + shotOutcomes.away.woodwork > 0
+      ? [
+          {
+            away: shotOutcomes.away.woodwork,
+            home: shotOutcomes.home.woodwork,
+            label: "Hit the woodwork",
+          },
+        ]
+      : []),
     ...(attacks.home + attacks.away > 0
       ? [
           { away: attacks.away, home: attacks.home, label: "Attacks" },
@@ -909,6 +957,15 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             away: dangerousAttacks.away,
             home: dangerousAttacks.home,
             label: "Dangerous attacks",
+          },
+        ]
+      : []),
+    ...(headedGoals.home + headedGoals.away > 0
+      ? [
+          {
+            away: headedGoals.away,
+            home: headedGoals.home,
+            label: "Headed goals",
           },
         ]
       : []),
@@ -968,7 +1025,30 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   // The per-half stat banks ride on every score record once TxLINE opens
   // them, so these split without any extra requests.
   const halfBanks = displayScore?.halfStats;
-  const byHalfStatRows: MatchStatRow[] = halfBanks
+  const byHalfStatRows: MatchStatRow[] = [
+    ...(firstHalfPossession
+      ? [
+          {
+            away: firstHalfPossession.away,
+            awayDisplay: `${firstHalfPossession.away}%`,
+            home: firstHalfPossession.home,
+            homeDisplay: `${firstHalfPossession.home}%`,
+            label: "1st-half possession",
+          },
+        ]
+      : []),
+    ...(secondHalfPossession
+      ? [
+          {
+            away: secondHalfPossession.away,
+            awayDisplay: `${secondHalfPossession.away}%`,
+            home: secondHalfPossession.home,
+            homeDisplay: `${secondHalfPossession.home}%`,
+            label: "2nd-half possession",
+          },
+        ]
+      : []),
+    ...(halfBanks
     ? [
         {
           away: halfBanks.first.awayGoals,
@@ -1001,7 +1081,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           label: "2nd-half yellow cards",
         },
       ].filter((row) => row.home + row.away > 0)
-    : [];
+    : []),
+  ];
   const statSections = [
     { label: "Top stats", rows: topStatRows },
     { label: "Attack", rows: attackStatRows },

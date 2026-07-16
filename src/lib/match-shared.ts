@@ -541,6 +541,100 @@ export function countTeamEvents(updates: TxlineUpdateData[], action: string) {
   return counts;
 }
 
+export type ShotOutcomeCounts = {
+  blocked: number;
+  offTarget: number;
+  onTarget: number;
+  woodwork: number;
+};
+
+// Per-side shot outcomes (OnTarget / OffTarget / Blocked / Woodwork). Shots
+// revise like every scout event, so records merge per event Id with the last
+// recorded outcome winning.
+export function countShotOutcomes(updates: TxlineUpdateData[]) {
+  const events = new Map<string, { isHome: boolean; outcome: string }>();
+
+  for (const update of updates) {
+    if (update.action !== "shot") {
+      continue;
+    }
+
+    if (update.participant !== 1 && update.participant !== 2) {
+      continue;
+    }
+
+    const key = String(update.eventId ?? `seq-${update.seq}`);
+    const isHome =
+      update.participant1IsHome !== false
+        ? update.participant === 1
+        : update.participant === 2;
+    const outcome =
+      String(update.data?.Outcome ?? "") || events.get(key)?.outcome || "";
+
+    events.set(key, { isHome, outcome });
+  }
+
+  const zero = (): ShotOutcomeCounts => ({
+    blocked: 0,
+    offTarget: 0,
+    onTarget: 0,
+    woodwork: 0,
+  });
+  const counts = { away: zero(), home: zero() };
+
+  for (const event of events.values()) {
+    const side = counts[event.isHome ? "home" : "away"];
+
+    if (event.outcome === "OnTarget") {
+      side.onTarget += 1;
+    } else if (event.outcome === "OffTarget") {
+      side.offTarget += 1;
+    } else if (event.outcome === "Blocked") {
+      side.blocked += 1;
+    } else if (event.outcome === "Woodwork") {
+      side.woodwork += 1;
+    }
+  }
+
+  return counts;
+}
+
+// Headed goals per side, from the GoalType riding on goal records.
+export function countHeadedGoals(updates: TxlineUpdateData[]) {
+  const events = new Map<string, { header: boolean; isHome: boolean }>();
+
+  for (const update of updates) {
+    if (update.action !== "goal") {
+      continue;
+    }
+
+    if (update.participant !== 1 && update.participant !== 2) {
+      continue;
+    }
+
+    const key = String(update.eventId ?? `seq-${update.seq}`);
+    const isHome =
+      update.participant1IsHome !== false
+        ? update.participant === 1
+        : update.participant === 2;
+    const header =
+      String(update.data?.GoalType ?? "") === "Head" ||
+      events.get(key)?.header === true;
+
+    events.set(key, { header, isHome });
+  }
+
+  const counts = { away: 0, home: 0 };
+
+  for (const event of events.values()) {
+    if (event.header) {
+      counts[event.isHome ? "home" : "away"] += 1;
+    }
+  }
+
+  return counts;
+}
+
 // Shots on target per side. The Outcome can sit on any sibling record of the
 // same shot event, so merge records per event Id before counting.
 export function countShotsOnTarget(updates: TxlineUpdateData[]) {
