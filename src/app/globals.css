@@ -600,7 +600,7 @@ td.status-void {
 /* Feed and lists */
 
 .feed-scroll {
-  max-height: 420px;
+  max-height: 720px;
   overflow-y: auto;
 }
 
