@@ -5027,7 +5027,7 @@ dt {
   flex-direction: column;
   gap: 6px;
   list-style: none;
-  margin: 2px 0 0;
+  margin: 8px 0 12px;
   padding: 0;
 }
 /* Blank slip shown until the first market is picked: dashed ghost rows in
