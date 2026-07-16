@@ -731,6 +731,9 @@ export function getDisplayUpdates(
     (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
   );
   const seenChanceEvents = new Set<string>();
+  // TxLINE emits a kickoff record on every restart (after each goal, plus the
+  // start of every phase); only the first per phase is a chapter of the match.
+  const seenKickoffPhases = new Set<number>();
   let previous: TxlineUpdateData | undefined;
   const seen = new Set<string>();
 
@@ -941,6 +944,17 @@ export function getDisplayUpdates(
           teamName ? ` (${teamName})` : ""
         }. Score ${scoreline}.`;
       }
+    }
+
+    if (action === "kickoff") {
+      const phase = update.statusId ?? 0;
+
+      if (seenKickoffPhases.has(phase)) {
+        previous = update;
+        continue;
+      }
+
+      seenKickoffPhases.add(phase);
     }
 
     // Chance events emit sibling records per event id; one line each.
