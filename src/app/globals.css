@@ -5443,12 +5443,12 @@ dt {
    around a 158px chart, 20px incident badges on hairlines) in this app's
    skin - glass period blocks, team-glow bars, our muted captions. */
 .mp2 .fsm-card {
-  padding: 16px;
+  padding: 24px 16px;
 }
 .fsm {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 .fsm-chart {
   position: relative;
