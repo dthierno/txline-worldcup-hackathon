@@ -1054,9 +1054,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const statSections = [
     { label: "Top stats", rows: topStatRows },
     { label: "Attack", rows: attackStatRows },
-    { label: "Defence", rows: defenceStatRows },
-    { label: "Goalkeeping", rows: goalkeepingStatRows },
-    { label: "Game flow", rows: gameFlowStatRows },
+    {
+      label: "Game flow",
+      rows: [...defenceStatRows, ...goalkeepingStatRows, ...gameFlowStatRows],
+    },
     { label: "By half", rows: byHalfStatRows },
   ].filter((section) => section.rows.length > 0);
   const keyUpdatePattern =
@@ -1676,65 +1677,71 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
         {matchTab === "stats" ? (
           <div className="mp2-tab-stack">
-            <section className="card mp2-stats-card" aria-labelledby="stats-heading">
-              <h2 className="mp2-stats-title" id="stats-heading">Stats</h2>
-              {notStarted ? (
+            {notStarted ? (
+              <section className="card mp2-stats-card" aria-labelledby="stats-heading">
+                <h2 className="mp2-stats-title" id="stats-heading">Stats</h2>
                 <p className="muted">Stats appear once the match kicks off.</p>
-              ) : statSections.length ? (
-                <>
-                  <div className="mp2-stat-sections">
-                    {statSections.map((section) => (
-                      <section className="mp2-stat-section" key={section.label}>
-                        <h3 className="mp2-stat-section-title">{section.label}</h3>
-                        {section.rows.map((row) => {
-                          const total = row.home + row.away;
-                          const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
-                          const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
+              </section>
+            ) : statSections.length ? (
+              <>
+                <div className="mp2-stat-grid">
+                  {statSections.map((section) => (
+                    <section
+                      aria-label={section.label}
+                      className="card mp2-stat-card"
+                      key={section.label}
+                    >
+                      <h3 className="mp2-stat-section-title">{section.label}</h3>
+                      {section.rows.map((row) => {
+                        const total = row.home + row.away;
+                        const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
+                        const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
 
-                          return (
-                            <div
-                              aria-label={`${row.label}: ${fixture.homeTeam} ${row.homeDisplay ?? row.home}, ${fixture.awayTeam} ${row.awayDisplay ?? row.away}`}
-                              className="mp2-stat-row"
-                              key={row.label}
-                              role="img"
-                            >
-                              <div className="mp2-stat-values">
-                                <span>{row.homeDisplay ?? row.home}</span>
-                                <span>{row.label}</span>
-                                <span>{row.awayDisplay ?? row.away}</span>
-                              </div>
-                              <div className="mp2-stat-bars" aria-hidden="true">
-                                <span className="mp2-stat-track home">
-                                  <span
-                                    className={row.home > row.away ? "leading" : ""}
-                                    style={{ width: `${homeWidth}%` }}
-                                  />
-                                </span>
-                                <span className="mp2-stat-track away">
-                                  <span
-                                    className={row.away > row.home ? "leading" : ""}
-                                    style={{ width: `${awayWidth}%` }}
-                                  />
-                                </span>
-                              </div>
+                        return (
+                          <div
+                            aria-label={`${row.label}: ${fixture.homeTeam} ${row.homeDisplay ?? row.home}, ${fixture.awayTeam} ${row.awayDisplay ?? row.away}`}
+                            className="mp2-stat-row"
+                            key={row.label}
+                            role="img"
+                          >
+                            <div className="mp2-stat-values">
+                              <span>{row.homeDisplay ?? row.home}</span>
+                              <span>{row.label}</span>
+                              <span>{row.awayDisplay ?? row.away}</span>
                             </div>
-                          );
-                        })}
-                      </section>
-                    ))}
-                  </div>
-                  {possessionHomePct !== null || freeKicks.home + freeKicks.away > 0 ? (
-                    <p className="muted">
-                      Possession is ball-in-play time from TxLINE possession-phase
-                      events; attacks count its attack and danger phases; fouls
-                      are free kicks conceded to the opponent.
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p>No stats available.</p>
-              )}
-            </section>
+                            <div className="mp2-stat-bars" aria-hidden="true">
+                              <span className="mp2-stat-track home">
+                                <span
+                                  className={row.home > row.away ? "leading" : ""}
+                                  style={{ width: `${homeWidth}%` }}
+                                />
+                              </span>
+                              <span className="mp2-stat-track away">
+                                <span
+                                  className={row.away > row.home ? "leading" : ""}
+                                  style={{ width: `${awayWidth}%` }}
+                                />
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </section>
+                  ))}
+                </div>
+                {possessionHomePct !== null || freeKicks.home + freeKicks.away > 0 ? (
+                  <p className="muted mp2-stat-note">
+                    Possession is ball-in-play time from TxLINE possession-phase
+                    events; attacks count its attack and danger phases; fouls
+                    are free kicks conceded to the opponent.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <section className="card mp2-stats-card">
+                <p className="muted">No match statistics are available yet.</p>
+              </section>
+            )}
 
             <FlashMomentum
               awayIso={awayIso}
