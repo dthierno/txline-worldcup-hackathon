@@ -5239,3 +5239,75 @@ dt {
 .mp2-slip-status.open + .mp2-slip-pts {
   color: var(--muted-foreground);
 }
+
+/* Replay transport. Sits between the hero and the tabs on a recorded match,
+   so the controls read as part of the match furniture rather than a debug
+   toolbar. Text classes live on inner spans: the unlayered `button { font:
+   inherit }` above outranks a layered Tailwind utility. */
+.mp2 .mp2-replay {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+}
+.mp2 .mp2-replay-badge {
+  background: #fa3d3d;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  text-transform: uppercase;
+}
+.mp2 .mp2-replay-play {
+  min-width: 72px;
+}
+.mp2 .mp2-replay-scrub {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.mp2 .mp2-replay-scrub input {
+  accent-color: #4ade80;
+  cursor: pointer;
+  width: 100%;
+}
+.mp2 .mp2-replay-clock {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  min-width: 64px;
+  text-align: right;
+}
+.mp2 .mp2-replay-speeds {
+  display: flex;
+  gap: 2px;
+}
+.mp2 .mp2-replay-speed {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: 4px 7px;
+}
+.mp2 .mp2-replay-speed.is-active {
+  background: #fff;
+  color: #17171c;
+}
+
+@media (max-width: 720px) {
+  .mp2 .mp2-replay {
+    flex-wrap: wrap;
+  }
+  .mp2 .mp2-replay-scrub {
+    order: 1;
+    width: 100%;
+  }
+}

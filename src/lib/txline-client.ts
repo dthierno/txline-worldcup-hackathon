@@ -1,3 +1,4 @@
+import { readReplayRecords } from "./replay-store";
 import { getTxlineConfig } from "./txline-config";
 import {
   buildOddsBoard,
@@ -153,7 +154,9 @@ export async function fetchTxlineHistoricalScoreUpdates(
 }
 
 // Lineups (with real player names) arrive as records on the score feeds: the
-// current updates feed pre-match and during play, the historical replay after.
+// current updates feed pre-match and during play, the historical replay after,
+// and — once TxLINE has aged the fixture out of both, two weeks after kickoff —
+// the committed replay pack.
 export async function fetchTxlineLineups(
   fixtureId: number,
 ): Promise<NormalizedLineups | null> {
@@ -176,8 +179,17 @@ export async function fetchTxlineLineups(
       cache: "no-cache",
     },
   );
+  const fromHistorical = extractLineups(
+    parseTxlinePayloads(await historicalResponse.text()),
+  );
 
-  return extractLineups(parseTxlinePayloads(await historicalResponse.text()));
+  if (fromHistorical) {
+    return fromHistorical;
+  }
+
+  const packed = readReplayRecords(fixtureId);
+
+  return packed ? extractLineups(packed) : null;
 }
 
 export async function fetchTxlineOddsSnapshot(

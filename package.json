@@ -9,7 +9,9 @@
     "lint": "eslint",
     "txline:env": "node scripts/import-txline-env.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "txline:replays": "node scripts/harvest-replays.mjs",
+    "txline:replay-odds": "node scripts/harvest-replay-odds.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

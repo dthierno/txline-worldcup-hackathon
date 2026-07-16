@@ -174,6 +174,12 @@ import {
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
 import { worldCupResults } from "@/lib/world-cup-results";
+import { replayFixtureIds, replayFixtures } from "@/lib/replay-fixtures";
+import {
+  REPLAY_SPEEDS,
+  useMatchReplay,
+  type MatchReplay,
+} from "@/lib/use-match-replay";
 
 type MatchTab =
   | "head-to-head"
@@ -342,10 +348,11 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         ? fixturesResult.data
         : [];
 
-      // Include the on-device fixture cache: finished fixtures drop off the
-      // TxLINE snapshot within hours, and deep links must keep resolving.
+      // Include the on-device fixture cache and every fixture with a replay
+      // pack: finished fixtures drop off the TxLINE snapshot within hours, and
+      // deep links must keep resolving.
       const merged = mergeFixtures(
-        [...loadCachedFixtures(), ...txlineWorldCupFixtures],
+        [...loadCachedFixtures(), ...replayFixtures, ...txlineWorldCupFixtures],
         liveFixtures,
         { worldCupOnly: false },
       );
@@ -453,26 +460,37 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     };
   }, [fixtureId, refreshTick]);
 
+  // Finished fixtures age out of TxLINE's feeds two weeks after kickoff, so a
+  // committed pack is the only way to play them back. The pack drives the same
+  // records the live stream would have sent.
+  const matchReplay = useMatchReplay(fixtureId, replayFixtureIds.has(fixtureId));
+  const replayActive = matchReplay.status === "ready";
+  const snapshotUpdates = details.historicalUpdates?.data?.length
+    ? details.historicalUpdates
+    : details.updates;
+  // The one feed spine: whatever TxLINE served, plus anything the live stream
+  // has pushed since. During a replay the pack is the only truth — TxLINE
+  // still answers /scores/updates for a finished fixture with the full match,
+  // and mixing that in would show the final score at 0'.
+  const feedUpdates = useMemo(
+    () =>
+      replayActive
+        ? matchReplay.updates
+        : [...(snapshotUpdates?.data ?? []), ...streamUpdates],
+    [matchReplay.updates, replayActive, snapshotUpdates, streamUpdates],
+  );
   // TxLINE devnet never flips GameState to finished; the authoritative end of
   // a match is the game_finalised record on the score feed.
-  const feedFinished = useMemo(() => {
-    const baseUpdates = details.historicalUpdates?.data?.length
-      ? details.historicalUpdates.data
-      : details.updates?.data ?? [];
-
-    return [...baseUpdates, ...streamUpdates].some(
-      (update) => update.action === "game_finalised",
-    );
-  }, [details.historicalUpdates, details.updates, streamUpdates]);
+  const feedFinished = useMemo(
+    () => feedUpdates.some((update) => update.action === "game_finalised"),
+    [feedUpdates],
+  );
   // A match can outlive the 4h kickoff window (delays, long extra time):
   // the feed's StatusId is authoritative for "still being played".
   const feedInPlay = useMemo(() => {
-    const baseUpdates = details.historicalUpdates?.data?.length
-      ? details.historicalUpdates.data
-      : details.updates?.data ?? [];
     let statusId = 0;
 
-    for (const update of [...baseUpdates, ...streamUpdates].sort(
+    for (const update of [...feedUpdates].sort(
       (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
     )) {
       if (typeof update.statusId === "number") {
@@ -481,9 +499,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     }
 
     return statusId >= 2 && statusId <= 9;
-  }, [details.historicalUpdates, details.updates, streamUpdates]);
+  }, [feedUpdates]);
+  // A replay makes feedInPlay true for a fixture that finished weeks ago;
+  // without this guard that would reopen the live stream and the 60s poll
+  // against a match TxLINE no longer serves.
   const liveStreamEligible = Boolean(
-    fixture &&
+    !replayActive &&
+      fixture &&
       now !== null &&
       (isPotentiallyLive(fixture, now) || feedInPlay) &&
       !feedFinished,
@@ -577,20 +599,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     };
   }, [fixtureId, liveStreamEligible]);
 
-  const replayUpdates = details.historicalUpdates?.data?.length
-    ? details.historicalUpdates
-    : details.updates;
   // Scout corrections first: drop discarded events (disallowed goals, wrongly
   // logged corners) and apply amends (re-graded shot outcomes) so every
   // consumer below - stats, calls, feed - sees the corrected record of play.
   // Memoized (with the other feed folds below): the component re-renders at
   // least every 30s via useNow, and these walk 1000+ records per pass.
   const combinedUpdates = useMemo(
-    () =>
-      applyScoutCorrections(
-        fillUnknownStats([...(replayUpdates?.data ?? []), ...streamUpdates]),
-      ),
-    [replayUpdates, streamUpdates],
+    () => applyScoutCorrections(fillUnknownStats(feedUpdates)),
+    [feedUpdates],
   );
   const goals = useMemo(() => extractGoals(combinedUpdates), [combinedUpdates]);
   const playerDirectory: PlayerDirectory = useMemo(
@@ -629,12 +645,19 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     );
   }
 
-  const displayScore = getDisplayScore(details.score?.data, combinedUpdates);
-  const scoreSource = replayUpdates?.data?.length
+  // The scores snapshot holds the final result for a finished fixture, so a
+  // replay must not fall back to it before its clock gets there.
+  const displayScore = getDisplayScore(
+    replayActive ? null : details.score?.data,
+    combinedUpdates,
+  );
+  const scoreSource = snapshotUpdates?.data?.length
     ? `${details.score?.source ?? "TxLINE scores snapshot API"} + ${
-        replayUpdates.source ?? "TxLINE scores updates API"
+        snapshotUpdates.source ?? "TxLINE scores updates API"
       }`
-    : details.score?.source ?? details.score?.error ?? "Pending";
+    : replayActive
+      ? "TxLINE score feed, recorded at kickoff and replayed"
+      : details.score?.source ?? details.score?.error ?? "Pending";
   // TxLINE can keep GameState at "scheduled" after kickoff; the scout
   // StatusId / clock in the loaded feed (or on the live stream) is the
   // stronger signal. StatusId >= 5 covers full time before game_finalised
@@ -645,9 +668,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const matchClock = deriveMatchClock(combinedUpdates);
   const feedStatusId = matchClock?.statusId ?? 0;
   const formattedState = formatGameState(displayScore?.gameState);
+  // The isPastFixture fallback marks a quiet old fixture as finished. Every
+  // replay is of a past fixture, so during one the only honest signal is the
+  // game_finalised record actually reaching the clock.
   const displayState =
     feedFinished ||
-    (isPastFixture(fixture) &&
+    (!replayActive &&
+      isPastFixture(fixture) &&
       !liveStreamEligible &&
       displayScore &&
       !feedInPlay)
@@ -1114,8 +1141,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   // Editable play experience: market cards in the main column, the live
   // ticket in the rail. Only before kickoff; afterwards PredictionSection
   // renders the locked/settled card.
-  const preMatchPlay =
-    notStarted && now !== null && !isPredictionLocked(fixture, now);
+  //
+  // A replay's kickoff is always in the past, so wall-clock locking would leave
+  // every recorded match unplayable. The replay clock is the honest one: picks
+  // are open while it sits at 0', and lock the moment it starts running — the
+  // same deal a live match offers, just on the viewer's schedule.
+  const preMatchPlay = replayActive
+    ? matchReplay.atMs === 0
+    : notStarted && now !== null && !isPredictionLocked(fixture, now);
   const kickoff = new Date(fixture.kickoffUtc);
   const competitionLabel = formatCompetition(fixture)
     .replace(" > ", " ")
@@ -1389,6 +1422,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         </div>
       </header>
 
+      {replayActive ? <ReplayBar replay={matchReplay} /> : null}
+
       <section
         aria-labelledby={`match-tab-${matchTab}`}
         className={`mp2-tab-panel mp2-tab-panel-${matchTab}`}
@@ -1622,11 +1657,16 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   lineups={details.lineups?.data ?? null}
                   players={playerDirectory}
                   updates={
-                    replayUpdates
-                      ? { ...replayUpdates, data: combinedUpdates }
-                      : streamUpdates.length
-                        ? { data: combinedUpdates, source: "TxLINE live score stream" }
-                        : replayUpdates
+                    snapshotUpdates?.data?.length
+                      ? { ...snapshotUpdates, data: combinedUpdates }
+                      : combinedUpdates.length
+                        ? {
+                            data: combinedUpdates,
+                            source: replayActive
+                              ? "TxLINE score feed, recorded at kickoff and replayed"
+                              : "TxLINE live score stream",
+                          }
+                        : snapshotUpdates
                   }
                 />
               </div>
@@ -1695,6 +1735,61 @@ export type LiveUiCall = {
   seq: number;
   voided?: boolean;
 };
+
+// Transport for a recorded match. The clock position is match time since
+// kickoff, so scrubbing lands on the minute a viewer expects rather than on a
+// record index.
+function ReplayBar({ replay }: { replay: MatchReplay }) {
+  const minute = Math.floor(replay.atMs / 60_000);
+  const totalMinutes = Math.max(1, Math.round(replay.durationMs / 60_000));
+  const label = replay.finished ? "Restart" : replay.playing ? "Pause" : "Play";
+  const onToggle = replay.finished
+    ? replay.restart
+    : replay.playing
+      ? replay.pause
+      : replay.play;
+
+  return (
+    <div className="mp2-replay">
+      <span className="mp2-replay-badge">Replay</span>
+      <Button
+        aria-label={`${label} replay`}
+        className="mp2-replay-play"
+        onClick={onToggle}
+        size="sm"
+      >
+        <span className="text-sm font-medium">{label}</span>
+      </Button>
+      <label className="mp2-replay-scrub">
+        <span className="sr-only">Scrub replay</span>
+        <input
+          max={replay.durationMs}
+          min={0}
+          onChange={(event) => replay.seek(Number(event.target.value))}
+          step={1000}
+          type="range"
+          value={replay.atMs}
+        />
+      </label>
+      <span className="mp2-replay-clock">
+        {minute}&apos; / {totalMinutes}&apos;
+      </span>
+      <span className="mp2-replay-speeds">
+        {REPLAY_SPEEDS.map((speed) => (
+          <button
+            aria-pressed={replay.speed === speed}
+            className={`mp2-replay-speed${replay.speed === speed ? " is-active" : ""}`}
+            key={speed}
+            onClick={() => replay.setSpeed(speed)}
+            type="button"
+          >
+            <span className="text-xs font-medium">{speed}x</span>
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
 
 function answerIndex(answer: string): number {
   if (answer === "goal") return 0;
