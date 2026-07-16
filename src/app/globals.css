@@ -4420,16 +4420,7 @@ dt {
   text-transform: uppercase;
 }
 .mp2 .card .mp2-scorer-head span + span {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  line-height: 1.25;
-}
-.mp2 .card .mp2-scorer-head em {
-  color: var(--won);
-  font-style: normal;
-  font-weight: 700;
+  text-align: center;
 }
 .mp2 .mp2-scorer-row + .mp2-scorer-row {
   margin-top: 6px;

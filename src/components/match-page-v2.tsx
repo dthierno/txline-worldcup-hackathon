@@ -69,6 +69,7 @@ import { Progress } from "@/components/ui/progress";
 import type {
   ScorerPool,
   ScorerPoolPlayer,
+  ScorerPoolTeam,
 } from "@/lib/api-football-player-media";
 import {
   buildOutcome,
@@ -114,6 +115,7 @@ import {
   MAX_SIDE_PICKS,
   PREDICTION_LINES,
   PREDICTION_POINTS,
+  scorerPoints,
   settlePrediction,
   sidePickPoints,
   winnerPoints,
@@ -3161,24 +3163,9 @@ function OutcomeCircle({ iso }: { iso: string | null | undefined }) {
 }
 
 const SCORER_MARKETS = [
-  {
-    field: "anytimeScorer",
-    pts: PREDICTION_POINTS.anytimeScorer,
-    short: "Anytime",
-    title: "Anytime scorer",
-  },
-  {
-    field: "firstScorer",
-    pts: PREDICTION_POINTS.firstScorer,
-    short: "First",
-    title: "First scorer",
-  },
-  {
-    field: "lastScorer",
-    pts: PREDICTION_POINTS.lastScorer,
-    short: "Last",
-    title: "Last scorer",
-  },
+  { field: "anytimeScorer", short: "Anytime", title: "Anytime scorer" },
+  { field: "firstScorer", short: "First", title: "First scorer" },
+  { field: "lastScorer", short: "Last", title: "Last scorer" },
 ] as const;
 
 type ScorerField = (typeof SCORER_MARKETS)[number]["field"];
@@ -3221,6 +3208,88 @@ function scorerRank(player: ScorerPoolPlayer): number {
 // each side, which is where nearly every pick lands.
 const SCORER_FOLD = 10;
 
+// The share of a team's goals a shirt tends to take. Same caveat as the board
+// order: no scorer odds are published and the provider carries no goal counts
+// for this season, so the split is a convention drawn from the shirt, not a
+// measurement. It only has to rank sanely - a 9 outscores a centre-back.
+const SCORER_SHIRT_WEIGHT: Record<number, number> = {
+  7: 6,
+  9: 10,
+  10: 9,
+  11: 6,
+};
+
+function scorerWeight(player: ScorerPoolPlayer): number {
+  const position = positionRank(player.position);
+
+  if (position === POSITION_RANK.GK) return 0.02;
+  if (position === POSITION_RANK.DEF) return 0.8;
+
+  const shirt = player.shirtNumber;
+  const weight = shirt === undefined ? undefined : SCORER_SHIRT_WEIGHT[shirt];
+
+  // The squad midfield has to sit on a slope down from the front four rather
+  // than a cliff, or every name behind them prices at the cap and the fold
+  // becomes one flat wall with nothing to choose between.
+  return weight ?? (position === POSITION_RANK.FWD ? 5 : 3);
+}
+
+type ScorerPrice = { anytime: number; first: number };
+
+// Prices every player off the same Poisson the scoreline board runs on: the
+// team's expected goals split by shirt weight gives one player's expected
+// goals, which is all three calls.
+function buildScorerPrices(
+  teams: ScorerPoolTeam[],
+  homeLambda: number,
+  awayLambda: number,
+): Map<number, ScorerPrice> {
+  const totalLambda = homeLambda + awayLambda;
+  const anyGoal = 1 - Math.exp(-totalLambda);
+  const prices = new Map<number, ScorerPrice>();
+
+  for (const team of teams) {
+    const teamLambda = team.isHome ? homeLambda : awayLambda;
+    const weights = team.players.map(scorerWeight);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+
+    if (!totalWeight) continue;
+
+    team.players.forEach((player, index) => {
+      const lambda = teamLambda * ((weights[index] ?? 0) / totalWeight);
+
+      if (lambda <= 0) return;
+
+      // Anytime: this player scores at least once.
+      // First and last: this player takes the goal, given the match has one.
+      // The two ends are symmetric, so they carry the same price.
+      const ordered = (lambda / totalLambda) * anyGoal;
+
+      prices.set(player.playerId, {
+        anytime: 1 / (1 - Math.exp(-lambda)),
+        first: ordered > 0 ? 1 / ordered : Infinity,
+      });
+    });
+  }
+
+  return prices;
+}
+
+// First and last are symmetric ends of the same match, so they share a price.
+function scorerOdds(
+  prices: Map<number, ScorerPrice>,
+  entry: ScorerEntry,
+  field: ScorerField,
+): number | undefined {
+  const price = prices.get(entry.player.playerId);
+
+  if (!price) return undefined;
+
+  const odds = field === "anytimeScorer" ? price.anytime : price.first;
+
+  return Number.isFinite(odds) ? Math.round(odds * 100) / 100 : undefined;
+}
+
 type ScorerEntry = {
   iso: string | undefined;
   player: ScorerPoolPlayer;
@@ -3238,12 +3307,14 @@ function ScorerBoard({
   folded,
   onPick,
   players,
+  prices,
   provisional,
 }: {
   draft: MatchPrediction;
   folded: number;
   onPick: (field: ScorerField, pick: FirstScorerPick | null) => void;
   players: ScorerEntry[];
+  prices: Map<number, ScorerPrice>;
   provisional: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -3273,10 +3344,12 @@ function ScorerBoard({
     const who = entry
       ? formatPlayerDisplayName(entry.player.name)
       : "No goal scorer";
+    const price = entry ? scorerOdds(prices, entry, market.field) : undefined;
+    const points = scorerPoints(market.field, price);
 
     return (
       <Toggle
-        aria-label={`${who}, ${market.title.toLowerCase()}, pays ${market.pts} points`}
+        aria-label={`${who}, ${market.title.toLowerCase()}, pays ${points} points`}
         className="mp2-scorer-cell aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
         key={market.field}
         onPressedChange={(next: boolean) => {
@@ -3290,19 +3363,20 @@ function ScorerBoard({
             return;
           }
 
-          const picked = {
+          const picked: FirstScorerPick = {
             name: entry.player.name,
             playerId: entry.player.playerId,
+            ...(price === undefined ? {} : { odds: price }),
+            ...(provisional ? { provisional: true } : {}),
           };
 
-          onPick(
-            market.field,
-            provisional ? { ...picked, provisional: true } : picked,
-          );
+          onPick(market.field, picked);
         }}
         pressed={pressed}
         variant="outline"
-      />
+      >
+        +{points}
+      </Toggle>
     );
   };
 
@@ -3311,12 +3385,7 @@ function ScorerBoard({
       <div className="mp2-scorer-row mp2-scorer-head">
         <span>Player</span>
         {SCORER_MARKETS.map((market) => (
-          // Scorer points are flat, so the payout belongs in the column head
-          // once rather than repeated down every row.
-          <span key={market.field}>
-            {market.short}
-            <em>+{market.pts}</em>
-          </span>
+          <span key={market.field}>{market.short}</span>
         ))}
       </div>
       <div aria-label="Goal scorers" className="p-3.5" role="group">
@@ -3528,14 +3597,25 @@ function MarketCards({
       ) / 100;
 
     return {
+      awayLambda,
       board: cells.map((cell) => ({
         ...cell,
         odds: price(cell.home, cell.away),
       })),
+      homeLambda,
       price,
     };
   })();
   const scorelines = scoreModel?.board ?? null;
+  // The same Poisson that prices the scoreline board prices the scorers: no
+  // separate model, and the two always agree about how many goals are coming.
+  const scorerPrices = scoreModel
+    ? buildScorerPrices(
+        scorerPool?.teams ?? [],
+        scoreModel.homeLambda,
+        scoreModel.awayLambda,
+      )
+    : new Map<number, ScorerPrice>();
   // Keep the frozen scoreline odds in step with the draft score: the model
   // prices whatever score is currently picked (board pill or custom call),
   // so the ticket and the pills always agree. Runs after every render with
@@ -3957,7 +4037,7 @@ function MarketCards({
           <h2 id="market-scorer-heading">Goal scorers</h2>
           <span
             className="text-muted-foreground cursor-help"
-            title="Flat points per call, settled from the TxLINE goal feed: first scorer +6, anytime scorer +4, last scorer +6."
+            title="Settled from the TxLINE goal feed. Points scale with how likely the player is to score, so the long shots pay the most."
           >
             <HugeiconsIcon
               aria-label="How scorer points work"
@@ -3975,6 +4055,7 @@ function MarketCards({
               patchDraft((previous) => ({ ...previous, [field]: pick }))
             }
             players={scorerPlayers}
+            prices={scorerPrices}
             provisional={scorerPool?.provisional ?? false}
           />
         ) : (
@@ -4104,7 +4185,10 @@ function TicketCard({
               draft.firstScorer === "none"
                 ? "No goal scorer"
                 : shortPlayerName(draft.firstScorer.name),
-            pts: PREDICTION_POINTS.firstScorer,
+            pts: scorerPoints(
+              "firstScorer",
+              draft.firstScorer === "none" ? undefined : draft.firstScorer.odds,
+            ),
           },
         ]
       : []),
@@ -4116,7 +4200,12 @@ function TicketCard({
               draft.anytimeScorer === "none"
                 ? "No goal scorer"
                 : shortPlayerName(draft.anytimeScorer.name),
-            pts: PREDICTION_POINTS.anytimeScorer,
+            pts: scorerPoints(
+              "anytimeScorer",
+              draft.anytimeScorer === "none"
+                ? undefined
+                : draft.anytimeScorer.odds,
+            ),
           },
         ]
       : []),
@@ -4128,7 +4217,10 @@ function TicketCard({
               draft.lastScorer === "none"
                 ? "No goal scorer"
                 : shortPlayerName(draft.lastScorer.name),
-            pts: PREDICTION_POINTS.lastScorer,
+            pts: scorerPoints(
+              "lastScorer",
+              draft.lastScorer === "none" ? undefined : draft.lastScorer.odds,
+            ),
           },
         ]
       : []),

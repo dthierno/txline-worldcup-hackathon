@@ -10,7 +10,14 @@ export type LinePick = "over" | "under";
 // id space and can never match: it is flagged provisional until the real XI
 // lands and rewrites it, and it voids rather than loses if it never does.
 export type FirstScorerPick =
-  | { name: string; playerId: number; provisional?: boolean }
+  | {
+      name: string;
+      // Fair decimal odds of this player taking this goal, frozen at save; the
+      // payout scales with it, so a long shot is worth more than the favourite.
+      odds?: number;
+      playerId: number;
+      provisional?: boolean;
+    }
   | "none";
 
 export type DoubleChancePick = "draw_away" | "home_away" | "home_draw";
@@ -119,6 +126,27 @@ export function exactScorePoints(odds?: number | null): number {
     30,
     Math.max(PREDICTION_POINTS.exactScore, Math.round(odds)),
   );
+}
+
+// Deliberately looser than the other markets. A centre-back taking the first
+// goal is a rarer call than any scoreline on the board, so the ceiling has to
+// sit above the exact-score cap or the whole squad below the front line prices
+// identically and there is nothing to choose between them.
+const SCORER_POINT_CAP = { anytimeScorer: 30, firstScorer: 50, lastScorer: 50 };
+
+// Scorer payout: the fair odds of that player taking that goal, frozen at save.
+// Flat points made the market a formality - the striker everyone picks paid the
+// same as a centre-back, so there was never a call to make. The flat value is
+// the floor, which is also what a pick with no price falls back to.
+export function scorerPoints(
+  market: keyof typeof SCORER_POINT_CAP,
+  odds?: number | null,
+): number {
+  const base = PREDICTION_POINTS[market];
+
+  if (!odds || !Number.isFinite(odds)) return base;
+
+  return Math.min(SCORER_POINT_CAP[market], Math.max(base, Math.round(odds)));
 }
 
 // Odds-aware winner payout: base points scaled by the decimal odds locked at
@@ -427,6 +455,13 @@ function unreconciledStatus(outcome: MatchOutcome): MarketStatus {
   return outcome.finished ? "void" : "open";
 }
 
+// "No goal scorer" is the same event on all three scorer markets - the match
+// ends goalless - so it stays on flat floor points. Pricing it would pay a fan
+// three times over for making one call.
+function scorerPickOdds(pick: FirstScorerPick): number | undefined {
+  return pick === "none" ? undefined : pick.odds;
+}
+
 function scorerGoalLabel(
   goal: { playerId?: number; scorerName?: string } | null,
   finished: boolean,
@@ -469,7 +504,7 @@ function settleFirstScorer(
     pickLabel,
     result,
     status,
-    PREDICTION_POINTS.firstScorer,
+    scorerPoints("firstScorer", scorerPickOdds(pick)),
   );
 }
 
@@ -523,7 +558,7 @@ function settleAnytimeScorer(
     pickLabel,
     result,
     status,
-    PREDICTION_POINTS.anytimeScorer,
+    scorerPoints("anytimeScorer", scorerPickOdds(pick)),
   );
 }
 
@@ -559,7 +594,7 @@ function settleLastScorer(
     pickLabel,
     result,
     status,
-    PREDICTION_POINTS.lastScorer,
+    scorerPoints("lastScorer", scorerPickOdds(pick)),
   );
 }
 

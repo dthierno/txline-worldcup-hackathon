@@ -321,6 +321,50 @@ describe("settlePrediction", () => {
     expect(byMarket["Anytime scorer"].status).toBe("lost");
   });
 
+  it("pays a scorer pick by the odds frozen at save", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        // A defender: long odds on both calls.
+        anytimeScorer: { name: "Hakimi, Achraf", odds: 12.4, playerId: 7 },
+        firstScorer: { name: "Hakimi, Achraf", odds: 31.7, playerId: 7 },
+      }),
+      makeOutcome({
+        firstGoal: { playerId: 7, scorerName: "Hakimi, Achraf" },
+        goals: [{ playerId: 7, scorerName: "Hakimi, Achraf" }],
+      }),
+      teams,
+    );
+    const byMarket = Object.fromEntries(
+      settlement.markets.map((market) => [market.market, market]),
+    );
+
+    // The long shot pays its price rather than the flat base a favourite earns.
+    expect(byMarket["Anytime scorer"].points).toBe(12);
+    expect(byMarket["First scorer"].points).toBe(32);
+  });
+
+  it("floors scorer points at the base and caps the wildest calls", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        // The favourite prices below the base, a keeper far above the cap.
+        anytimeScorer: { name: "En-Nesyri, Youssef", odds: 1.9, playerId: 9 },
+        firstScorer: { name: "En-Nesyri, Youssef", odds: 900, playerId: 9 },
+      }),
+      makeOutcome({
+        firstGoal: { playerId: 9, scorerName: "En-Nesyri, Youssef" },
+        goals: [{ playerId: 9, scorerName: "En-Nesyri, Youssef" }],
+      }),
+      teams,
+    );
+    const byMarket = Object.fromEntries(
+      settlement.markets.map((market) => [market.market, market]),
+    );
+
+    // Floored at the flat base the market used to pay everyone.
+    expect(byMarket["Anytime scorer"].points).toBe(4);
+    expect(byMarket["First scorer"].points).toBe(50);
+  });
+
   it("voids a provisional scorer pick instead of losing it", () => {
     // Taken off a provider squad before TxLINE published an XI, so playerId 99
     // is a provider id the goal feed will never report - even though this fan
