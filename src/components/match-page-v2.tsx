@@ -1164,13 +1164,25 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           viewBox="0 0 1040 260"
         >
           <rect fill="#17171c" height="260" width="1040" />
-          <rect fill="url(#mp2bg-blue)" height="260" width="1040" />
-          <rect fill="url(#mp2bg-green)" height="260" width="1040" />
+          <rect
+            className="mp2bg-drift mp2bg-drift-blue"
+            fill="url(#mp2bg-blue)"
+            height="260"
+            width="1040"
+          />
+          <rect
+            className="mp2bg-drift mp2bg-drift-green"
+            fill="url(#mp2bg-green)"
+            height="260"
+            width="1040"
+          />
           <path
+            className="mp2bg-drift mp2bg-drift-arc"
             d="M64 128 L196 128 C270 128 330 62 330 -20 L198 -20 C124 -20 64 46 64 128 Z"
             fill="url(#mp2bg-red)"
           />
           <path
+            className="mp2bg-drift mp2bg-drift-arc2"
             d="M46 128 L178 128 C252 128 312 62 312 -20 L180 -20 C106 -20 46 46 46 128 Z"
             fill="url(#mp2bg-red2)"
           />

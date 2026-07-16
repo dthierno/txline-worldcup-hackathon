@@ -5239,3 +5239,65 @@ dt {
 .mp2-slip-status.open + .mp2-slip-pts {
   color: var(--muted-foreground);
 }
+
+/* Idle drift for the hero gradient washes: each layer floats on its own
+   period (13/17/21s, deliberately out of phase so the loop never reads as a
+   loop) with a whisper of opacity breathing. Transform + opacity only, so the
+   compositor owns it; scale stays over-1 so a wash never pulls inside the
+   banner and exposes an edge. */
+.mp2 .mp2-hero-bg .mp2bg-drift {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+.mp2 .mp2-hero-bg .mp2bg-drift-blue {
+  animation: mp2bg-blue 13s ease-in-out infinite alternate;
+}
+.mp2 .mp2-hero-bg .mp2bg-drift-green {
+  animation: mp2bg-green 17s ease-in-out infinite alternate;
+}
+.mp2 .mp2-hero-bg .mp2bg-drift-arc {
+  animation: mp2bg-arc 21s ease-in-out infinite alternate;
+}
+.mp2 .mp2-hero-bg .mp2bg-drift-arc2 {
+  animation: mp2bg-arc 21s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes mp2bg-blue {
+  from {
+    opacity: 0.82;
+    transform: translate(0, 0) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-1.6%, 2.5%) scale(1.07);
+  }
+}
+
+@keyframes mp2bg-green {
+  from {
+    opacity: 0.85;
+    transform: translate(0, 0) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translate(1.4%, -2%) scale(1.06);
+  }
+}
+
+@keyframes mp2bg-arc {
+  from {
+    opacity: 0.88;
+    transform: translate(0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate(9px, 4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp2 .mp2-hero-bg .mp2bg-drift {
+    animation: none;
+  }
+}
