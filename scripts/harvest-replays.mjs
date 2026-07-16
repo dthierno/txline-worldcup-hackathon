@@ -27,11 +27,11 @@ const seedPath = path.join(appRoot, "src", "lib", "replay-fixtures.ts");
 
 const STAGES = {
   10115573: "Semi-finals",
-  10115574: "16th Finals",
+  10115574: "Round of 16",
   10115674: "Group Stage",
   10115675: "Quarter-finals",
   10115676: "Final",
-  10115677: "32nd Finals",
+  10115677: "Round of 32",
   10115771: "Final",
 };
 const COMPETITION_ID = 72;

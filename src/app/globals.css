@@ -5311,3 +5311,41 @@ dt {
     width: 100%;
   }
 }
+
+/* Replays tab. The cards borrow .match-card wholesale; only the middle column
+   differs — a play affordance where a live card shows the score, because
+   printing "6 - 0" next to a match you are about to watch gives it away. */
+.rp-intro {
+  margin: 0 0 14px;
+  max-width: 62ch;
+}
+.rp-count {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 6px;
+}
+.rp-dot {
+  background: #fa3d3d;
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  margin-right: 6px;
+  width: 7px;
+}
+.rp-play {
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1;
+}
+.match-card:hover .rp-play {
+  color: #fff;
+}
+.rp-played {
+  background: rgba(74, 222, 128, 0.14);
+  border-radius: 999px;
+  color: var(--won);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+}
