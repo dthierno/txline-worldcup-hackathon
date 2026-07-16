@@ -5372,15 +5372,20 @@ dt {
   }
 }
 
-/* Unofficial-XI notice on the lineups card: the pill carries the state, the
-   sentence carries the caveat. */
+/* Unofficial-XI notice on the lineups card: a full-width banner strip above
+   the team header (the card is zero-padding, so it needs to be a ribbon, not
+   floating text). Pill carries the state, sentence carries the caveat; the
+   18px inset matches the header below it. */
 .mp2 .mp2-lineup-predicted {
   align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--muted-foreground);
   display: flex;
   flex-wrap: wrap;
   font-size: 12px;
-  gap: 8px;
+  gap: 10px;
   line-height: 1.5;
-  margin: 0 0 12px;
+  margin: 0;
+  padding: 12px 18px;
 }
