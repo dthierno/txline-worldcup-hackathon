@@ -27,9 +27,14 @@ export type DoubleChancePick = "draw_away" | "home_away" | "home_draw";
 // Optional extra markets picked straight off the TxLINE odds board. Each pick
 // freezes the decimal odds it was taken at; payout scales with those odds.
 export type SidePick =
+  | { kind: "btts"; odds: number; pick: "no" | "yes" }
   | { kind: "double_chance"; odds: number; pick: DoubleChancePick }
   | { kind: "goals_line"; line: number; odds: number; pick: LinePick }
-  | { kind: "handicap"; line: number; odds: number; pick: "away" | "home" };
+  | { kind: "half_goals_line"; line: number; odds: number; pick: LinePick }
+  | { kind: "half_result"; odds: number; pick: WinnerPick }
+  | { kind: "handicap"; line: number; odds: number; pick: "away" | "home" }
+  | { kind: "own_goal"; odds: number; pick: "no" | "yes" }
+  | { kind: "penalty"; odds: number; pick: "no" | "yes" };
 
 // Every market is optional: null means the player skipped it, and skipped
 // markets neither settle nor score.
@@ -54,6 +59,9 @@ export type MatchPrediction = {
   homeGoals: number | null;
   savedAt: string;
   sidePicks?: SidePick[] | null;
+  // TxLINE over/under prices for the goals line, frozen at save; when absent
+  // the line pays the flat fallback.
+  totalGoalsOdds?: { over: number; under: number } | null;
   totalCards: LinePick | null;
   totalCorners: LinePick | null;
   totalGoals: LinePick | null;
@@ -69,7 +77,15 @@ export type MatchOutcome = {
   // Every goal in order, for the anytime and last-scorer markets. Absent on
   // outcomes built before these markets existed.
   goals?: Array<{ playerId?: number; scorerName?: string }> | null;
+  // Half-time score from the feed's per-half stat banks; null until TxLINE
+  // publishes them. First-half markets void on a finished match without one.
+  halfTimeAway?: number | null;
+  halfTimeHome?: number | null;
   homeGoals: number;
+  // Own goals and penalty kicks awarded, summed from the game_finalised
+  // player record; null when that record never arrived.
+  ownGoals?: number | null;
+  penaltiesAwarded?: number | null;
   // TxLINE's per-player card record, keyed by playerId. It only lands on the
   // game_finalised record, and it is routinely thinner than the match's own
   // card counters - the disciplinary markets check it adds up before they rule
@@ -116,7 +132,7 @@ export const PREDICTION_POINTS = {
 // Side picks pay double their decimal odds, clamped so one lucky long shot
 // cannot dwarf the rest of the league.
 export const SIDE_PICK_POINTS = { base: 2, cap: 20 } as const;
-export const MAX_SIDE_PICKS = 5;
+export const MAX_SIDE_PICKS = 8;
 
 export function sidePickPoints(odds: number): number {
   if (!Number.isFinite(odds) || odds <= 1) {
@@ -361,7 +377,9 @@ export function settlePrediction(
               PREDICTION_LINES.goals,
               outcome.finished,
             ),
-            PREDICTION_POINTS.line,
+            prediction.totalGoalsOdds
+              ? sidePickPoints(prediction.totalGoalsOdds[prediction.totalGoals])
+              : PREDICTION_POINTS.line,
           ),
         ]
       : []),
@@ -438,6 +456,90 @@ export function handicapLineLabel(line: number): string {
   return line > 0 ? `+${line}` : `${line}`;
 }
 
+// One place names a side pick; the ticket and the settlement sheet must agree.
+export function sidePickSummary(
+  pick: SidePick,
+  teams: { awayTeam: string; homeTeam: string },
+): { market: string; pick: string } {
+  switch (pick.kind) {
+    case "btts":
+      return {
+        market: "Both teams to score",
+        pick: pick.pick === "yes" ? "Yes" : "No",
+      };
+    case "double_chance":
+      return {
+        market: "Double chance",
+        pick: doubleChanceLabel(pick.pick, teams),
+      };
+    case "goals_line":
+      return {
+        market: `Goals over/under ${pick.line}`,
+        pick: linePickLabel(pick.pick, pick.line),
+      };
+    case "half_goals_line":
+      return {
+        market: `First-half goals over/under ${pick.line}`,
+        pick: linePickLabel(pick.pick, pick.line),
+      };
+    case "half_result":
+      return {
+        market: "First-half result",
+        pick:
+          pick.pick === "draw"
+            ? "Draw"
+            : pick.pick === "home"
+              ? teams.homeTeam
+              : teams.awayTeam,
+      };
+    case "own_goal":
+      return { market: "Own goal", pick: pick.pick === "yes" ? "Yes" : "No" };
+    case "penalty":
+      return {
+        market: "Penalty awarded",
+        pick: pick.pick === "yes" ? "Yes" : "No",
+      };
+    default:
+      return {
+        market: `Handicap ${teams.homeTeam} ${handicapLineLabel(pick.line)}`,
+        pick: pick.pick === "home" ? teams.homeTeam : teams.awayTeam,
+      };
+  }
+}
+
+// Settles a yes/no market over an event count that only arrives on the
+// game_finalised player record. A yes clinches as soon as one is recorded; a
+// finished match with no record voids rather than guessing.
+function settleCountedSidePick(
+  summary: { market: string; pick: string },
+  pick: "no" | "yes",
+  count: number | null | undefined,
+  finished: boolean,
+  points: number,
+): SettledMarket {
+  const known = typeof count === "number";
+  const happened = known && count > 0;
+  const status: MarketStatus = happened
+    ? pick === "yes"
+      ? "won"
+      : "lost"
+    : !finished
+      ? "open"
+      : known
+        ? pick === "yes"
+          ? "lost"
+          : "won"
+        : "void";
+
+  return settledMarket(
+    summary.market,
+    summary.pick,
+    known ? `${count} recorded` : finished ? "No player record" : "Not finished",
+    status,
+    points,
+  );
+}
+
 function settleSidePick(
   pick: SidePick,
   outcome: MatchOutcome,
@@ -474,6 +576,105 @@ function settleSidePick(
     );
   }
 
+  if (pick.kind === "half_result") {
+    const home = outcome.halfTimeHome;
+    const away = outcome.halfTimeAway;
+    const known = typeof home === "number" && typeof away === "number";
+    const summary = sidePickSummary(pick, teams);
+    // The half-time score is immutable once recorded, so this settles at the
+    // break rather than waiting for full time.
+    const status: MarketStatus = known
+      ? (home > away ? "home" : away > home ? "away" : "draw") === pick.pick
+        ? "won"
+        : "lost"
+      : outcome.finished
+        ? "void"
+        : "open";
+
+    return settledMarket(
+      summary.market,
+      summary.pick,
+      known
+        ? `HT ${home}-${away}`
+        : outcome.finished
+          ? "No half-time record"
+          : "Not finished",
+      status,
+      points,
+    );
+  }
+
+  if (pick.kind === "half_goals_line") {
+    const home = outcome.halfTimeHome;
+    const away = outcome.halfTimeAway;
+    const known = typeof home === "number" && typeof away === "number";
+    const total = (home ?? 0) + (away ?? 0);
+    const summary = sidePickSummary(pick, teams);
+    const status: MarketStatus = known
+      ? (total > pick.line) === (pick.pick === "over")
+        ? "won"
+        : "lost"
+      : outcome.finished
+        ? "void"
+        : "open";
+
+    return settledMarket(
+      summary.market,
+      summary.pick,
+      known
+        ? `HT ${home}-${away}`
+        : outcome.finished
+          ? "No half-time record"
+          : "Not finished",
+      status,
+      points,
+    );
+  }
+
+  if (pick.kind === "btts") {
+    const both = outcome.homeGoals > 0 && outcome.awayGoals > 0;
+    const summary = sidePickSummary(pick, teams);
+    // Both scoring is irreversible, so a yes clinches (and a no dies) the
+    // moment the second team scores.
+    const status: MarketStatus = both
+      ? pick.pick === "yes"
+        ? "won"
+        : "lost"
+      : outcome.finished
+        ? pick.pick === "yes"
+          ? "lost"
+          : "won"
+        : "open";
+
+    return settledMarket(
+      summary.market,
+      summary.pick,
+      outcome.finished || both ? actualScore : "Not finished",
+      status,
+      points,
+    );
+  }
+
+  if (pick.kind === "penalty") {
+    return settleCountedSidePick(
+      sidePickSummary(pick, teams),
+      pick.pick,
+      outcome.penaltiesAwarded,
+      outcome.finished,
+      points,
+    );
+  }
+
+  if (pick.kind === "own_goal") {
+    return settleCountedSidePick(
+      sidePickSummary(pick, teams),
+      pick.pick,
+      outcome.ownGoals,
+      outcome.finished,
+      points,
+    );
+  }
+
   // Handicap: the line is applied to the home side. Integer lines can land
   // exactly on the line - that is a push, so the market voids.
   const margin = outcome.homeGoals - outcome.awayGoals + pick.line;
@@ -484,10 +685,11 @@ function settleSidePick(
       : (margin > 0) === (pick.pick === "home")
         ? "won"
         : "lost";
+  const summary = sidePickSummary(pick, teams);
 
   return settledMarket(
-    `Handicap ${teams.homeTeam} ${handicapLineLabel(pick.line)}`,
-    pick.pick === "home" ? teams.homeTeam : teams.awayTeam,
+    summary.market,
+    summary.pick,
     outcome.finished ? actualScore : "Not finished",
     status,
     points,

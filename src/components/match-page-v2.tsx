@@ -118,6 +118,7 @@ import {
   scorerPoints,
   settlePrediction,
   sidePickPoints,
+  sidePickSummary,
   winnerPoints,
   type DoubleChancePick,
   type FirstScorerPick,
@@ -165,6 +166,7 @@ import {
   type NormalizedLineups,
   type OddsBoard,
   type SettleableCall,
+  type SideMarkets,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
 import { matchClips } from "@/lib/match-media";
@@ -1407,6 +1409,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   odds1x2={playOdds}
                   patchDraft={playCard.patchDraft}
                   scorerPool={scorerPool}
+                  sideMarkets={details.oddsUpdates?.data?.sideMarkets ?? null}
                 />
               ) : null}
 
@@ -3529,6 +3532,7 @@ function MarketCards({
   odds1x2,
   patchDraft,
   scorerPool,
+  sideMarkets,
 }: {
   board: OddsBoard | undefined;
   draft: MatchPrediction;
@@ -3536,11 +3540,85 @@ function MarketCards({
   odds1x2: { away: number; draw: number; home: number } | null;
   patchDraft: (recipe: (previous: MatchPrediction) => MatchPrediction) => void;
   scorerPool: ScorerPool | null;
+  sideMarkets: SideMarkets | null;
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
-  // Double chance is the one side market on offer; it panels into the Match
-  // result card.
+  // Double chance panels into the Match result card, derived from the 1X2.
   const doubleChanceOffers = buildSideOffers(board, fixture);
+  // The rest of the side markets come straight off the TxLINE feed: first-half
+  // 1X2 and goals, the goals line, and the +/-1.5 handicap. Every offer bakes
+  // in the price it was taken at; keys must come from the sidePick helpers so
+  // the toggle groups can match a saved pick back to its offer.
+  const pctOdds = (pct: number) => roundOdds(100 / Math.max(pct, 0.1));
+  const sideOffer = (pick: SidePick, label: string): SideOffer => ({
+    key: sidePickKey(pick),
+    label,
+    marketKey: sidePickMarketKey(pick),
+    pick,
+  });
+  const halfResult = sideMarkets?.halfResult ?? null;
+  const halfResultOffers = halfResult
+    ? [
+        sideOffer(
+          { kind: "half_result", odds: pctOdds(halfResult.homePct), pick: "home" },
+          fixture.homeTeam,
+        ),
+        sideOffer(
+          { kind: "half_result", odds: pctOdds(halfResult.drawPct), pick: "draw" },
+          "Draw",
+        ),
+        sideOffer(
+          { kind: "half_result", odds: pctOdds(halfResult.awayPct), pick: "away" },
+          fixture.awayTeam,
+        ),
+      ]
+    : null;
+  const halfGoalLine = sideMarkets?.halfGoalLine ?? null;
+  const halfGoalsOffers = halfGoalLine
+    ? (["over", "under"] as const).map((pick) =>
+        sideOffer(
+          {
+            kind: "half_goals_line",
+            line: halfGoalLine.line,
+            odds: pctOdds(
+              pick === "over" ? halfGoalLine.overPct : halfGoalLine.underPct,
+            ),
+            pick,
+          },
+          `${pick === "over" ? "Over" : "Under"} ${halfGoalLine.line}`,
+        ),
+      )
+    : null;
+  const handicap = sideMarkets?.handicap ?? null;
+  const marginOffers = handicap
+    ? [
+        sideOffer(
+          {
+            kind: "handicap",
+            line: handicap.line,
+            odds: pctOdds(handicap.homePct),
+            pick: "home",
+          },
+          `${fixture.homeTeam} ${handicapLineLabel(handicap.line)}`,
+        ),
+        sideOffer(
+          {
+            kind: "handicap",
+            line: handicap.line,
+            odds: pctOdds(handicap.awayPct),
+            pick: "away",
+          },
+          `${fixture.awayTeam} ${handicapLineLabel(-handicap.line)}`,
+        ),
+      ]
+    : null;
+  // The goals line pays the real market price per side once TxLINE quotes it.
+  const goalsLineOdds = sideMarkets?.goalLine
+    ? {
+        over: pctOdds(sideMarkets.goalLine.overPct),
+        under: pctOdds(sideMarkets.goalLine.underPct),
+      }
+    : null;
   // One outcome per market; an empty group value means the pick was
   // toggled off.
   const sideGroupValue = (marketKey: string) => {
@@ -3719,6 +3797,76 @@ function MarketCards({
       }));
     }
   });
+
+  // Freeze the goals-line prices into the draft the same way, so settlement
+  // pays what the board showed at save time, not what the market drifted to.
+  const draftGoalsOdds = draft.totalGoals != null ? goalsLineOdds : null;
+
+  useEffect(() => {
+    const current = draft.totalGoalsOdds ?? null;
+    const unchanged =
+      current === draftGoalsOdds ||
+      (current !== null &&
+        draftGoalsOdds !== null &&
+        current.over === draftGoalsOdds.over &&
+        current.under === draftGoalsOdds.under);
+
+    if (!unchanged) {
+      patchDraft((previous) => ({
+        ...previous,
+        totalGoalsOdds: draftGoalsOdds,
+      }));
+    }
+  });
+
+  // Specials TxLINE publishes no odds for, priced off this page's own model:
+  // both-teams-to-score from the Poisson lambdas, penalty and own goal from
+  // their base rates at recent World Cups. Settlement reads the game_finalised
+  // player record, and voids if that record never arrives.
+  const PENALTY_PROB = 0.3;
+  const OWN_GOAL_PROB = 0.1;
+  const yesNoOffers = (
+    kind: "btts" | "own_goal" | "penalty",
+    probability: number | null,
+  ) =>
+    probability === null
+      ? null
+      : (["yes", "no"] as const).map((pick) =>
+          sideOffer(
+            {
+              kind,
+              odds: roundOdds(
+                1 / Math.max(pick === "yes" ? probability : 1 - probability, 0.01),
+              ),
+              pick,
+            },
+            pick === "yes" ? "Yes" : "No",
+          ),
+        );
+  const bttsOffers = yesNoOffers(
+    "btts",
+    scoreModel
+      ? (1 - Math.exp(-scoreModel.homeLambda)) *
+          (1 - Math.exp(-scoreModel.awayLambda))
+      : null,
+  );
+  const penaltyOffers = yesNoOffers("penalty", PENALTY_PROB);
+  const ownGoalOffers = yesNoOffers("own_goal", OWN_GOAL_PROB);
+  const specialsRows = [
+    ...(halfGoalsOffers
+      ? [{ key: "hg", label: "1st-half goals", offers: halfGoalsOffers }]
+      : []),
+    ...(marginOffers ? [{ key: "ah", label: "Margin", offers: marginOffers }] : []),
+    ...(bttsOffers
+      ? [{ key: "btts", label: "Both score", offers: bttsOffers }]
+      : []),
+    ...(penaltyOffers
+      ? [{ key: "pen", label: "Penalty", offers: penaltyOffers }]
+      : []),
+    ...(ownGoalOffers
+      ? [{ key: "og", label: "Own goal", offers: ownGoalOffers }]
+      : []),
+  ];
 
   const [scoresExpanded, setScoresExpanded] = useState(false);
   // The picked score never leaves the visible board: it swaps in for the
@@ -4047,6 +4195,68 @@ function MarketCards({
               </div>
             </div>
           ) : null}
+          {halfResultOffers ? (
+            <div className="mt-2 overflow-hidden rounded-[18px] bg-black/25">
+              <h3 className="mp2-subhead">
+                First-half result
+                <span
+                  className="text-muted-foreground cursor-help"
+                  title="Call the score line at half-time - points pay double the TxLINE first-half odds, up to 20."
+                >
+                  <HugeiconsIcon
+                    aria-label="How first-half points work"
+                    icon={InformationCircleIcon}
+                    size={16}
+                    strokeWidth={2.5}
+                  />
+                </span>
+              </h3>
+              <div className="p-3.5">
+                <ToggleGroup
+                  aria-label="First-half result"
+                  className="w-full flex-col items-stretch"
+                  onValueChange={onSideGroupChange("hr", halfResultOffers)}
+                  value={sideGroupValue("hr")}
+                >
+                  {halfResultOffers.map((offer) => {
+                    const side =
+                      offer.pick.kind === "half_result" ? offer.pick.pick : null;
+
+                    return (
+                      <ToggleGroupItem
+                        aria-label={`${offer.label} at half-time, pays ${sidePickPoints(offer.pick.odds)} points`}
+                        className="h-10 justify-between gap-2 px-3 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+                        key={offer.key}
+                        value={offer.key}
+                        variant="outline"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <OutcomeCircle
+                            iso={
+                              side === "home"
+                                ? homeIso
+                                : side === "away"
+                                  ? awayIso
+                                  : null
+                            }
+                          />
+                          <span
+                            className="truncate text-[13.5px] leading-5 font-medium"
+                            title={offer.label}
+                          >
+                            {offer.label}
+                          </span>
+                        </span>
+                        <span className="text-muted-foreground translate-y-[0.5px] text-[12.5px] leading-5 font-semibold group-aria-pressed/toggle:text-primary-foreground/70">
+                          +{sidePickPoints(offer.pick.odds)}
+                        </span>
+                      </ToggleGroupItem>
+                    );
+                  })}
+                </ToggleGroup>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -4070,11 +4280,19 @@ function MarketCards({
             <h3 className="mp2-subhead">
               Totals
               <span className="mp2-card-hint">
-                +{PREDICTION_POINTS.line} pts each
+                {goalsLineOdds
+                  ? "Goals follow the market; corners & cards +2"
+                  : `+${PREDICTION_POINTS.line} pts each`}
               </span>
             </h3>
             <div className="flex flex-col gap-2.5 p-3.5">
-              {totalsRows.map((row) => (
+              {totalsRows.map((row) => {
+                const rowPts = (pick: "over" | "under") =>
+                  row.field === "totalGoals" && goalsLineOdds
+                    ? sidePickPoints(goalsLineOdds[pick])
+                    : PREDICTION_POINTS.line;
+
+                return (
             <div className={rowClass} key={row.field}>
               <span className={rowLabelClass}>{row.label}</span>
               <ToggleGroup
@@ -4091,28 +4309,67 @@ function MarketCards({
                 value={draft[row.field] ? [draft[row.field] as string] : []}
               >
                 <ToggleGroupItem
-                  aria-label={`Over ${row.line}, pays ${PREDICTION_POINTS.line} points`}
+                  aria-label={`Over ${row.line}, pays ${rowPts("over")} points`}
                   className={itemClass}
                   value="over"
                   variant="outline"
                 >
                   <span>Over {row.line}</span>
-                  <span className={ptsClass}>+{PREDICTION_POINTS.line}</span>
+                  <span className={ptsClass}>+{rowPts("over")}</span>
                 </ToggleGroupItem>
                 <ToggleGroupItem
-                  aria-label={`Under ${row.line}, pays ${PREDICTION_POINTS.line} points`}
+                  aria-label={`Under ${row.line}, pays ${rowPts("under")} points`}
                   className={itemClass}
                   value="under"
                   variant="outline"
                 >
                   <span>Under {row.line}</span>
-                  <span className={ptsClass}>+{PREDICTION_POINTS.line}</span>
+                  <span className={ptsClass}>+{rowPts("under")}</span>
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
-          ))}
+                );
+              })}
             </div>
           </div>
+          {specialsRows.length > 0 ? (
+            <div className="overflow-hidden rounded-[18px] bg-black/25">
+              <h3 className="mp2-subhead">
+                Specials
+                <span className="mp2-card-hint">Points follow the odds</span>
+              </h3>
+              <div className="flex flex-col gap-2.5 p-3.5">
+                {specialsRows.map((row) => (
+                  <div className={rowClass} key={row.key}>
+                    <span className={rowLabelClass}>{row.label}</span>
+                    <ToggleGroup
+                      aria-label={row.label}
+                      className="w-full"
+                      onValueChange={onSideGroupChange(row.key, row.offers)}
+                      value={sideGroupValue(row.key)}
+                    >
+                      {row.offers.map((offer) => (
+                        <ToggleGroupItem
+                          aria-label={`${row.label}: ${offer.label}, pays ${sidePickPoints(offer.pick.odds)} points`}
+                          className={itemClass}
+                          key={offer.key}
+                          value={offer.key}
+                          variant="outline"
+                        >
+                          <span className="truncate" title={offer.label}>
+                            {offer.label}
+                          </span>
+                          <span className={ptsClass}>
+                            +{sidePickPoints(offer.pick.odds)}
+                          </span>
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -4291,7 +4548,9 @@ function TicketCard({
           {
             market: "Goals",
             pick: linePickLabel(draft.totalGoals, PREDICTION_LINES.goals),
-            pts: PREDICTION_POINTS.line,
+            pts: draft.totalGoalsOdds
+              ? sidePickPoints(draft.totalGoalsOdds[draft.totalGoals])
+              : PREDICTION_POINTS.line,
           },
         ]
       : []),
@@ -4378,25 +4637,10 @@ function TicketCard({
           },
         ]
       : []),
-    ...draftSidePicks.map((pick) =>
-      pick.kind === "double_chance"
-        ? {
-            market: "Double chance",
-            pick: doubleChanceLabel(pick.pick, fixture),
-            pts: sidePickPoints(pick.odds),
-          }
-        : pick.kind === "goals_line"
-          ? {
-              market: `Goals ${pick.line}`,
-              pick: linePickLabel(pick.pick, pick.line),
-              pts: sidePickPoints(pick.odds),
-            }
-          : {
-              market: `Handicap ${handicapLineLabel(pick.line)}`,
-              pick: pick.pick === "home" ? fixture.homeTeam : fixture.awayTeam,
-              pts: sidePickPoints(pick.odds),
-            },
-    ),
+    ...draftSidePicks.map((pick) => ({
+      ...sidePickSummary(pick, fixture),
+      pts: sidePickPoints(pick.odds),
+    })),
   ];
   const potentialPoints = ticketRows.reduce((total, row) => total + row.pts, 0);
 
@@ -4638,23 +4882,45 @@ type SideOffer = {
 };
 
 function sidePickKey(pick: SidePick): string {
-  if (pick.kind === "double_chance") {
-    return `dc:${pick.pick}`;
+  switch (pick.kind) {
+    case "btts":
+      return `btts:${pick.pick}`;
+    case "double_chance":
+      return `dc:${pick.pick}`;
+    case "goals_line":
+      return `gl:${pick.line}:${pick.pick}`;
+    case "half_goals_line":
+      return `hg:${pick.pick}`;
+    case "half_result":
+      return `hr:${pick.pick}`;
+    case "handicap":
+      return `ah:${pick.pick}`;
+    case "own_goal":
+      return `og:${pick.pick}`;
+    default:
+      return `pen:${pick.pick}`;
   }
-
-  if (pick.kind === "goals_line") {
-    return `gl:${pick.line}:${pick.pick}`;
-  }
-
-  return `ah:${pick.line}:${pick.pick}`;
 }
 
 function sidePickMarketKey(pick: SidePick): string {
-  if (pick.kind === "double_chance") {
-    return "dc";
+  switch (pick.kind) {
+    case "btts":
+      return "btts";
+    case "double_chance":
+      return "dc";
+    case "goals_line":
+      return `gl:${pick.line}`;
+    case "half_goals_line":
+      return "hg";
+    case "half_result":
+      return "hr";
+    case "handicap":
+      return "ah";
+    case "own_goal":
+      return "og";
+    default:
+      return "pen";
   }
-
-  return pick.kind === "goals_line" ? `gl:${pick.line}` : `ah:${pick.line}`;
 }
 
 function roundOdds(value: number): number {

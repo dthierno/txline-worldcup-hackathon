@@ -2,6 +2,7 @@ import { getTxlineConfig } from "./txline-config";
 import {
   buildOddsBoard,
   buildOddsMovementSeries,
+  buildSideMarkets,
   extractLineups,
   normalizeOddsSnapshot,
   normalizeOddsValidation,
@@ -16,6 +17,7 @@ import {
   type NormalizedTxlineScore,
   type NormalizedTxlineScoreUpdate,
   type OddsBoard,
+  type SideMarkets,
   type TxlineOddsSeriesPoint,
   type TxlineOddsValidationSummary,
   type TxlineValidationSummary,
@@ -66,6 +68,8 @@ export type TxlineOddsUpdatesSummary = {
   latestTs: number | null;
   marketTypes: string[];
   series: TxlineOddsSeriesPoint[];
+  // First-half and line markets the main board filters out.
+  sideMarkets: SideMarkets;
 };
 
 export async function fetchTxlineFixtures(): Promise<WorldCupFixture[]> {
@@ -230,6 +234,7 @@ export async function fetchTxlineOddsUpdates(
     latestTs,
     marketTypes,
     series: buildOddsMovementSeries(entries),
+    sideMarkets: buildSideMarkets(entries),
   };
 }
 

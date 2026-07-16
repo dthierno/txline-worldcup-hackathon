@@ -1696,3 +1696,146 @@ function formatPct(value: number | undefined) {
     ? `${value.toFixed(1)}%`
     : "n/a";
 }
+
+// The side markets buildOddsBoard deliberately ignores. TxLINE publishes three
+// odds types, but each multiplies out by MarketPeriod (half=1) and
+// MarketParameters (line=2.5) into ~23 priced markets per fixture; the play
+// card prices its extra pick rows from these. Quarter lines (±0.25, ±0.75...)
+// are listed but answer Pct ["NA","NA"], so a line only counts when every leg
+// parses to a finite number.
+export type OverUnderLine = {
+  line: number;
+  overPct: number;
+  underPct: number;
+};
+
+export type SideMarkets = {
+  // Full-match total goals at the app's standard 2.5 line.
+  goalLine: OverUnderLine | null;
+  // First-half total goals, at whichever priced line is closest to even.
+  halfGoalLine: OverUnderLine | null;
+  // First-half 1X2 (part1 is home, matching normalizeOddsSnapshot).
+  halfResult: { awayPct: number; drawPct: number; homePct: number } | null;
+  // Asian handicap at ±1.5 (no push possible). `line` is from the home
+  // perspective: -1.5 means homePct prices "home wins by 2+".
+  handicap: { awayPct: number; homePct: number; line: number } | null;
+};
+
+function finitePcts(entry: Record<string, unknown>, legs: number) {
+  const pct = entry.Pct;
+
+  if (!Array.isArray(pct) || pct.length < legs) {
+    return undefined;
+  }
+
+  const values = pct.slice(0, legs).map((value) => Number(value));
+
+  return values.every((value) => Number.isFinite(value)) ? values : undefined;
+}
+
+function lineOf(entry: Record<string, unknown>) {
+  const params = readString(entry, "MarketParameters");
+
+  if (!params?.startsWith("line=")) {
+    return undefined;
+  }
+
+  const line = Number(params.slice(5));
+
+  return Number.isFinite(line) ? line : undefined;
+}
+
+export function buildSideMarkets(entries: unknown[]): SideMarkets {
+  // Latest pre-match record per market key. In-play prices are excluded for
+  // the same reason closingBoard excludes them: picks lock at kickoff, so the
+  // honest price for a pick is the last one quoted before the match started.
+  const latest = new Map<string, { pcts: number[]; ts: number }>();
+
+  for (const raw of entries) {
+    if (!raw || typeof raw !== "object") {
+      continue;
+    }
+
+    const entry = raw as Record<string, unknown>;
+
+    if (entry.InRunning) {
+      continue;
+    }
+
+    const type = readString(entry, "SuperOddsType");
+    const period = readString(entry, "MarketPeriod") ?? "";
+    const legs = type === "1X2_PARTICIPANT_RESULT" ? 3 : 2;
+    const pcts = finitePcts(entry, legs);
+    const ts = readNumber(entry, "Ts") ?? 0;
+
+    if (!type || !pcts) {
+      continue;
+    }
+
+    const key = `${type}|${period}|${lineOf(entry) ?? ""}`;
+    const seen = latest.get(key);
+
+    if (!seen || ts > seen.ts) {
+      latest.set(key, { pcts, ts });
+    }
+  }
+
+  const get = (key: string) => latest.get(key)?.pcts;
+
+  const halfResultPcts = get("1X2_PARTICIPANT_RESULT|half=1|");
+  const goalPcts = get("OVERUNDER_PARTICIPANT_GOALS||2.5");
+
+  // First-half goals: no single canonical line, so take the priced one whose
+  // over is closest to a coin flip.
+  let halfGoalLine: OverUnderLine | null = null;
+
+  for (const [key, value] of latest) {
+    const [type, period, lineText] = key.split("|");
+
+    if (type !== "OVERUNDER_PARTICIPANT_GOALS" || period !== "half=1") {
+      continue;
+    }
+
+    const line = Number(lineText);
+    const candidate = {
+      line,
+      overPct: value.pcts[0],
+      underPct: value.pcts[1],
+    };
+
+    if (
+      !halfGoalLine ||
+      Math.abs(candidate.overPct - 50) < Math.abs(halfGoalLine.overPct - 50)
+    ) {
+      halfGoalLine = candidate;
+    }
+  }
+
+  // Handicap: -1.5 prices the home side as favourite, +1.5 the away side.
+  // Whichever is quoted carries both legs (part1 covers / part2 covers).
+  let handicap: SideMarkets["handicap"] = null;
+
+  for (const line of [-1.5, 1.5]) {
+    const pcts = get(`ASIANHANDICAP_PARTICIPANT_GOALS||${line}`);
+
+    if (pcts) {
+      handicap = { awayPct: pcts[1], homePct: pcts[0], line };
+      break;
+    }
+  }
+
+  return {
+    goalLine: goalPcts
+      ? { line: 2.5, overPct: goalPcts[0], underPct: goalPcts[1] }
+      : null,
+    halfGoalLine,
+    halfResult: halfResultPcts
+      ? {
+          awayPct: halfResultPcts[2],
+          drawPct: halfResultPcts[1],
+          homePct: halfResultPcts[0],
+        }
+      : null,
+    handicap,
+  };
+}

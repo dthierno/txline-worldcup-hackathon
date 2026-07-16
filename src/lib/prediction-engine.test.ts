@@ -587,9 +587,11 @@ describe("settlePrediction", () => {
       )?.points,
     ).toBe(20);
 
+    // The cap is 8: one slot per side-market group (double chance, first-half
+    // result and goals, margin, BTTS, penalty, own goal) plus headroom.
     const overLimit = settlePrediction(
       makePrediction({
-        sidePicks: Array.from({ length: 8 }, () => ({
+        sidePicks: Array.from({ length: 11 }, () => ({
           kind: "goals_line" as const,
           line: 1.5,
           odds: 1.3,
@@ -604,6 +606,137 @@ describe("settlePrediction", () => {
       overLimit.markets.filter(
         (market) => market.market === "Goals over/under 1.5",
       ),
-    ).toHaveLength(5);
+    ).toHaveLength(8);
+  });
+});
+
+describe("side markets from the researched feed", () => {
+  const bare = makePrediction({
+    awayGoals: null,
+    homeGoals: null,
+    totalCards: null,
+    totalCorners: null,
+    totalGoals: null,
+    winner: null,
+  });
+  const oneMarket = (settlement: {
+    markets: Array<{ points: number; result: string; status: string }>;
+  }) => {
+    expect(settlement.markets).toHaveLength(1);
+
+    return settlement.markets[0];
+  };
+
+  it("settles the first-half result at the break, not full time", () => {
+    const settlement = settlePrediction(
+      { ...bare, sidePicks: [{ kind: "half_result", odds: 2.62, pick: "home" }] },
+      makeOutcome({ finished: false, halfTimeAway: 0, halfTimeHome: 1 }),
+      teams,
+    );
+    const market = oneMarket(settlement);
+
+    expect(market.status).toBe("won");
+    expect(market.points).toBe(5);
+    expect(market.result).toBe("HT 1-0");
+  });
+
+  it("voids first-half markets when a finished match has no half-time record", () => {
+    const settlement = settlePrediction(
+      {
+        ...bare,
+        sidePicks: [
+          { kind: "half_result", odds: 2.62, pick: "home" },
+          { kind: "half_goals_line", line: 1.5, odds: 2.34, pick: "over" },
+        ],
+      },
+      makeOutcome(),
+      teams,
+    );
+
+    expect(settlement.markets.map((market) => market.status)).toEqual([
+      "void",
+      "void",
+    ]);
+  });
+
+  it("settles the first-half goals line from the half banks", () => {
+    const settlement = settlePrediction(
+      {
+        ...bare,
+        sidePicks: [{ kind: "half_goals_line", line: 1.5, odds: 2.34, pick: "over" }],
+      },
+      makeOutcome({ halfTimeAway: 1, halfTimeHome: 1 }),
+      teams,
+    );
+
+    expect(oneMarket(settlement).status).toBe("won");
+  });
+
+  it("clinches a both-teams-to-score yes before full time and no only at it", () => {
+    const yes = { ...bare, sidePicks: [{ kind: "btts", odds: 1.61, pick: "yes" } as const] };
+    const live = settlePrediction(
+      yes,
+      makeOutcome({ awayGoals: 1, finished: false, homeGoals: 1 }),
+      teams,
+    );
+
+    expect(oneMarket(live).status).toBe("won");
+
+    const no = { ...bare, sidePicks: [{ kind: "btts", odds: 2.6, pick: "no" } as const] };
+    const blank = settlePrediction(
+      no,
+      makeOutcome({ awayGoals: 3, finished: false, homeGoals: 0 }),
+      teams,
+    );
+
+    expect(oneMarket(blank).status).toBe("open");
+    expect(
+      oneMarket(settlePrediction(no, makeOutcome({ awayGoals: 3, homeGoals: 0 }), teams))
+        .status,
+    ).toBe("won");
+  });
+
+  it("settles penalty and own-goal picks from the player record and voids without one", () => {
+    const picks = {
+      ...bare,
+      sidePicks: [
+        { kind: "penalty", odds: 3.33, pick: "yes" } as const,
+        { kind: "own_goal", odds: 10, pick: "no" } as const,
+      ],
+    };
+    const recorded = settlePrediction(
+      picks,
+      makeOutcome({ ownGoals: 0, penaltiesAwarded: 1 }),
+      teams,
+    );
+
+    expect(recorded.markets.map((market) => market.status)).toEqual(["won", "won"]);
+
+    const unrecorded = settlePrediction(picks, makeOutcome(), teams);
+
+    expect(unrecorded.markets.map((market) => market.status)).toEqual([
+      "void",
+      "void",
+    ]);
+  });
+
+  it("pays the goals line at its frozen market price", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        awayGoals: null,
+        homeGoals: null,
+        totalCards: null,
+        totalCorners: null,
+        totalGoalsOdds: { over: 1.54, under: 2.84 },
+        winner: null,
+      }),
+      makeOutcome(),
+      teams,
+    );
+    const market = oneMarket(settlement);
+
+    // 2 x 1.54 = 3.08 -> 3, instead of the flat 2.
+    expect(market.status).toBe("won");
+    expect(market.points).toBe(3);
   });
 });

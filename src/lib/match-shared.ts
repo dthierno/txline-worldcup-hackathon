@@ -5,7 +5,11 @@ import { useSyncExternalStore } from "react";
 
 import type { ScorerPool } from "./api-football-player-media";
 import type { MatchOutcome } from "./prediction-engine";
-import type { NormalizedLineups, OddsBoard } from "./txline-normalize";
+import type {
+  NormalizedLineups,
+  OddsBoard,
+  SideMarkets,
+} from "./txline-normalize";
 import type { WorldCupFixture } from "./world-cup-fixtures";
 
 export type TxlineStatus = {
@@ -13,6 +17,11 @@ export type TxlineStatus = {
   configured: boolean;
   mode: "txline" | "demo" | "fallback";
   network: "mainnet" | "devnet";
+};
+
+type TxlineHalfBank = {
+  awayGoals: number;
+  homeGoals: number;
 };
 
 export type TxlineScoreData = {
@@ -28,6 +37,9 @@ export type TxlineScoreData = {
   data?: Record<string, unknown>;
   eventId?: number;
   gameState?: string;
+  // Per-half stat banks; present once TxLINE starts publishing them (from
+  // half-time onward). First-half markets settle from `first`.
+  halfStats?: { first: TxlineHalfBank; second: TxlineHalfBank };
   homeCorners: number;
   homeGoals: number;
   homeRedCards: number;
@@ -86,6 +98,8 @@ export type TxlineOddsUpdatesData = {
   latestTs: number | null;
   marketTypes: string[];
   series?: TxlineOddsSeriesPoint[];
+  // First-half and line markets the main board filters out.
+  sideMarkets?: SideMarkets;
 };
 
 export type TxlineValidationData = {
@@ -457,6 +471,20 @@ export function buildOutcome(
     firstGoal,
     goals,
     homeGoals: score.homeGoals,
+    halfTimeAway: score.halfStats?.first.awayGoals ?? null,
+    halfTimeHome: score.halfStats?.first.homeGoals ?? null,
+    ownGoals: score.playerStats
+      ? Object.values(score.playerStats).reduce(
+          (total, line) => total + (line.ownGoals ?? 0),
+          0,
+        )
+      : null,
+    penaltiesAwarded: score.playerStats
+      ? Object.values(score.playerStats).reduce(
+          (total, line) => total + (line.penaltyAttempts ?? 0),
+          0,
+        )
+      : null,
     playerCards: score.playerStats
       ? Object.fromEntries(
           Object.entries(score.playerStats).map(([playerId, line]) => [
