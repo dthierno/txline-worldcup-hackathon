@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import type {
   LineupPosition,
   NormalizedLineupPlayer,
@@ -67,13 +70,73 @@ export type ScorerPoolTeam = {
 // TxLINE id (via providerId on the verified pool) before it can settle.
 export type ScorerPool = {
   configured: boolean;
-  provider: "api-football";
+  // api-football squads, or a previous match's TxLINE lineup when the squad
+  // provider is unavailable.
+  provider: "api-football" | "txline";
   provisional: boolean;
   teams: ScorerPoolTeam[];
 };
 
 const teamCache = new Map<string, CachedValue<number | null>>();
 const squadCache = new Map<string, CachedValue<ApiFootballPlayer[]>>();
+
+// The free plan allows 100 requests a day, and the in-memory cache dies with
+// every dev restart and serverless cold start - a restart-heavy afternoon
+// burned the whole quota on 2026-07-16. The disk copy makes the cache survive
+// the process. Best-effort on both ends; tests stay deterministic by skipping
+// it. Only ever runs on the server: the client imports nothing but types from
+// this module.
+const DISK_CACHE_FILE = path.join(process.cwd(), "data", "api-football-cache.json");
+let diskCacheLoaded = false;
+
+function hydrateDiskCache(now: number) {
+  if (diskCacheLoaded || process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  diskCacheLoaded = true;
+
+  try {
+    const raw = JSON.parse(fs.readFileSync(DISK_CACHE_FILE, "utf8")) as {
+      squads?: Record<string, CachedValue<ApiFootballPlayer[]>>;
+      teams?: Record<string, CachedValue<number | null>>;
+    };
+
+    for (const [key, value] of Object.entries(raw.teams ?? {})) {
+      if (value.expiresAt > now && !teamCache.has(key)) {
+        teamCache.set(key, value);
+      }
+    }
+
+    for (const [key, value] of Object.entries(raw.squads ?? {})) {
+      if (value.expiresAt > now && !squadCache.has(key)) {
+        squadCache.set(key, value);
+      }
+    }
+  } catch {
+    // First run, or an unreadable file: start from the network as before.
+  }
+}
+
+function persistDiskCache() {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(DISK_CACHE_FILE), { recursive: true });
+    fs.writeFileSync(
+      DISK_CACHE_FILE,
+      JSON.stringify({
+        squads: Object.fromEntries(squadCache),
+        teams: Object.fromEntries(teamCache),
+      }),
+    );
+  } catch {
+    // The cache is an optimisation; failing to write it costs quota, not
+    // correctness.
+  }
+}
 
 const TEAM_ALIASES: Record<string, string> = {
   coteivoire: "ivorycoast",
@@ -371,6 +434,8 @@ async function resolveTeamId(
 ): Promise<number | null> {
   const canonical = canonicalTeam(teamName);
   const cacheKey = `${origin}:${canonical}`;
+  hydrateDiskCache(now);
+
   const cached = readCached(teamCache, cacheKey, now);
 
   if (cached !== undefined) return cached;
@@ -407,6 +472,7 @@ async function resolveTeamId(
     expiresAt: now + CACHE_TTL_MS,
     value: teamId,
   });
+  persistDiskCache();
 
   return teamId;
 }
@@ -419,6 +485,8 @@ async function fetchSquad(
   now: number,
 ): Promise<ApiFootballPlayer[]> {
   const cacheKey = `${origin}:${teamId}`;
+  hydrateDiskCache(now);
+
   const cached = readCached(squadCache, cacheKey, now);
 
   if (cached) return cached;
@@ -441,6 +509,7 @@ async function fetchSquad(
     expiresAt: now + CACHE_TTL_MS,
     value: players,
   });
+  persistDiskCache();
 
   return players;
 }

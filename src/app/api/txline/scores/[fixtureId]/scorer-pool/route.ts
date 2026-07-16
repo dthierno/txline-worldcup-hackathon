@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { resolveScorerPool } from "@/lib/api-football-player-media";
+import {
+  resolveScorerPool,
+  type ScorerPool,
+  type ScorerPoolTeam,
+} from "@/lib/api-football-player-media";
+import { readLatestPackLineupTeam } from "@/lib/replay-store";
 import { getTxlineConfig } from "@/lib/txline-config";
 import { fetchTxlineFixtures, fetchTxlineLineups } from "@/lib/txline-client";
 import type { NormalizedLineups } from "@/lib/txline-normalize";
@@ -62,17 +67,58 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   try {
-    const data = await resolveScorerPool(
-      lineups,
-      lineups ? [] : await fixtureTeams(id, config.configured),
-    );
+    const teams = lineups ? [] : await fixtureTeams(id, config.configured);
+    let data = await resolveScorerPool(lineups, teams);
+    let source = data.provisional
+      ? "API-Football squads, no TxLINE lineup published yet"
+      : "TxLINE score feed lineups records";
+
+    // Squad provider empty (typically its daily quota): fall back to each
+    // side's previous recorded lineup. Those carry TxLINE's own player ids,
+    // so the pool is settlement-grade, not provisional - it is just last
+    // match's squad rather than today's.
+    if (data.teams.length === 0 && teams.length === 2) {
+      const packTeams = teams.map((team) => {
+        const lineup = readLatestPackLineupTeam(team.teamName);
+
+        return lineup
+          ? {
+              isHome: team.isHome,
+              players: lineup.players.flatMap((player) =>
+                typeof player.playerId === "number"
+                  ? [
+                      {
+                        imageUrl: player.imageUrl,
+                        name: player.name,
+                        playerId: player.playerId,
+                        position: player.position,
+                        shirtNumber: player.number
+                          ? Number(player.number) || undefined
+                          : undefined,
+                      },
+                    ]
+                  : [],
+              ),
+              teamName: team.teamName,
+            }
+          : null;
+      });
+
+      if (packTeams.every((team) => team && team.players.length > 0)) {
+        data = {
+          configured: data.configured,
+          provider: "txline",
+          provisional: false,
+          teams: packTeams as ScorerPoolTeam[],
+        } satisfies ScorerPool;
+        source = "TxLINE lineups from each side's previous recorded match";
+      }
+    }
 
     return NextResponse.json({
       data,
       mode: config.configured ? "txline" : "demo",
-      source: data.provisional
-        ? "API-Football squads, no TxLINE lineup published yet"
-        : "TxLINE score feed lineups records",
+      source,
     });
   } catch (error) {
     return NextResponse.json(
