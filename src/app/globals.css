@@ -5546,3 +5546,77 @@ dt {
 .fsm-chart {
   margin-bottom: 22px;
 }
+
+/* Commentary spine: a hairline runs down a left rail, every event hangs off
+   it as a node whose ring takes the acting team's glow. Big moments (goals,
+   cards, subs) keep their cards; flavor events ride as compact lines so the
+   feed has hierarchy instead of a wall of equal boxes. */
+.mp2 .cf-item {
+  column-gap: 12px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  position: relative;
+}
+.mp2 .cf-item:not(.cf-item-divider)::before {
+  background: rgba(255, 255, 255, 0.09);
+  bottom: -6px;
+  content: "";
+  left: 12.5px;
+  position: absolute;
+  top: -6px;
+  width: 1px;
+}
+.mp2 .cf-item:first-child::before {
+  top: 12px;
+}
+.mp2 .cf-item:last-child::before {
+  bottom: auto;
+  height: 12px;
+}
+.mp2 .cf-item-divider {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mp2 .cf-rail {
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+.mp2 .cf-node {
+  align-items: center;
+  background: #17171c;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+.mp2 .cf-node-glyph {
+  color: #fcd34d;
+  font-size: 13px;
+  font-weight: 800;
+}
+.mp2 .cf-item-body {
+  min-width: 0;
+}
+.mp2 .cf-line {
+  align-items: baseline;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 13.5px;
+  gap: 10px;
+  line-height: 1.45;
+  padding: 8px 2px 8px 0;
+}
+.mp2 .cf-line-min {
+  color: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 34px;
+}
+.mp2 .cf-line-text {
+  min-width: 0;
+}

@@ -5155,26 +5155,68 @@ function CommentaryFeed({
             );
           } else {
             block = (
-              <div className="cf-card">
-                <div className="cf-card-head">
-                  <HeadsetIcon />
-                  <span className="cf-head-title">Commentary</span>
-                  <span className="cf-head-min">{entry.minute}</span>
-                </div>
-                <div className="cf-card-body">{body}</div>
+              <div className="cf-line">
+                <b className="cf-line-min">{entry.minute || "\u2013"}</b>
+                <span className="cf-line-text">{body}</span>
               </div>
             );
           }
 
+          const isDivider =
+            entry.action === "kickoff" ||
+            entry.action === "halftime_finalised" ||
+            entry.action === "game_finalised";
+          const actor =
+            findPlayer(entry.playerId)?.teamName ??
+            findPlayer(entry.playerInId)?.teamName ??
+            (body.includes(fixture.homeTeam)
+              ? fixture.homeTeam
+              : body.includes(fixture.awayTeam)
+                ? fixture.awayTeam
+                : undefined);
+          const node =
+            entry.action === "goal" ? (
+              <LineupGoalIcon />
+            ) : entry.action === "yellow_card" ||
+              entry.action === "red_card" ? (
+              <LineupCardIcon
+                color={entry.action === "red_card" ? "red" : "yellow"}
+              />
+            ) : entry.action === "substitution" ? (
+              <LineupSubstitutionIcon direction="in" />
+            ) : entry.action === "corner" ? (
+              <svg fill="currentColor" height="10" viewBox="0 0 10 10" width="10">
+                <path d="M2 1h1v8H2zM3.6 1.4l4.4 1.8-4.4 1.8z" />
+              </svg>
+            ) : entry.action === "shot" ? (
+              <HugeiconsIcon icon={FootballIcon} size={10} strokeWidth={2.2} />
+            ) : entry.action === "high_danger_possession" ? (
+              <span className="cf-node-glyph">!</span>
+            ) : (
+              <HeadsetIcon />
+            );
+
           return (
             <motion.li
               animate={{ opacity: 1, y: 0 }}
-              className="cf-item"
+              className={`cf-item${isDivider ? " cf-item-divider" : ""}`}
               initial={{ opacity: 0, y: -14 }}
               key={entry.id}
               transition={{ duration: 0.35 }}
             >
-              {block}
+              {isDivider ? null : (
+                <span aria-hidden className="cf-rail">
+                  <span
+                    className="cf-node"
+                    style={{
+                      boxShadow: `inset 0 0 0 1.5px ${actor ? ringFor(actor) : "rgba(255, 255, 255, 0.16)"}`,
+                    }}
+                  >
+                    {node}
+                  </span>
+                </span>
+              )}
+              <div className="cf-item-body">{block}</div>
             </motion.li>
           );
         })}
