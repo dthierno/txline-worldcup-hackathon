@@ -5141,9 +5141,9 @@ dt {
 }
 .mp2-ticket-payout-value {
   color: #fff;
-  font-size: 15px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
+  font-weight: 700;
 }
 /* The one true CTA on the ticket: solid white, the same commitment colour
    as a picked chip, in the app's pill shape. */
