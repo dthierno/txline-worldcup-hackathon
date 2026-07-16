@@ -124,6 +124,7 @@ import {
   type FirstScorerPick,
   type MatchOutcome,
   type MatchPrediction,
+  type LinePick,
   type PlayerPick,
   type SidePick,
   type WinnerPick,
@@ -1521,6 +1522,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   odds1x2={playOdds}
                   onSave={playCard.save}
                   saved={Boolean(playCard.saved)}
+                  scorerPool={scorerPool}
                 />
               ) : !finished ? (
                 playSection
@@ -4528,18 +4530,28 @@ function PotentialPoints({ points }: { points: number }) {
   );
 }
 
+// The little picture that leads each slip row, matching what the boards show:
+// flags for team outcomes, the player's face for player markets, an arrow for
+// a line.
+type TicketVisual =
+  | { kind: "circles"; isos: Array<string | null> }
+  | { kind: "player"; imageUrl?: string; initial: string }
+  | { kind: "updown"; pick: LinePick };
+
 function TicketCard({
   draft,
   fixture,
   odds1x2,
   onSave,
   saved,
+  scorerPool,
 }: {
   draft: MatchPrediction;
   fixture: WorldCupFixture;
   odds1x2: { away: number; draw: number; home: number } | null;
   onSave: (odds1x2: { away: number; draw: number; home: number } | null) => void;
   saved: boolean;
+  scorerPool: ScorerPool | null;
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
   const winnerNames = {
@@ -4547,12 +4559,61 @@ function TicketCard({
     draw: "Draw",
     home: fixture.homeTeam,
   } as const;
+  const homeIso = teamFlag(fixture.homeTeam) ?? null;
+  const awayIso = teamFlag(fixture.awayTeam) ?? null;
+  const sideIso = (side: "away" | "draw" | "home") =>
+    side === "home" ? homeIso : side === "away" ? awayIso : null;
+  const playerVisual = (pick: PlayerPick | "none"): TicketVisual => {
+    if (pick === "none") {
+      return { kind: "circles", isos: [null] };
+    }
+
+    for (const team of scorerPool?.teams ?? []) {
+      const found = team.players.find(
+        (player) => player.playerId === pick.playerId,
+      );
+
+      if (found) {
+        return {
+          imageUrl: found.imageUrl,
+          initial: pick.name[0] ?? "?",
+          kind: "player",
+        };
+      }
+    }
+
+    return { initial: pick.name[0] ?? "?", kind: "player" };
+  };
+  const sideVisual = (pick: SidePick): TicketVisual => {
+    switch (pick.kind) {
+      case "double_chance":
+        return {
+          isos:
+            pick.pick === "home_draw"
+              ? [homeIso, null]
+              : pick.pick === "home_away"
+                ? [homeIso, awayIso]
+                : [null, awayIso],
+          kind: "circles",
+        };
+      case "goals_line":
+      case "half_goals_line":
+        return { kind: "updown", pick: pick.pick };
+      case "half_result":
+        return { isos: [sideIso(pick.pick)], kind: "circles" };
+      case "handicap":
+        return { isos: [sideIso(pick.pick)], kind: "circles" };
+      default:
+        return { isos: [null], kind: "circles" };
+    }
+  };
   // Only played markets appear on the ticket; skipped ones cost nothing and
   // pay nothing.
   const ticketRows: Array<{
     market: string;
     pick: string;
     pts: number;
+    visual: TicketVisual;
   }> = [
     ...(draft.winner != null
       ? [
@@ -4560,6 +4621,7 @@ function TicketCard({
             market: "Winner",
             pick: winnerNames[draft.winner],
             pts: winnerPoints(odds1x2?.[draft.winner]),
+            visual: { isos: [sideIso(draft.winner)], kind: "circles" as const },
           },
         ]
       : []),
@@ -4569,6 +4631,7 @@ function TicketCard({
             market: "Exact score",
             pick: `${draft.homeGoals} - ${draft.awayGoals}`,
             pts: exactScorePoints(draft.exactScoreOdds),
+            visual: { isos: [homeIso, awayIso], kind: "circles" as const },
           },
         ]
       : []),
@@ -4580,6 +4643,7 @@ function TicketCard({
             pts: draft.totalGoalsOdds
               ? sidePickPoints(draft.totalGoalsOdds[draft.totalGoals])
               : PREDICTION_POINTS.line,
+            visual: { kind: "updown" as const, pick: draft.totalGoals },
           },
         ]
       : []),
@@ -4589,6 +4653,7 @@ function TicketCard({
             market: "Corners",
             pick: linePickLabel(draft.totalCorners, PREDICTION_LINES.corners),
             pts: PREDICTION_POINTS.line,
+            visual: { kind: "updown" as const, pick: draft.totalCorners },
           },
         ]
       : []),
@@ -4598,6 +4663,7 @@ function TicketCard({
             market: "Cards",
             pick: linePickLabel(draft.totalCards, PREDICTION_LINES.cards),
             pts: PREDICTION_POINTS.line,
+            visual: { kind: "updown" as const, pick: draft.totalCards },
           },
         ]
       : []),
@@ -4613,6 +4679,7 @@ function TicketCard({
               "firstScorer",
               draft.firstScorer === "none" ? undefined : draft.firstScorer.odds,
             ),
+            visual: playerVisual(draft.firstScorer),
           },
         ]
       : []),
@@ -4630,6 +4697,7 @@ function TicketCard({
                 ? undefined
                 : draft.anytimeScorer.odds,
             ),
+            visual: playerVisual(draft.anytimeScorer),
           },
         ]
       : []),
@@ -4645,6 +4713,7 @@ function TicketCard({
               "lastScorer",
               draft.lastScorer === "none" ? undefined : draft.lastScorer.odds,
             ),
+            visual: playerVisual(draft.lastScorer),
           },
         ]
       : []),
@@ -4654,6 +4723,7 @@ function TicketCard({
             market: "Booked",
             pick: shortPlayerName(draft.bookedPlayer.name),
             pts: scorerPoints("bookedPlayer", draft.bookedPlayer.odds),
+            visual: playerVisual(draft.bookedPlayer),
           },
         ]
       : []),
@@ -4663,12 +4733,14 @@ function TicketCard({
             market: "Sent off",
             pick: shortPlayerName(draft.sentOffPlayer.name),
             pts: scorerPoints("sentOffPlayer", draft.sentOffPlayer.odds),
+            visual: playerVisual(draft.sentOffPlayer),
           },
         ]
       : []),
     ...draftSidePicks.map((pick) => ({
       ...sidePickSummary(pick, fixture),
       pts: sidePickPoints(pick.odds),
+      visual: sideVisual(pick),
     })),
   ];
   const potentialPoints = ticketRows.reduce((total, row) => total + row.pts, 0);
@@ -4694,6 +4766,38 @@ function TicketCard({
         <ul className="mp2-ticket-list">
           {ticketRows.map((row, index) => (
             <li key={`${row.market}-${index}`}>
+              <span aria-hidden className="mp2-ticket-visual">
+                {row.visual.kind === "player" ? (
+                  <Avatar className="size-6">
+                    {row.visual.imageUrl ? (
+                      <AvatarImage alt="" src={row.visual.imageUrl} />
+                    ) : null}
+                    <AvatarFallback>{row.visual.initial}</AvatarFallback>
+                  </Avatar>
+                ) : row.visual.kind === "updown" ? (
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#3f3f46] text-white/85 ring-1 ring-white/10">
+                    <HugeiconsIcon
+                      aria-hidden
+                      icon={
+                        row.visual.pick === "over"
+                          ? ArrowUp01Icon
+                          : ArrowDown01Icon
+                      }
+                      size={12}
+                      strokeWidth={2.5}
+                    />
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <OutcomeCircle iso={row.visual.isos[0]} />
+                    {row.visual.isos.length > 1 ? (
+                      <span className="-ml-2 flex">
+                        <OutcomeCircle iso={row.visual.isos[1]} />
+                      </span>
+                    ) : null}
+                  </span>
+                )}
+              </span>
               <span className="mp2-ticket-market">{row.market}</span>
               <span className="mp2-ticket-pts">+{row.pts}</span>
               <span className="mp2-ticket-pick">{row.pick}</span>
