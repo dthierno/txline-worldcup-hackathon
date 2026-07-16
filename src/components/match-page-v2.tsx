@@ -4820,7 +4820,7 @@ function TicketCard({
               </span>
             ))}
           </div>
-          <p>No picks yet - tap any market to put it on your card.</p>
+          <p className="sr-only">No picks yet.</p>
         </div>
       )}
       <div aria-hidden className="mp2-ticket-tear" />

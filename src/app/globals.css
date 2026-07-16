@@ -5036,29 +5036,21 @@ dt {
 .mp2-ticket-empty {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 2px 0 0;
-}
-.mp2-ticket-empty > p {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  line-height: 1.5;
-  margin: 0;
-  text-align: center;
+  margin: 14px 0 0;
 }
 .mp2-ticket-ghosts {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .mp2-ticket-ghost {
   align-items: center;
   border: 1.5px dashed rgba(255, 255, 255, 0.13);
   border-radius: 12px;
-  column-gap: 10px;
+  column-gap: 12px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: 8px 11px 9px;
+  padding: 13px 13px 14px;
   row-gap: 4px;
 }
 .mp2-ticket-ghost:nth-child(2) {
@@ -5073,28 +5065,28 @@ dt {
 }
 .mp2-ghost-circle {
   border-radius: 50%;
-  height: 20px;
-  width: 20px;
+  height: 26px;
+  width: 26px;
 }
 .mp2-ghost-lines {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 .mp2-ghost-label {
   border-radius: 3px;
-  height: 5px;
-  width: 52px;
+  height: 6px;
+  width: 64px;
 }
 .mp2-ghost-pick {
   border-radius: 4px;
-  height: 8px;
-  width: 96px;
+  height: 10px;
+  width: 122px;
 }
 .mp2-ghost-chip {
   border-radius: 999px;
-  height: 15px;
-  width: 30px;
+  height: 18px;
+  width: 38px;
 }
 /* Each pick sits on its own glassy card so the colour wash glows through.
    The margin reset beats the app-wide li spacing, which otherwise
