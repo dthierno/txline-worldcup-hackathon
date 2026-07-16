@@ -730,6 +730,7 @@ export function getDisplayUpdates(
   const sortedUpdates = [...updates].sort(
     (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
   );
+  const seenChanceEvents = new Set<string>();
   let previous: TxlineUpdateData | undefined;
   const seen = new Set<string>();
 
@@ -940,6 +941,45 @@ export function getDisplayUpdates(
           teamName ? ` (${teamName})` : ""
         }. Score ${scoreline}.`;
       }
+    }
+
+    // Chance events emit sibling records per event id; one line each.
+    if (
+      (action === "shot" ||
+        action === "corner" ||
+        action === "high_danger_possession") &&
+      update.eventId !== undefined
+    ) {
+      const chanceKey = `${action}-${update.eventId}`;
+
+      if (seenChanceEvents.has(chanceKey)) {
+        previous = update;
+        continue;
+      }
+
+      seenChanceEvents.add(chanceKey);
+    }
+
+    if (action === "shot") {
+      const outcome = String(update.data?.Outcome ?? "");
+      const flavour =
+        outcome === "OnTarget"
+          ? "on target - saved"
+          : outcome === "Blocked"
+            ? "blocked"
+            : outcome === "Woodwork"
+              ? "off the woodwork!"
+              : "off target";
+
+      text = `${prefix}Shot${teamName ? ` from ${teamName}` : ""}, ${flavour}`;
+    }
+
+    if (action === "corner") {
+      text = `${prefix}Corner${teamName ? ` for ${teamName}` : ""}.`;
+    }
+
+    if (action === "high_danger_possession") {
+      text = `${prefix}Big chance${teamName ? ` for ${teamName}` : ""}!`;
     }
 
     if (action === "var" && update.data?.Type) {
