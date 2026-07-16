@@ -108,7 +108,6 @@ import {
 } from "@/lib/match-shared";
 import {
   defaultPrediction,
-  doubleChanceLabel,
   exactScorePoints,
   handicapLineLabel,
   linePickLabel,
@@ -176,11 +175,9 @@ import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
-import { worldCupResults } from "@/lib/world-cup-results";
 import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 
 type MatchTab =
-  | "head-to-head"
   | "knockout"
   | "lineups"
   | "overview"
@@ -193,7 +190,6 @@ const MATCH_TABS: Array<{ label: string; value: MatchTab }> = [
   { label: "Stats", value: "stats" },
   { label: "Timeline", value: "timeline" },
   { label: "Knockout", value: "knockout" },
-  { label: "Head-to-Head", value: "head-to-head" },
 ];
 
 function matchTabFromLocation(): MatchTab {
@@ -1703,9 +1699,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           </section>
         ) : null}
 
-        {matchTab === "head-to-head" ? (
-          <HeadToHeadSection fixture={fixture} />
-        ) : null}
       </section>
     </main>
   );
@@ -5477,122 +5470,6 @@ function UpdatesSection({
   );
 }
 
-function HeadToHeadSection({ fixture }: { fixture: WorldCupFixture }) {
-  const kickoff = new Date(fixture.kickoffUtc).getTime();
-  const isPair = (home: string, away: string) =>
-    (home === fixture.homeTeam && away === fixture.awayTeam) ||
-    (home === fixture.awayTeam && away === fixture.homeTeam);
-  const directMeetings = worldCupResults
-    .filter(
-      (result) =>
-        result.fixtureId !== fixture.fixtureId &&
-        new Date(result.kickoffUtc).getTime() < kickoff &&
-        isPair(result.home, result.away),
-    )
-    .sort(
-      (left, right) =>
-        new Date(right.kickoffUtc).getTime() -
-        new Date(left.kickoffUtc).getTime(),
-    );
-  const recentFor = (teamName: string) =>
-    worldCupResults
-      .filter(
-        (result) =>
-          result.fixtureId !== fixture.fixtureId &&
-          new Date(result.kickoffUtc).getTime() < kickoff &&
-          (result.home === teamName || result.away === teamName),
-      )
-      .sort(
-        (left, right) =>
-          new Date(right.kickoffUtc).getTime() -
-          new Date(left.kickoffUtc).getTime(),
-      )
-      .slice(0, 5);
-  const resultForTeam = (
-    result: (typeof worldCupResults)[number],
-    teamName: string,
-  ) => {
-    const isHome = result.home === teamName;
-    const scored = result.score[isHome ? 0 : 1];
-    const conceded = result.score[isHome ? 1 : 0];
-
-    return scored === conceded ? "D" : scored > conceded ? "W" : "L";
-  };
-  const renderForm = (teamName: string) => {
-    const results = recentFor(teamName);
-    const iso = teamFlag(teamName);
-
-    return (
-      <section className="card mp2-form-card" aria-label={`${teamName} recent form`}>
-        <div className="mp2-form-title">
-          {iso ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={`https://flagcdn.com/w80/${iso}.png`} />
-          ) : null}
-          <span>
-            <strong>{teamName}</strong>
-            <small>Last five tournament matches</small>
-          </span>
-        </div>
-        {results.length ? (
-          <ol className="mp2-form-list">
-            {results.map((result) => {
-              const isHome = result.home === teamName;
-              const opponent = isHome ? result.away : result.home;
-              const outcome = resultForTeam(result, teamName);
-
-              return (
-                <li key={result.fixtureId}>
-                  <Link href={`/demo/match/${result.fixtureId}`}>
-                    <span className={`mp2-form-result ${outcome.toLowerCase()}`}>
-                      {outcome}
-                    </span>
-                    <span>{opponent}</span>
-                    <strong>
-                      {result.score[isHome ? 0 : 1]} - {result.score[isHome ? 1 : 0]}
-                    </strong>
-                  </Link>
-                </li>
-              );
-            })}
-          </ol>
-        ) : (
-          <p className="muted">No recent tournament results available.</p>
-        )}
-      </section>
-    );
-  };
-
-  return (
-    <div className="mp2-tab-stack mp2-h2h-tab">
-      <section className="card mp2-direct-card" aria-labelledby="h2h-heading">
-        <h2 id="h2h-heading">Head-to-head</h2>
-        {directMeetings.length ? (
-          <ol className="mp2-direct-list">
-            {directMeetings.map((result) => (
-              <li key={result.fixtureId}>
-                <Link href={`/demo/match/${result.fixtureId}`}>
-                  <span>{result.home}</span>
-                  <strong>{result.score[0]} - {result.score[1]}</strong>
-                  <span>{result.away}</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <div className="mp2-empty-state">
-            <strong>First meeting in this tournament</strong>
-            <span>No earlier 2026 World Cup meeting is available for these teams.</span>
-          </div>
-        )}
-      </section>
-      <div className="mp2-form-grid">
-        {renderForm(fixture.homeTeam)}
-        {renderForm(fixture.awayTeam)}
-      </div>
-    </div>
-  );
-}
 
 function VerificationSection({
   detailsLoading,

@@ -704,11 +704,12 @@ describe("MatchPageV2 banner", () => {
     expect(writeText).toHaveBeenCalledWith("http://localhost:3000/");
     expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: "Head-to-Head" }));
-    expect(
-      screen.getByRole("tab", { name: "Head-to-Head" }),
-    ).toHaveAttribute("aria-current", "page");
-    expect(window.location.search).toBe("?tab=head-to-head");
+    await user.click(screen.getByRole("tab", { name: "Knockout" }));
+    expect(screen.getByRole("tab", { name: "Knockout" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(window.location.search).toBe("?tab=knockout");
   });
 
   it("moves between match tabs with the keyboard", async () => {
@@ -729,15 +730,16 @@ describe("MatchPageV2 banner", () => {
     expect(screen.getByRole("tab", { name: "Lineups" })).toHaveFocus();
 
     await user.keyboard("{End}");
-    expect(screen.getByRole("tab", { name: "Head-to-Head" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Knockout" })).toHaveFocus();
 
     // Manual activation: arrows only move focus; Enter selects.
     expect(window.location.search).toBe("");
     await user.keyboard("{Enter}");
-    expect(
-      screen.getByRole("tab", { name: "Head-to-Head" }),
-    ).toHaveAttribute("aria-current", "page");
-    expect(window.location.search).toBe("?tab=head-to-head");
+    expect(screen.getByRole("tab", { name: "Knockout" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(window.location.search).toBe("?tab=knockout");
 
     await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveFocus();
