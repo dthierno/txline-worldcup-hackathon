@@ -683,6 +683,142 @@ export type SettleableCall = {
   voided?: boolean;
 };
 
+export type VarCall = {
+  clockSeconds?: number;
+  key: string;
+  overturned?: boolean;
+  resolved: boolean;
+  seq: number;
+  type?: string;
+};
+
+// A VAR review as a two-way call. The var record opens it (Type lands on a
+// sibling), the var_end with the same event Id settles it; the only outcome
+// observed on the feed is "Overturned", so the call is framed exactly that
+// way rather than guessing what "given" means per incident type.
+export function extractVarCalls(
+  updates: Array<{
+    action?: string;
+    clockSeconds?: number;
+    data?: Record<string, unknown>;
+    eventId?: number;
+    seq?: number;
+  }>,
+): VarCall[] {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const calls = new Map<number, VarCall>();
+
+  for (const update of sorted) {
+    const eventId = update.eventId;
+
+    if (eventId === undefined) {
+      continue;
+    }
+
+    if (update.action === "var") {
+      const call = calls.get(eventId) ?? {
+        clockSeconds: update.clockSeconds,
+        key: `var-${eventId}`,
+        resolved: false,
+        seq: update.seq ?? 0,
+      };
+      const type = update.data?.Type;
+
+      if (typeof type === "string" && type) {
+        call.type = type;
+      }
+
+      calls.set(eventId, call);
+    }
+
+    if (update.action === "var_end" && calls.has(eventId)) {
+      const call = calls.get(eventId)!;
+
+      call.resolved = true;
+      call.overturned = String(update.data?.Outcome ?? "") === "Overturned";
+    }
+  }
+
+  return [...calls.values()];
+}
+
+export type NextGoalCall = {
+  clockSeconds?: number;
+  key: string;
+  resolved: boolean;
+  seq: number;
+  voided?: boolean;
+  // 1 | 2 when a next goal settled it.
+  winner?: number;
+};
+
+// "Who scores the next goal?" - opened at kickoff and re-opened after every
+// goal, settled by the following goal's side, voided by full time when no
+// further goal comes.
+export function extractNextGoalCalls(
+  updates: Array<{
+    action?: string;
+    clockSeconds?: number;
+    eventId?: number;
+    participant?: number;
+    seq?: number;
+  }>,
+): NextGoalCall[] {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const calls: NextGoalCall[] = [];
+  const seenGoals = new Set<string>();
+  let open: NextGoalCall | null = null;
+  let kicked = false;
+
+  for (const update of sorted) {
+    if (update.action === "kickoff" && !kicked) {
+      kicked = true;
+      open = {
+        clockSeconds: update.clockSeconds,
+        key: `nextgoal-${update.seq ?? 0}`,
+        resolved: false,
+        seq: update.seq ?? 0,
+      };
+      calls.push(open);
+    }
+
+    if (update.action === "goal") {
+      const goalKey = String(update.eventId ?? `seq-${update.seq}`);
+
+      if (seenGoals.has(goalKey)) {
+        continue;
+      }
+
+      seenGoals.add(goalKey);
+
+      if (open && (update.participant === 1 || update.participant === 2)) {
+        open.resolved = true;
+        open.winner = update.participant;
+      }
+
+      open = {
+        clockSeconds: update.clockSeconds,
+        key: `nextgoal-${update.seq ?? 0}`,
+        resolved: false,
+        seq: update.seq ?? 0,
+      };
+      calls.push(open);
+    }
+
+    if (update.action === "game_finalised" && open && !open.resolved) {
+      open.resolved = true;
+      open.voided = true;
+      open = null;
+    }
+  }
+
+  return calls;
+}
+
 export function extractSettleableCalls(
   updates: Parameters<typeof extractGoalCalls>[0] &
     Parameters<typeof extractCornerCalls>[0] &
@@ -720,6 +856,24 @@ export function extractSettleableCalls(
       correctIndex: call.outcome
         ? ((call.outcome === "scored" ? 0 : 1) as 0 | 1)
         : undefined,
+      key: call.key,
+      resolved: call.resolved,
+      voided: call.voided,
+    })),
+    ...extractVarCalls(updates).map((call) => ({
+      correctIndex: call.resolved
+        ? ((call.overturned ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      resolved: call.resolved,
+    })),
+    ...extractNextGoalCalls(updates).map((call) => ({
+      correctIndex:
+        call.winner === 1
+          ? (0 as const)
+          : call.winner === 2
+            ? (1 as const)
+            : undefined,
       key: call.key,
       resolved: call.resolved,
       voided: call.voided,

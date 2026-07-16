@@ -5636,3 +5636,9 @@ dt {
 .lc-picked {
   color: #fff;
 }
+
+.lc-var {
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}

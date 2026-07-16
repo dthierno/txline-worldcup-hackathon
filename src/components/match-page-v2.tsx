@@ -76,6 +76,7 @@ import {
   fillUnknownStats,
   formatCompetition,
   formatDate,
+  formatFeedLabel,
   formatGameState,
   formatKickoffLabel,
   formatKickoffTime,
@@ -146,6 +147,8 @@ import {
   extractAddedTimeCalls,
   extractCornerCalls,
   extractGoalCalls,
+  extractNextGoalCalls,
+  extractVarCalls,
   extractGoals,
   extractMatchInfo,
   extractPenaltyEvents,
@@ -735,6 +738,44 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       question: `Penalty${
         callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
       }! Scored or missed?`,
+      resolved: call.resolved,
+      seq: call.seq,
+      voided: call.voided,
+    })),
+    ...extractVarCalls(combinedUpdates).map((call) => ({
+      correctIndex: call.resolved
+        ? ((call.overturned ? 0 : 1) as 0 | 1)
+        : undefined,
+      key: call.key,
+      minute: formatMinute(call.clockSeconds) || "—",
+      options: ["Overturned", "Stands"] as [string, string],
+      outcome: call.resolved
+        ? call.overturned
+          ? "Overturned"
+          : "Decision stands"
+        : "Open",
+      question: `VAR check${
+        call.type ? ` (${formatFeedLabel(call.type).toLowerCase()})` : ""
+      } - overturned or stands?`,
+      resolved: call.resolved,
+      seq: call.seq,
+    })),
+    ...extractNextGoalCalls(combinedUpdates).map((call) => ({
+      correctIndex:
+        call.winner === 1
+          ? (0 as const)
+          : call.winner === 2
+            ? (1 as const)
+            : undefined,
+      key: call.key,
+      minute: formatMinute(call.clockSeconds) || "0'",
+      options: [fixture.homeTeam, fixture.awayTeam] as [string, string],
+      outcome: !call.resolved
+        ? "Open"
+        : call.voided
+          ? "No more goals"
+          : callTeam(call.winner) ?? "Unknown",
+      question: "Who scores the next goal?",
       resolved: call.resolved,
       seq: call.seq,
       voided: call.voided,
@@ -2061,6 +2102,8 @@ export function GoalCallsSection({
             </svg>
           ) : /added time/i.test(call.question) ? (
             <StopwatchIcon />
+          ) : /VAR/i.test(call.question) ? (
+            <span className="lc-var">VAR</span>
           ) : (
             <LineupGoalIcon />
           );
