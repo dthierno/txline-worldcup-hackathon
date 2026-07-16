@@ -4438,7 +4438,12 @@ dt {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The preset's text-sm/font-medium never lands here: the unlayered
+   button { font: inherit } outranks a layered utility, so the chip has to be
+   sized from CSS. */
 .mp2 .mp2-scorer-cell {
+  font-size: 13px;
+  font-weight: 500;
   width: 100%;
 }
 /* Thin, quiet scrollbars on the page's internal scrollers. */

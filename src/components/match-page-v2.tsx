@@ -3381,7 +3381,9 @@ function ScorerBoard({
         {visible.map((entry) => (
           <div className="mp2-scorer-row" key={entry.player.playerId}>
             <span className="mp2-scorer-player">
-              <Avatar>
+              {/* Between the preset's sm and default sizes: sm reads as an
+                  afterthought against the point chips, default crowds them. */}
+              <Avatar className="size-7">
                 {entry.player.imageUrl ? (
                   <AvatarImage alt="" src={entry.player.imageUrl} />
                 ) : null}
