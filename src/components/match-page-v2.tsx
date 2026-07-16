@@ -799,6 +799,20 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const shotsOnTarget = countShotsOnTarget(combinedUpdates);
   const throwIns = countTeamEvents(combinedUpdates, "throw_in");
   const goalKicks = countTeamEvents(combinedUpdates, "goal_kick");
+  // Possession-quality phases double as attack counters: every attack /
+  // danger / high-danger phase is one spell of pressure for that side.
+  const attacks = countTeamEvents(combinedUpdates, "attack_possession");
+  const dangerPhases = countTeamEvents(combinedUpdates, "danger_possession");
+  const highDangerPhases = countTeamEvents(
+    combinedUpdates,
+    "high_danger_possession",
+  );
+  const dangerousAttacks = {
+    away: dangerPhases.away + highDangerPhases.away,
+    home: dangerPhases.home + highDangerPhases.home,
+  };
+  const injuryStops = countTeamEvents(combinedUpdates, "injury");
+  const subsUsed = countTeamEvents(combinedUpdates, "substitution");
   const penalties = extractPenaltyEvents(combinedUpdates);
   const penaltyCounts = penalties.reduce(
     (counts, penalty) => {
@@ -888,6 +902,16 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       : []),
   ];
   const attackStatRows: MatchStatRow[] = [
+    ...(attacks.home + attacks.away > 0
+      ? [
+          { away: attacks.away, home: attacks.home, label: "Attacks" },
+          {
+            away: dangerousAttacks.away,
+            home: dangerousAttacks.home,
+            label: "Dangerous attacks",
+          },
+        ]
+      : []),
     ...(penaltyCounts.home + penaltyCounts.away > 0
       ? [
           {
@@ -921,11 +945,70 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         ]
       : []),
   ];
+  const gameFlowStatRows: MatchStatRow[] = [
+    ...(injuryStops.home + injuryStops.away > 0
+      ? [
+          {
+            away: injuryStops.away,
+            home: injuryStops.home,
+            label: "Injury stoppages",
+          },
+        ]
+      : []),
+    ...(subsUsed.home + subsUsed.away > 0
+      ? [
+          {
+            away: subsUsed.away,
+            home: subsUsed.home,
+            label: "Substitutions used",
+          },
+        ]
+      : []),
+  ];
+  // The per-half stat banks ride on every score record once TxLINE opens
+  // them, so these split without any extra requests.
+  const halfBanks = displayScore?.halfStats;
+  const byHalfStatRows: MatchStatRow[] = halfBanks
+    ? [
+        {
+          away: halfBanks.first.awayGoals,
+          home: halfBanks.first.homeGoals,
+          label: "1st-half goals",
+        },
+        {
+          away: halfBanks.second.awayGoals,
+          home: halfBanks.second.homeGoals,
+          label: "2nd-half goals",
+        },
+        {
+          away: halfBanks.first.awayCorners,
+          home: halfBanks.first.homeCorners,
+          label: "1st-half corners",
+        },
+        {
+          away: halfBanks.second.awayCorners,
+          home: halfBanks.second.homeCorners,
+          label: "2nd-half corners",
+        },
+        {
+          away: halfBanks.first.awayYellowCards,
+          home: halfBanks.first.homeYellowCards,
+          label: "1st-half yellow cards",
+        },
+        {
+          away: halfBanks.second.awayYellowCards,
+          home: halfBanks.second.homeYellowCards,
+          label: "2nd-half yellow cards",
+        },
+      ].filter((row) => row.home + row.away > 0)
+    : [];
   const statSections = [
     { label: "Top stats", rows: topStatRows },
     { label: "Attack", rows: attackStatRows },
     { label: "Defence", rows: defenceStatRows },
     { label: "Goalkeeping", rows: goalkeepingStatRows },
+    { label: "Game flow", rows: gameFlowStatRows },
+    { label: "By half", rows: byHalfStatRows },
   ].filter((section) => section.rows.length > 0);
   const keyUpdatePattern =
     /goal|penalty|red card|yellow card|half ?time|full time|substitution/i;
@@ -1594,7 +1677,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   {possessionHomePct !== null || freeKicks.home + freeKicks.away > 0 ? (
                     <p className="muted">
                       Possession is ball-in-play time from TxLINE possession-phase
-                      events; fouls are free kicks conceded to the opponent.
+                      events; attacks count its attack and danger phases; fouls
+                      are free kicks conceded to the opponent.
                     </p>
                   ) : null}
                 </>

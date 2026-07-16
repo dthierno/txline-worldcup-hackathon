@@ -95,6 +95,15 @@ and integration tests first-class.
 
 ## Smaller items
 
+- **Per-player shots are declared but never populated** (2026-07-16). The
+  spec's `SoccerPlayerStats` includes `shots`, but no devnet fixture we
+  checked carries it, and shot actions have `Data.Outcome` only — no
+  `PlayerId`. We built a "most shots" leaderboard for the stats tab and had
+  to remove it. Either populate the field or add the player id to shot
+  actions (which would also unlock shots-per-player props).
+- **No foul or offside actions** (2026-07-16) — free kicks conceded are the
+  only foul proxy, and offsides are absent entirely; both are staple match
+  stats fans expect.
 - **`fixtureId` query param is silently ignored when miscased** (2026-07-15).
   `?FixtureId=` returns the whole bucket with HTTP 200; we shipped a harvester
   that downloaded double the data before noticing. Reject unknown params or

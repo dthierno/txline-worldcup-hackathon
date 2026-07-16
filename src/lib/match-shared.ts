@@ -20,8 +20,12 @@ export type TxlineStatus = {
 };
 
 type TxlineHalfBank = {
+  awayCorners: number;
   awayGoals: number;
+  awayYellowCards: number;
+  homeCorners: number;
   homeGoals: number;
+  homeYellowCards: number;
 };
 
 export type TxlineScoreData = {
