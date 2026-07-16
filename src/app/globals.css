@@ -3059,12 +3059,25 @@ dt {
   white-space: nowrap;
   width: 1px;
 }
+/* Two balanced columns: sections flow down the left then the right, each
+   kept whole. Collapses back to one column on narrow screens. */
 .mp2-stat-sections {
-  display: grid;
-  gap: 20px;
+  column-gap: 20px;
+  columns: 2;
 }
 .mp2-stat-section {
+  break-inside: avoid;
+  margin-bottom: 20px;
   margin-top: 0;
+}
+.mp2-stat-section:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .mp2-stat-sections {
+    columns: 1;
+  }
 }
 .mp2 .card .mp2-stat-section-title {
   background: var(--surface-raised);
