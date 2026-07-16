@@ -1467,7 +1467,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   <span className="mp2-hero-reason">
                     {hadExtraTime ? "After extra time" : "Full time"}
                   </span>
-                ) : notStarted ? null : (
+                ) : notStarted || !displayScore ? (
+                  // No feed data yet: the kickoff time and date render in the
+                  // same spot, and a status pill with nothing truthful to say
+                  // would double-expose over them while the page loads.
+                  null
+                ) : (
                   <div className="mp2-hero-status">
                     {clockRunning ? (
                       <span aria-hidden className="pc-live-dot" />
