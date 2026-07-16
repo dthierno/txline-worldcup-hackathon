@@ -1176,6 +1176,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
             height="260"
             width="1040"
           />
+          <rect
+            className="mp2bg-drift mp2bg-drift-purple"
+            fill="url(#mp2bg-purple)"
+            height="260"
+            width="1040"
+          />
           <path
             className="mp2bg-drift mp2bg-drift-arc"
             d="M64 128 L196 128 C270 128 330 62 330 -20 L198 -20 C124 -20 64 46 64 128 Z"
@@ -1196,6 +1202,17 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               r="1"
             >
               <stop stopColor="#0044ff" stopOpacity="0.6" />
+              <stop offset="1" stopColor="#17171c" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient
+              cx="0"
+              cy="0"
+              gradientTransform="translate(30 -40) rotate(58) scale(300 460)"
+              gradientUnits="userSpaceOnUse"
+              id="mp2bg-purple"
+              r="1"
+            >
+              <stop stopColor="#8b5cf6" stopOpacity="0.5" />
               <stop offset="1" stopColor="#17171c" stopOpacity="0" />
             </radialGradient>
             <radialGradient

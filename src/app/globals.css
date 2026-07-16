@@ -5301,3 +5301,18 @@ dt {
     animation: none;
   }
 }
+
+.mp2 .mp2-hero-bg .mp2bg-drift-purple {
+  animation: mp2bg-purple 13s ease-in-out infinite alternate;
+}
+
+@keyframes mp2bg-purple {
+  from {
+    opacity: 0.6;
+    transform: translate(0, 0) scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: translate(2.5%, 3%) scale(1.1);
+  }
+}
