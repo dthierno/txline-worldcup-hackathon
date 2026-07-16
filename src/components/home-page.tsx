@@ -8,7 +8,6 @@ import {
   CalendarAddIcon,
   ChampionIcon,
   FootballIcon,
-  PlayCircleIcon,
   RankingIcon,
   StarIcon,
   TargetIcon,
@@ -19,7 +18,7 @@ import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
 import { Skiper107 } from "@/components/skiper107";
-import { replayFixtures } from "@/lib/replay-fixtures";
+import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 import {
   Collapsible,
   CollapsibleContent,
@@ -110,12 +109,10 @@ const KNOWN_FINALS: Record<number, [number, number]> = Object.fromEntries(
 
 const HOME_TAB_KEY = "fan-forecast.home-tab.v1";
 const HOME_TAB_EVENT = "fan-forecast:home-tab";
-type HomeTab = "predictions" | "matches" | "replays" | "groups" | "bracket";
+type HomeTab = "predictions" | "matches" | "groups" | "bracket";
 
 function isHomeTab(value: string | null): value is HomeTab {
-  return ["predictions", "matches", "replays", "groups", "bracket"].includes(
-    value ?? "",
-  );
+  return ["predictions", "matches", "groups", "bracket"].includes(value ?? "");
 }
 
 function readHomeTab(): HomeTab {
@@ -484,9 +481,15 @@ export function HomePage() {
 
       // Merge the on-device fixture cache under the seed (seed labels win),
       // then cache the result: TxLINE drops finished fixtures from its
-      // snapshot within hours, and cached ones must not vanish.
+      // snapshot within hours, and cached ones must not vanish. pastWorldCupFixtures
+      // carries the group stage and early knockouts, which left the snapshot
+      // long ago and would otherwise never appear here.
       const merged = mergeFixtures(
-        [...loadCachedFixtures(), ...txlineWorldCupFixtures],
+        [
+          ...loadCachedFixtures(),
+          ...pastWorldCupFixtures,
+          ...txlineWorldCupFixtures,
+        ],
         liveFixtures,
       );
 
@@ -567,10 +570,6 @@ export function HomePage() {
             <HugeiconsIcon icon={FootballIcon} strokeWidth={2} />
             Matches
           </TabsTrigger>
-          <TabsTrigger value="replays">
-            <HugeiconsIcon icon={PlayCircleIcon} strokeWidth={2} />
-            Replays
-          </TabsTrigger>
           <TabsTrigger value="groups">
             <HugeiconsIcon icon={RankingIcon} strokeWidth={2} />
             Groups
@@ -598,9 +597,6 @@ export function HomePage() {
             predictions={mounted ? predictions : {}}
             scores={mounted ? scores : {}}
           />
-        </TabsContent>
-        <TabsContent value="replays">
-          <ReplayList played={mounted ? finals : {}} />
         </TabsContent>
         <TabsContent value="groups">
           <GroupTables />
@@ -889,102 +885,6 @@ function MatchDayList({
 }
 
 
-
-// Every finished fixture we hold a recorded feed for. The tournament is over
-// long before most people open this, so these are the only matches left that
-// can actually be played: pick a result, start the recording, watch it settle.
-//
-// Deliberately spoiler-free — no scores, no scorers, no "6 goals" teasers. The
-// card gives you the tie and the round, the same as it would have on the day.
-function ReplayList({ played }: { played: Record<string, StoredSettlement> }) {
-  const groups = useMemo(() => {
-    const byStage = new Map<string, WorldCupFixture[]>();
-
-    for (const fixture of replayFixtures) {
-      const label = stageLabel(fixture.stage);
-
-      byStage.set(label, [...(byStage.get(label) ?? []), fixture]);
-    }
-
-    return [...byStage.entries()];
-  }, []);
-
-  return (
-    <section aria-labelledby="replays-heading">
-      <h2 id="replays-heading">Replays</h2>
-      <p className="muted rp-intro">
-        {replayFixtures.length} World Cup matches recorded from the TxLINE feed.
-        Make your picks, press play, and the match unfolds exactly as it did —
-        goals, cards and the market moving in real time.
-      </p>
-      {groups.map(([label, matches]) => (
-        <div key={label}>
-          <h3 className="day-label">
-            {label} <span className="rp-count">{matches.length}</span>
-          </h3>
-          {matches.map((fixture) => {
-            const homeIso = teamFlag(fixture.homeTeam);
-            const awayIso = teamFlag(fixture.awayTeam);
-            const result = played[String(fixture.fixtureId)];
-
-            return (
-              <Link
-                aria-label={`Replay ${fixture.homeTeam} vs ${fixture.awayTeam}`}
-                className="match-card"
-                href={`/demo/match/${fixture.fixtureId}`}
-                key={fixture.fixtureId}
-                style={{
-                  "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
-                  "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
-                } as React.CSSProperties}
-              >
-                <span className="mc-top">
-                  <span className="mc-time">
-                    <i className="rp-dot" />
-                    REPLAY
-                  </span>
-                  {result ? (
-                    <span className="rp-played">+{result.totalPoints} pts</span>
-                  ) : (
-                    <span className="mc-open" aria-hidden="true">
-                      ↗
-                    </span>
-                  )}
-                </span>
-                <span className="mc-teams">
-                  <span className="mc-team">
-                    {homeIso ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img alt="" src={`https://flagcdn.com/w80/${homeIso}.png`} />
-                    ) : null}
-                    <span>{fixture.homeTeam}</span>
-                  </span>
-                  <span className="mc-center">
-                    <small>{result ? "Played" : "Watch"}</small>
-                    <b className="rp-play" aria-hidden>
-                      ▶
-                    </b>
-                  </span>
-                  <span className="mc-team">
-                    {awayIso ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img alt="" src={`https://flagcdn.com/w80/${awayIso}.png`} />
-                    ) : null}
-                    <span>{fixture.awayTeam}</span>
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-      <p className="muted">
-        Recorded from the TxLINE score and odds feeds at kickoff and replayed
-        through the same pipeline the live matches use.
-      </p>
-    </section>
-  );
-}
 
 // Round labels adapted from the fixture `stage` field to friendlier text.
 const STAGE_LABEL: Record<string, string> = {

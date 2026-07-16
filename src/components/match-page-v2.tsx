@@ -174,12 +174,7 @@ import {
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
 import { worldCupResults } from "@/lib/world-cup-results";
-import { replayFixtureIds, replayFixtures } from "@/lib/replay-fixtures";
-import {
-  REPLAY_SPEEDS,
-  useMatchReplay,
-  type MatchReplay,
-} from "@/lib/use-match-replay";
+import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 
 type MatchTab =
   | "head-to-head"
@@ -352,7 +347,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       // pack: finished fixtures drop off the TxLINE snapshot within hours, and
       // deep links must keep resolving.
       const merged = mergeFixtures(
-        [...loadCachedFixtures(), ...replayFixtures, ...txlineWorldCupFixtures],
+        [...loadCachedFixtures(), ...pastWorldCupFixtures, ...txlineWorldCupFixtures],
         liveFixtures,
         { worldCupOnly: false },
       );
@@ -460,24 +455,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     };
   }, [fixtureId, refreshTick]);
 
-  // Finished fixtures age out of TxLINE's feeds two weeks after kickoff, so a
-  // committed pack is the only way to play them back. The pack drives the same
-  // records the live stream would have sent.
-  const matchReplay = useMatchReplay(fixtureId, replayFixtureIds.has(fixtureId));
-  const replayActive = matchReplay.status === "ready";
   const snapshotUpdates = details.historicalUpdates?.data?.length
     ? details.historicalUpdates
     : details.updates;
   // The one feed spine: whatever TxLINE served, plus anything the live stream
-  // has pushed since. During a replay the pack is the only truth — TxLINE
-  // still answers /scores/updates for a finished fixture with the full match,
-  // and mixing that in would show the final score at 0'.
+  // has pushed since.
   const feedUpdates = useMemo(
-    () =>
-      replayActive
-        ? matchReplay.updates
-        : [...(snapshotUpdates?.data ?? []), ...streamUpdates],
-    [matchReplay.updates, replayActive, snapshotUpdates, streamUpdates],
+    () => [...(snapshotUpdates?.data ?? []), ...streamUpdates],
+    [snapshotUpdates, streamUpdates],
   );
   // TxLINE devnet never flips GameState to finished; the authoritative end of
   // a match is the game_finalised record on the score feed.
@@ -500,12 +485,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
     return statusId >= 2 && statusId <= 9;
   }, [feedUpdates]);
-  // A replay makes feedInPlay true for a fixture that finished weeks ago;
-  // without this guard that would reopen the live stream and the 60s poll
-  // against a match TxLINE no longer serves.
   const liveStreamEligible = Boolean(
-    !replayActive &&
-      fixture &&
+    fixture &&
       now !== null &&
       (isPotentiallyLive(fixture, now) || feedInPlay) &&
       !feedFinished,
@@ -645,19 +626,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     );
   }
 
-  // The scores snapshot holds the final result for a finished fixture, so a
-  // replay must not fall back to it before its clock gets there.
-  const displayScore = getDisplayScore(
-    replayActive ? null : details.score?.data,
-    combinedUpdates,
-  );
+  const displayScore = getDisplayScore(details.score?.data, combinedUpdates);
   const scoreSource = snapshotUpdates?.data?.length
     ? `${details.score?.source ?? "TxLINE scores snapshot API"} + ${
         snapshotUpdates.source ?? "TxLINE scores updates API"
       }`
-    : replayActive
-      ? "TxLINE score feed, recorded at kickoff and replayed"
-      : details.score?.source ?? details.score?.error ?? "Pending";
+    : details.score?.source ?? details.score?.error ?? "Pending";
   // TxLINE can keep GameState at "scheduled" after kickoff; the scout
   // StatusId / clock in the loaded feed (or on the live stream) is the
   // stronger signal. StatusId >= 5 covers full time before game_finalised
@@ -668,13 +642,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const matchClock = deriveMatchClock(combinedUpdates);
   const feedStatusId = matchClock?.statusId ?? 0;
   const formattedState = formatGameState(displayScore?.gameState);
-  // The isPastFixture fallback marks a quiet old fixture as finished. Every
-  // replay is of a past fixture, so during one the only honest signal is the
-  // game_finalised record actually reaching the clock.
   const displayState =
     feedFinished ||
-    (!replayActive &&
-      isPastFixture(fixture) &&
+    (isPastFixture(fixture) &&
       !liveStreamEligible &&
       displayScore &&
       !feedInPlay)
@@ -979,30 +949,21 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const playBoard = finished
     ? details.oddsUpdates?.data?.closingBoard ?? details.oddsUpdates?.data?.board
     : details.oddsUpdates?.data?.board;
-  // A replay prices off its recorded odds track, moving with the clock. Both
-  // live sources are wrong here: for a finished fixture they hold the closing
-  // line, which would price the pre-match board off the result — Canada were
-  // 75% at kickoff and 91% by the end, so the closing line quietly gives away
-  // that they ran up the score, and pays out as if the pick were a formality.
-  const playOdds = replayActive
-    ? oddsFromPct(matchReplay.oddsPct)
-    : playBoard?.result
+  const playOdds = playBoard?.result
+    ? {
+        away: playBoard.result.away,
+        draw: playBoard.result.draw,
+        home: playBoard.result.home,
+      }
+    : details.odds?.data?.homeWinProbability &&
+        details.odds.data.drawProbability &&
+        details.odds.data.awayWinProbability
       ? {
-          away: playBoard.result.away,
-          draw: playBoard.result.draw,
-          home: playBoard.result.home,
+          away: 100 / details.odds.data.awayWinProbability,
+          draw: 100 / details.odds.data.drawProbability,
+          home: 100 / details.odds.data.homeWinProbability,
         }
-      : oddsFromPct(
-          details.odds?.data?.homeWinProbability &&
-            details.odds.data.drawProbability &&
-            details.odds.data.awayWinProbability
-            ? [
-                details.odds.data.homeWinProbability,
-                details.odds.data.drawProbability,
-                details.odds.data.awayWinProbability,
-              ]
-            : null,
-        );
+      : null;
   const playSection = (
     <PredictionSection
       key={fixture.fixtureId}
@@ -1150,14 +1111,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   // Editable play experience: market cards in the main column, the live
   // ticket in the rail. Only before kickoff; afterwards PredictionSection
   // renders the locked/settled card.
-  //
-  // A replay's kickoff is always in the past, so wall-clock locking would leave
-  // every recorded match unplayable. The replay clock is the honest one: picks
-  // are open while it sits at 0', and lock the moment it starts running — the
-  // same deal a live match offers, just on the viewer's schedule.
-  const preMatchPlay = replayActive
-    ? matchReplay.atMs === 0
-    : notStarted && now !== null && !isPredictionLocked(fixture, now);
+  const preMatchPlay =
+    notStarted && now !== null && !isPredictionLocked(fixture, now);
   const kickoff = new Date(fixture.kickoffUtc);
   const competitionLabel = formatCompetition(fixture)
     .replace(" > ", " ")
@@ -1431,10 +1386,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         </div>
       </header>
 
-      {replayActive ? (
-        <ReplayBar fixture={fixture} replay={matchReplay} />
-      ) : null}
-
       <section
         aria-labelledby={`match-tab-${matchTab}`}
         className={`mp2-tab-panel mp2-tab-panel-${matchTab}`}
@@ -1673,9 +1624,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                       : combinedUpdates.length
                         ? {
                             data: combinedUpdates,
-                            source: replayActive
-                              ? "TxLINE score feed, recorded at kickoff and replayed"
-                              : "TxLINE live score stream",
+                            source: "TxLINE live score stream",
                           }
                         : snapshotUpdates
                   }
@@ -1746,125 +1695,6 @@ export type LiveUiCall = {
   seq: number;
   voided?: boolean;
 };
-
-// Transport for a recorded match. The clock position is match time since
-// kickoff, so scrubbing lands on the minute a viewer expects rather than on a
-// record index.
-//
-// The win-probability strip is the reason the odds track is recorded at all:
-// once the match starts the market is the only thing on screen still reacting
-// to it, and watching a goal move the line is the whole point of an odds feed.
-// The Odds tab has the full board — this is the bit you watch it move on.
-function ReplayBar({
-  fixture,
-  replay,
-}: {
-  fixture: WorldCupFixture;
-  replay: MatchReplay;
-}) {
-  const minute = Math.floor(replay.atMs / 60_000);
-  const totalMinutes = Math.max(1, Math.round(replay.durationMs / 60_000));
-  const label = replay.finished ? "Restart" : replay.playing ? "Pause" : "Play";
-  const onToggle = replay.finished
-    ? replay.restart
-    : replay.playing
-      ? replay.pause
-      : replay.play;
-  const pct = replay.oddsPct;
-  const legs =
-    pct && pct.length >= 3
-      ? [
-          { key: "home", label: fixture.homeTeam, value: pct[0] },
-          { key: "draw", label: "Draw", value: pct[1] },
-          { key: "away", label: fixture.awayTeam, value: pct[2] },
-        ]
-      : null;
-
-  return (
-    <div className="mp2-replay">
-      <span className="mp2-replay-badge">Replay</span>
-      <Button
-        aria-label={`${label} replay`}
-        className="mp2-replay-play"
-        onClick={onToggle}
-        size="sm"
-      >
-        <span className="text-sm font-medium">{label}</span>
-      </Button>
-      <label className="mp2-replay-scrub">
-        <span className="sr-only">Scrub replay</span>
-        <input
-          max={replay.durationMs}
-          min={0}
-          onChange={(event) => replay.seek(Number(event.target.value))}
-          step={1000}
-          type="range"
-          value={replay.atMs}
-        />
-      </label>
-      <span className="mp2-replay-clock">
-        {minute}&apos; / {totalMinutes}&apos;
-      </span>
-      <span className="mp2-replay-speeds">
-        {REPLAY_SPEEDS.map((speed) => (
-          <button
-            aria-pressed={replay.speed === speed}
-            className={`mp2-replay-speed${replay.speed === speed ? " is-active" : ""}`}
-            key={speed}
-            onClick={() => replay.setSpeed(speed)}
-            type="button"
-          >
-            <span className="text-xs font-medium">{speed}x</span>
-          </button>
-        ))}
-      </span>
-      {legs ? (
-        <div className="mp2-replay-market">
-          <span className="mp2-replay-market-label">Market</span>
-          <span className="mp2-replay-bar" role="img" aria-label={legs
-            .map((leg) => `${leg.label} ${leg.value.toFixed(0)}%`)
-            .join(", ")}
-          >
-            {legs.map((leg) => (
-              <span
-                className={`mp2-replay-leg is-${leg.key}`}
-                key={leg.key}
-                style={{ width: `${Math.max(leg.value, 0)}%` }}
-              />
-            ))}
-          </span>
-          <span className="mp2-replay-legend">
-            {legs.map((leg) => (
-              <span key={leg.key}>
-                <i className={`mp2-replay-swatch is-${leg.key}`} />
-                {leg.label} <b>{leg.value.toFixed(0)}%</b>
-              </span>
-            ))}
-          </span>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-// TxLINE 1X2 percentages are [home, draw, away] and already demarginated.
-// A leg can reach 0% once a match is decided, so the price is floored rather
-// than allowed to divide to Infinity.
-const MIN_PCT = 0.1;
-
-function oddsFromPct(
-  pct: number[] | null | undefined,
-): { away: number; draw: number; home: number } | null {
-  if (!pct || pct.length < 3 || !pct.every((value) => Number.isFinite(value))) {
-    return null;
-  }
-
-  return {
-    away: 100 / Math.max(pct[2], MIN_PCT),
-    draw: 100 / Math.max(pct[1], MIN_PCT),
-    home: 100 / Math.max(pct[0], MIN_PCT),
-  };
-}
 
 function answerIndex(answer: string): number {
   if (answer === "goal") return 0;
