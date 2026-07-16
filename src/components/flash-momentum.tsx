@@ -20,9 +20,11 @@ const WIDTH = 640;
 const HEIGHT = 158;
 // The bar group's translate(0, 24): baseline at 79, 55 of amplitude each way.
 const BASELINE = 79;
-const AMPLITUDE = 55;
-const DOT_TOP = 25;
-const DOT_BOTTOM = 133;
+// Shrunk from Flashscore's 55 to keep vertical air between the bar peaks and
+// the period block's edges; the dot guides ride 1px outside the peaks.
+const AMPLITUDE = 42;
+const DOT_TOP = BASELINE - AMPLITUDE - 1;
+const DOT_BOTTOM = BASELINE + AMPLITUDE + 1;
 const PERIOD_GAP = 5;
 // Play phases in timeline order; breaks and pre-match never own a bar. The
 // scout clock is cumulative across the match, but every phase restart emits a
