@@ -337,7 +337,7 @@ export function FlashMomentum({
                 <rect
                   className="fsm-period"
                   height={HEIGHT}
-                  rx={2}
+                  rx={8}
                   width={period.width}
                   x={period.x}
                   y={0}
