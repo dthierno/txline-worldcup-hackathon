@@ -4762,8 +4762,8 @@ dt {
   margin: 0;
 }
 .cf-card {
-  background: #141419;
-  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
   overflow: hidden;
 }
 .cf-card-head {
@@ -4777,20 +4777,24 @@ dt {
 }
 .cf-head-title {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .cf-head-min {
   color: #fff;
-  font-size: 12px;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   margin-left: auto;
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
 }
 .cf-card-body {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
   color: var(--muted-foreground);
   font-size: 13px;
   line-height: 1.5;
