@@ -979,21 +979,30 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const playBoard = finished
     ? details.oddsUpdates?.data?.closingBoard ?? details.oddsUpdates?.data?.board
     : details.oddsUpdates?.data?.board;
-  const playOdds = playBoard?.result
-    ? {
-        away: playBoard.result.away,
-        draw: playBoard.result.draw,
-        home: playBoard.result.home,
-      }
-    : details.odds?.data?.homeWinProbability &&
-        details.odds.data.drawProbability &&
-        details.odds.data.awayWinProbability
+  // A replay prices off its recorded odds track, moving with the clock. Both
+  // live sources are wrong here: for a finished fixture they hold the closing
+  // line, which would price the pre-match board off the result — Canada were
+  // 75% at kickoff and 91% by the end, so the closing line quietly gives away
+  // that they ran up the score, and pays out as if the pick were a formality.
+  const playOdds = replayActive
+    ? oddsFromPct(matchReplay.oddsPct)
+    : playBoard?.result
       ? {
-          away: 100 / details.odds.data.awayWinProbability,
-          draw: 100 / details.odds.data.drawProbability,
-          home: 100 / details.odds.data.homeWinProbability,
+          away: playBoard.result.away,
+          draw: playBoard.result.draw,
+          home: playBoard.result.home,
         }
-      : null;
+      : oddsFromPct(
+          details.odds?.data?.homeWinProbability &&
+            details.odds.data.drawProbability &&
+            details.odds.data.awayWinProbability
+            ? [
+                details.odds.data.homeWinProbability,
+                details.odds.data.drawProbability,
+                details.odds.data.awayWinProbability,
+              ]
+            : null,
+        );
   const playSection = (
     <PredictionSection
       key={fixture.fixtureId}
@@ -1422,7 +1431,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         </div>
       </header>
 
-      {replayActive ? <ReplayBar replay={matchReplay} /> : null}
+      {replayActive ? (
+        <ReplayBar fixture={fixture} replay={matchReplay} />
+      ) : null}
 
       <section
         aria-labelledby={`match-tab-${matchTab}`}
@@ -1739,7 +1750,18 @@ export type LiveUiCall = {
 // Transport for a recorded match. The clock position is match time since
 // kickoff, so scrubbing lands on the minute a viewer expects rather than on a
 // record index.
-function ReplayBar({ replay }: { replay: MatchReplay }) {
+//
+// The win-probability strip is the reason the odds track is recorded at all:
+// once the match starts the market is the only thing on screen still reacting
+// to it, and watching a goal move the line is the whole point of an odds feed.
+// The Odds tab has the full board — this is the bit you watch it move on.
+function ReplayBar({
+  fixture,
+  replay,
+}: {
+  fixture: WorldCupFixture;
+  replay: MatchReplay;
+}) {
   const minute = Math.floor(replay.atMs / 60_000);
   const totalMinutes = Math.max(1, Math.round(replay.durationMs / 60_000));
   const label = replay.finished ? "Restart" : replay.playing ? "Pause" : "Play";
@@ -1748,6 +1770,15 @@ function ReplayBar({ replay }: { replay: MatchReplay }) {
     : replay.playing
       ? replay.pause
       : replay.play;
+  const pct = replay.oddsPct;
+  const legs =
+    pct && pct.length >= 3
+      ? [
+          { key: "home", label: fixture.homeTeam, value: pct[0] },
+          { key: "draw", label: "Draw", value: pct[1] },
+          { key: "away", label: fixture.awayTeam, value: pct[2] },
+        ]
+      : null;
 
   return (
     <div className="mp2-replay">
@@ -1787,8 +1818,52 @@ function ReplayBar({ replay }: { replay: MatchReplay }) {
           </button>
         ))}
       </span>
+      {legs ? (
+        <div className="mp2-replay-market">
+          <span className="mp2-replay-market-label">Market</span>
+          <span className="mp2-replay-bar" role="img" aria-label={legs
+            .map((leg) => `${leg.label} ${leg.value.toFixed(0)}%`)
+            .join(", ")}
+          >
+            {legs.map((leg) => (
+              <span
+                className={`mp2-replay-leg is-${leg.key}`}
+                key={leg.key}
+                style={{ width: `${Math.max(leg.value, 0)}%` }}
+              />
+            ))}
+          </span>
+          <span className="mp2-replay-legend">
+            {legs.map((leg) => (
+              <span key={leg.key}>
+                <i className={`mp2-replay-swatch is-${leg.key}`} />
+                {leg.label} <b>{leg.value.toFixed(0)}%</b>
+              </span>
+            ))}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+// TxLINE 1X2 percentages are [home, draw, away] and already demarginated.
+// A leg can reach 0% once a match is decided, so the price is floored rather
+// than allowed to divide to Infinity.
+const MIN_PCT = 0.1;
+
+function oddsFromPct(
+  pct: number[] | null | undefined,
+): { away: number; draw: number; home: number } | null {
+  if (!pct || pct.length < 3 || !pct.every((value) => Number.isFinite(value))) {
+    return null;
+  }
+
+  return {
+    away: 100 / Math.max(pct[2], MIN_PCT),
+    draw: 100 / Math.max(pct[1], MIN_PCT),
+    home: 100 / Math.max(pct[0], MIN_PCT),
+  };
 }
 
 function answerIndex(answer: string): number {

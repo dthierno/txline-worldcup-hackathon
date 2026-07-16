@@ -5349,3 +5349,72 @@ dt {
   font-weight: 600;
   padding: 2px 7px;
 }
+
+/* The market strip inside the replay transport: a second row that only exists
+   when the recorded odds track has a price for the current minute. */
+.mp2 .mp2-replay-market {
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  gap: 10px;
+  order: 2;
+  padding-top: 10px;
+  width: 100%;
+}
+.mp2 .mp2-replay-market-label {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mp2 .mp2-replay-bar {
+  border-radius: 999px;
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.mp2 .mp2-replay-leg {
+  border-radius: 2px;
+  height: 6px;
+  transition: width 240ms ease-out;
+}
+.mp2 .mp2-replay-leg.is-home,
+.mp2 .mp2-replay-swatch.is-home {
+  background: #4ade80;
+}
+.mp2 .mp2-replay-leg.is-draw,
+.mp2 .mp2-replay-swatch.is-draw {
+  background: #6b7280;
+}
+.mp2 .mp2-replay-leg.is-away,
+.mp2 .mp2-replay-swatch.is-away {
+  background: #60a5fa;
+}
+.mp2 .mp2-replay-legend {
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 11px;
+  gap: 10px;
+  white-space: nowrap;
+}
+.mp2 .mp2-replay-legend b {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.mp2 .mp2-replay-swatch {
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  margin-right: 5px;
+  width: 6px;
+}
+
+@media (max-width: 720px) {
+  .mp2 .mp2-replay-legend {
+    display: none;
+  }
+}
