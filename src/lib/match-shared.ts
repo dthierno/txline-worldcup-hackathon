@@ -457,12 +457,21 @@ export function buildOutcome(
     firstGoal,
     goals,
     homeGoals: score.homeGoals,
+    playerCards: score.playerStats
+      ? Object.fromEntries(
+          Object.entries(score.playerStats).map(([playerId, line]) => [
+            playerId,
+            { red: line.redCards, yellow: line.yellowCards },
+          ]),
+        )
+      : null,
     totalCards:
       score.homeYellowCards +
       score.awayYellowCards +
       score.homeRedCards +
       score.awayRedCards,
     totalCorners: score.homeCorners + score.awayCorners,
+    totalRedCards: score.homeRedCards + score.awayRedCards,
   };
 }
 

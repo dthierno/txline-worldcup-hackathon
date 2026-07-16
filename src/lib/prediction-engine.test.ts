@@ -321,6 +321,83 @@ describe("settlePrediction", () => {
     expect(byMarket["Anytime scorer"].status).toBe("lost");
   });
 
+  it("settles the disciplinary markets off the per-player card record", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        bookedPlayer: { name: "Hakimi, Achraf", odds: 11.2, playerId: 7 },
+        sentOffPlayer: { name: "Saiss, Romain", odds: 140, playerId: 5 },
+      }),
+      makeOutcome({
+        // Two cards reported, two attributed: the record adds up.
+        playerCards: { "5": { red: 1 }, "7": { yellow: 1 } },
+        totalCards: 2,
+        totalRedCards: 1,
+      }),
+      teams,
+    );
+    const byMarket = Object.fromEntries(
+      settlement.markets.map((market) => [market.market, market]),
+    );
+
+    expect(byMarket["Booked"].status).toBe("won");
+    expect(byMarket["Booked"].points).toBe(11);
+    expect(byMarket["Sent off"].status).toBe("won");
+    expect(byMarket["Sent off"].points).toBe(140);
+  });
+
+  it("loses a booking pick only when the card record adds up", () => {
+    const complete = settlePrediction(
+      makePrediction({
+        bookedPlayer: { name: "Hakimi, Achraf", playerId: 7 },
+      }),
+      makeOutcome({
+        playerCards: { "5": { yellow: 1 }, "9": { yellow: 1 } },
+        totalCards: 2,
+        totalRedCards: 0,
+      }),
+      teams,
+    );
+
+    expect(
+      complete.markets.find((market) => market.market === "Booked")?.status,
+    ).toBe("lost");
+  });
+
+  it("voids a booking pick when TxLINE attributed only some of the cards", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        bookedPlayer: { name: "Hakimi, Achraf", playerId: 7 },
+      }),
+      makeOutcome({
+        // Four cards in the match, one attributed: the fan's player could be
+        // any of the three TxLINE never named, so the call cannot be ruled out.
+        playerCards: { "5": { yellow: 1 } },
+        totalCards: 4,
+        totalRedCards: 0,
+      }),
+      teams,
+    );
+
+    expect(
+      settlement.markets.find((market) => market.market === "Booked")?.status,
+    ).toBe("void");
+  });
+
+  it("keeps a booking pick open until the per-player record lands", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        bookedPlayer: { name: "Hakimi, Achraf", playerId: 7 },
+      }),
+      // TxLINE only attaches playerStats to game_finalised.
+      makeOutcome({ finished: false, playerCards: null, totalCards: 3 }),
+      teams,
+    );
+
+    expect(
+      settlement.markets.find((market) => market.market === "Booked")?.status,
+    ).toBe("open");
+  });
+
   it("pays a scorer pick by the odds frozen at save", () => {
     const settlement = settlePrediction(
       makePrediction({

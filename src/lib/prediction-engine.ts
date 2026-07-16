@@ -9,16 +9,18 @@ export type LinePick = "over" | "under";
 // published an XI carries a provider squad id instead, which belongs to another
 // id space and can never match: it is flagged provisional until the real XI
 // lands and rewrites it, and it voids rather than loses if it never does.
-export type FirstScorerPick =
-  | {
-      name: string;
-      // Fair decimal odds of this player taking this goal, frozen at save; the
-      // payout scales with it, so a long shot is worth more than the favourite.
-      odds?: number;
-      playerId: number;
-      provisional?: boolean;
-    }
-  | "none";
+// One named player on any player market: who, what it was priced at, and
+// whether that id has been reconciled to the TxLINE goal feed yet.
+export type PlayerPick = {
+  name: string;
+  // Fair decimal odds of this player doing it, frozen at save; the payout
+  // scales with it, so a long shot is worth more than the favourite.
+  odds?: number;
+  playerId: number;
+  provisional?: boolean;
+};
+
+export type FirstScorerPick = PlayerPick | "none";
 
 export type DoubleChancePick = "draw_away" | "home_away" | "home_draw";
 
@@ -36,8 +38,12 @@ export type MatchPrediction = {
   // TxLINE player list at prediction time.
   anytimeScorer?: FirstScorerPick | null;
   awayGoals: number | null;
+  // Disciplinary markets, settled from the per-player record TxLINE attaches to
+  // game_finalised.
+  bookedPlayer?: PlayerPick | null;
   firstScorer?: FirstScorerPick | null;
   lastScorer?: FirstScorerPick | null;
+  sentOffPlayer?: PlayerPick | null;
   fixtureId: number;
   // TxLINE 1X2 decimal odds captured when the prediction was saved; the
   // winner market pays out scaled by the picked outcome's odds.
@@ -64,7 +70,13 @@ export type MatchOutcome = {
   // outcomes built before these markets existed.
   goals?: Array<{ playerId?: number; scorerName?: string }> | null;
   homeGoals: number;
+  // TxLINE's per-player card record, keyed by playerId. It only lands on the
+  // game_finalised record, and it is routinely thinner than the match's own
+  // card counters - the disciplinary markets check it adds up before they rule
+  // a pick out.
+  playerCards?: Record<string, { red?: number; yellow?: number }> | null;
   totalCards: number;
+  totalRedCards?: number;
   totalCorners: number;
 };
 
@@ -92,10 +104,12 @@ export const PREDICTION_LINES = {
 
 export const PREDICTION_POINTS = {
   anytimeScorer: 4,
+  bookedPlayer: 3,
   exactScore: 5,
   firstScorer: 6,
   lastScorer: 6,
   line: 2,
+  sentOffPlayer: 12,
   winner: 3,
 } as const;
 
@@ -132,12 +146,23 @@ export function exactScorePoints(odds?: number | null): number {
 // goal is a rarer call than any scoreline on the board, so the ceiling has to
 // sit above the exact-score cap or the whole squad below the front line prices
 // identically and there is nothing to choose between them.
-const SCORER_POINT_CAP = { anytimeScorer: 30, firstScorer: 50, lastScorer: 50 };
+// Each ceiling sits near the fair price of that market's longest realistic
+// call, so the tail still separates instead of pinning flat. A red for one
+// named player is the rarest thing on the card by an order of magnitude - about
+// a quarter of a red per match, shared across a squad - which is why sending-off
+// sits so far above the rest.
+const SCORER_POINT_CAP = {
+  anytimeScorer: 30,
+  bookedPlayer: 25,
+  firstScorer: 50,
+  lastScorer: 50,
+  sentOffPlayer: 150,
+};
 
-// Scorer payout: the fair odds of that player taking that goal, frozen at save.
-// Flat points made the market a formality - the striker everyone picks paid the
-// same as a centre-back, so there was never a call to make. The flat value is
-// the floor, which is also what a pick with no price falls back to.
+// Player-market payout: the fair odds of that player doing it, frozen at save.
+// Flat points made these a formality - the striker everyone picks paid the same
+// as a centre-back, so there was never a call to make. The flat value is the
+// floor, which is also what a pick with no price falls back to.
 export function scorerPoints(
   market: keyof typeof SCORER_POINT_CAP,
   odds?: number | null,
@@ -277,6 +302,28 @@ export function settlePrediction(
       : []),
     ...(prediction.lastScorer != null
       ? [settleLastScorer(prediction.lastScorer, outcome)]
+      : []),
+    ...(prediction.bookedPlayer
+      ? [
+          settleCardMarket(
+            "Booked",
+            prediction.bookedPlayer,
+            outcome,
+            false,
+            scorerPoints("bookedPlayer", prediction.bookedPlayer.odds),
+          ),
+        ]
+      : []),
+    ...(prediction.sentOffPlayer
+      ? [
+          settleCardMarket(
+            "Sent off",
+            prediction.sentOffPlayer,
+            outcome,
+            true,
+            scorerPoints("sentOffPlayer", prediction.sentOffPlayer.odds),
+          ),
+        ]
       : []),
     ...(hasScorePick
       ? [
@@ -559,6 +606,65 @@ function settleAnytimeScorer(
     result,
     status,
     scorerPoints("anytimeScorer", scorerPickOdds(pick)),
+  );
+}
+
+// True when TxLINE's per-player card record adds up to the card counters the
+// match itself reports. When it does not, a player missing from the record may
+// still have been carded, so the negative cannot be trusted.
+function cardsFullyAttributed(outcome: MatchOutcome, red: boolean): boolean {
+  const record = outcome.playerCards;
+
+  if (!record) return false;
+
+  const counted = Object.values(record).reduce(
+    (total, line) => total + (red ? (line.red ?? 0) : (line.red ?? 0) + (line.yellow ?? 0)),
+    0,
+  );
+  const reported = red ? outcome.totalRedCards : outcome.totalCards;
+
+  return reported !== undefined && counted === reported;
+}
+
+function settleCardMarket(
+  title: string,
+  pick: PlayerPick,
+  outcome: MatchOutcome,
+  red: boolean,
+  points: number,
+): SettledMarket {
+  const line = outcome.playerCards?.[String(pick.playerId)];
+  const count = red ? (line?.red ?? 0) : (line?.red ?? 0) + (line?.yellow ?? 0);
+
+  let status: MarketStatus;
+
+  if (pick.provisional) {
+    status = unreconciledStatus(outcome);
+  } else if (count > 0) {
+    // Positive attribution is safe even from a thin record: TxLINE put this
+    // card on this player.
+    status = outcome.finished ? "won" : "open";
+  } else if (!outcome.finished) {
+    // The per-player record only arrives with game_finalised.
+    status = "open";
+  } else if (!cardsFullyAttributed(outcome, red)) {
+    status = "void";
+  } else {
+    status = "lost";
+  }
+
+  const reported = red ? outcome.totalRedCards : outcome.totalCards;
+
+  return settledMarket(
+    title,
+    pick.name,
+    outcome.finished
+      ? reported
+        ? `${reported} in the match`
+        : "None in the match"
+      : "Not finished",
+    status,
+    points,
   );
 }
 

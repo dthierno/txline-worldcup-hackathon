@@ -123,6 +123,7 @@ import {
   type FirstScorerPick,
   type MatchOutcome,
   type MatchPrediction,
+  type PlayerPick,
   type SidePick,
   type WinnerPick,
 } from "@/lib/prediction-engine";
@@ -2953,30 +2954,51 @@ function LineupsSection({
 // goal feed settles against, using the provider id each verified player matched.
 // A pick that bridges to nobody is dropped: the player is not in the matchday
 // squad, so leaving it on the card would promise a payout that cannot happen.
-function reconcileScorerPick(
-  pick: FirstScorerPick | null | undefined,
+function reconcilePlayerPick(
+  pick: PlayerPick | null | undefined,
   players: ScorerPoolPlayer[],
-): FirstScorerPick | null | undefined {
-  if (!pick || pick === "none" || !pick.provisional) return pick;
+): PlayerPick | null | undefined {
+  if (!pick || !pick.provisional) return pick;
 
   const bridged = players.find((player) => player.providerId === pick.playerId);
 
   return bridged ? { name: bridged.name, playerId: bridged.playerId } : null;
 }
 
+// "No goal scorer" names no player, so there is nothing to bridge.
+function reconcileScorerPick(
+  pick: FirstScorerPick | null | undefined,
+  players: ScorerPoolPlayer[],
+): FirstScorerPick | null | undefined {
+  return pick === "none" ? pick : reconcilePlayerPick(pick, players);
+}
+
+// Every player market a provisional pick can land on, not just the scorers: a
+// booking taken off the provider squad settles against the same TxLINE ids.
 function reconcileScorers(
   prediction: MatchPrediction,
   players: ScorerPoolPlayer[],
 ): MatchPrediction {
   const anytimeScorer = reconcileScorerPick(prediction.anytimeScorer, players);
+  const bookedPlayer = reconcilePlayerPick(prediction.bookedPlayer, players);
   const firstScorer = reconcileScorerPick(prediction.firstScorer, players);
   const lastScorer = reconcileScorerPick(prediction.lastScorer, players);
+  const sentOffPlayer = reconcilePlayerPick(prediction.sentOffPlayer, players);
 
   return anytimeScorer === prediction.anytimeScorer &&
+    bookedPlayer === prediction.bookedPlayer &&
     firstScorer === prediction.firstScorer &&
-    lastScorer === prediction.lastScorer
+    lastScorer === prediction.lastScorer &&
+    sentOffPlayer === prediction.sentOffPlayer
     ? prediction
-    : { ...prediction, anytimeScorer, firstScorer, lastScorer };
+    : {
+        ...prediction,
+        anytimeScorer,
+        bookedPlayer,
+        firstScorer,
+        lastScorer,
+        sentOffPlayer,
+      };
 }
 
 // the live ticket (rail). Lazy-reads localStorage once per fixture.
@@ -3162,13 +3184,29 @@ function OutcomeCircle({ iso }: { iso: string | null | undefined }) {
   );
 }
 
-const SCORER_MARKETS = [
+type PlayerMarketField =
+  | "anytimeScorer"
+  | "bookedPlayer"
+  | "firstScorer"
+  | "lastScorer"
+  | "sentOffPlayer";
+
+type PlayerMarket = {
+  field: PlayerMarketField;
+  short: string;
+  title: string;
+};
+
+const SCORER_MARKETS: readonly PlayerMarket[] = [
   { field: "anytimeScorer", short: "Anytime", title: "Anytime scorer" },
   { field: "firstScorer", short: "First", title: "First scorer" },
   { field: "lastScorer", short: "Last", title: "Last scorer" },
-] as const;
+];
 
-type ScorerField = (typeof SCORER_MARKETS)[number]["field"];
+const BOOKING_MARKETS: readonly PlayerMarket[] = [
+  { field: "bookedPlayer", short: "Booked", title: "Booked" },
+  { field: "sentOffPlayer", short: "Sent off", title: "Sent off" },
+];
 
 const POSITION_RANK: Record<LineupPosition, number> = {
   DEF: 2,
@@ -3234,7 +3272,65 @@ function scorerWeight(player: ScorerPoolPlayer): number {
   return weight ?? (position === POSITION_RANK.FWD ? 5 : 3);
 }
 
+// Cards go the other way to goals: the holding midfielders and centre-backs
+// collect them, the forwards mostly do not. TxLINE prices no card market, so
+// this leans on the shirt again - 4 and 6 sit in front of the back four, 5 is
+// the centre-back who has to stop things.
+const BOOKING_SHIRT_WEIGHT: Record<number, number> = { 4: 1.9, 5: 1.7, 6: 1.9 };
+
+const BOOKING_POSITION_WEIGHT: Record<LineupPosition, number> = {
+  DEF: 1.2,
+  FWD: 0.7,
+  GK: 0.15,
+  MID: 1.3,
+};
+
+function bookingWeight(player: ScorerPoolPlayer): number {
+  const position = player.position ?? "MID";
+
+  if (position === "GK") return BOOKING_POSITION_WEIGHT.GK;
+
+  const shirt = player.shirtNumber;
+  const weight = shirt === undefined ? undefined : BOOKING_SHIRT_WEIGHT[shirt];
+
+  return weight ?? BOOKING_POSITION_WEIGHT[position];
+}
+
 type ScorerPrice = { anytime: number; first: number };
+
+type BookingPrice = { booked: number; sentOff: number };
+
+// Roughly a red every four matches across both sides, against the card line the
+// totals market already quotes. Neither is a TxLINE price - no card market is
+// published - so both are house numbers.
+const REDS_PER_TEAM = 0.12;
+
+function buildBookingPrices(
+  teams: ScorerPoolTeam[],
+): Map<number, BookingPrice> {
+  const cardsPerTeam = PREDICTION_LINES.cards / 2;
+  const prices = new Map<number, BookingPrice>();
+
+  for (const team of teams) {
+    const weights = team.players.map(bookingWeight);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+
+    if (!totalWeight) continue;
+
+    team.players.forEach((player, index) => {
+      const share = (weights[index] ?? 0) / totalWeight;
+
+      if (share <= 0) return;
+
+      prices.set(player.playerId, {
+        booked: 1 / (1 - Math.exp(-cardsPerTeam * share)),
+        sentOff: 1 / (1 - Math.exp(-REDS_PER_TEAM * share)),
+      });
+    });
+  }
+
+  return prices;
+}
 
 // Prices every player off the same Poisson the scoreline board runs on: the
 // team's expected goals split by shirt weight gives one player's expected
@@ -3275,19 +3371,10 @@ function buildScorerPrices(
   return prices;
 }
 
-// First and last are symmetric ends of the same match, so they share a price.
-function scorerOdds(
-  prices: Map<number, ScorerPrice>,
-  entry: ScorerEntry,
-  field: ScorerField,
-): number | undefined {
-  const price = prices.get(entry.player.playerId);
-
-  if (!price) return undefined;
-
-  const odds = field === "anytimeScorer" ? price.anytime : price.first;
-
-  return Number.isFinite(odds) ? Math.round(odds * 100) / 100 : undefined;
+function roundedOdds(odds: number | undefined): number | undefined {
+  return odds !== undefined && Number.isFinite(odds)
+    ? Math.round(odds * 100) / 100
+    : undefined;
 }
 
 type ScorerEntry = {
@@ -3297,28 +3384,32 @@ type ScorerEntry = {
   teamName: string;
 };
 
-// The scorer board: a row per player, a column per market, so one pass down the
-// likeliest names settles all three calls. Defenders and keepers fold away
-// behind the same quiet row the Match result card uses for its long tail of
-// scorelines, and a picked player from that tail stays on screen so collapsing
-// never hides a current call.
-function ScorerBoard({
+// A player-props board: a row per player, a column per market, so one pass down
+// the likeliest names settles every call. The long tail folds away behind the
+// same quiet row the Match result card uses for its scorelines, and a picked
+// player from that tail stays on screen so collapsing never hides a call.
+// Goal scorers and bookings are the same board on different odds and ordering.
+function PlayerPropBoard({
   draft,
   folded,
+  label,
+  markets,
+  oddsFor,
   onPick,
   players,
-  prices,
   provisional,
 }: {
   draft: MatchPrediction;
   folded: number;
-  onPick: (field: ScorerField, pick: FirstScorerPick | null) => void;
+  label: string;
+  markets: readonly PlayerMarket[];
+  oddsFor: (entry: ScorerEntry, field: PlayerMarketField) => number | undefined;
+  onPick: (field: PlayerMarketField, pick: PlayerPick | null) => void;
   players: ScorerEntry[];
-  prices: Map<number, ScorerPrice>;
   provisional: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const pickedIds = SCORER_MARKETS.map((market) => {
+  const pickedIds = markets.map((market) => {
     const pick = draft[market.field];
 
     return pick && pick !== "none" ? pick.playerId : null;
@@ -3329,16 +3420,13 @@ function ScorerBoard({
       index < SCORER_FOLD ||
       pickedIds.includes(entry.player.playerId),
   );
-  const marketCell = (
-    entry: ScorerEntry,
-    market: (typeof SCORER_MARKETS)[number],
-  ) => {
+  const marketCell = (entry: ScorerEntry, market: PlayerMarket) => {
     const pick = draft[market.field] ?? null;
     const pressed =
       pick !== null &&
       pick !== "none" &&
       pick.playerId === entry.player.playerId;
-    const price = scorerOdds(prices, entry, market.field);
+    const price = oddsFor(entry, market.field);
     const points = scorerPoints(market.field, price);
 
     return (
@@ -3352,7 +3440,7 @@ function ScorerBoard({
             return;
           }
 
-          const picked: FirstScorerPick = {
+          const picked: PlayerPick = {
             name: entry.player.name,
             playerId: entry.player.playerId,
             ...(price === undefined ? {} : { odds: price }),
@@ -3370,14 +3458,17 @@ function ScorerBoard({
   };
 
   return (
-    <div className="mt-3.5 overflow-hidden rounded-[18px] bg-black/25">
+    <div
+      className="mt-3.5 overflow-hidden rounded-[18px] bg-black/25"
+      style={{ "--mp2-scorer-cols": markets.length } as CSSProperties}
+    >
       <div className="mp2-scorer-row mp2-scorer-head">
         <span>Player</span>
-        {SCORER_MARKETS.map((market) => (
+        {markets.map((market) => (
           <span key={market.field}>{market.short}</span>
         ))}
       </div>
-      <div aria-label="Goal scorers" className="p-3.5" role="group">
+      <div aria-label={label} className="p-3.5" role="group">
         {visible.map((entry) => (
           <div className="mp2-scorer-row" key={entry.player.playerId}>
             <span className="mp2-scorer-player">
@@ -3402,7 +3493,7 @@ function ScorerBoard({
                 {shortPlayerName(entry.player.name)}
               </span>
             </span>
-            {SCORER_MARKETS.map((market) => marketCell(entry, market))}
+            {markets.map((market) => marketCell(entry, market))}
           </div>
         ))}
         {folded ? (
@@ -3509,6 +3600,16 @@ function MarketCards({
         a.player.name.localeCompare(b.player.name),
     );
   const foldedScorers = Math.max(0, scorerPlayers.length - SCORER_FOLD);
+  // The same squads, reordered: bookings live in midfield and defence, so the
+  // scorer board's ranking would bury exactly the names worth picking here.
+  const bookingPlayers = [...scorerPlayers].sort(
+    (a, b) =>
+      bookingWeight(b.player) - bookingWeight(a.player) ||
+      (a.player.shirtNumber ?? 99) - (b.player.shirtNumber ?? 99) ||
+      a.teamName.localeCompare(b.teamName),
+  );
+  const foldedBookings = Math.max(0, bookingPlayers.length - SCORER_FOLD);
+  const bookingPrices = buildBookingPrices(scorerPool?.teams ?? []);
   const resultShares = impliedShares([
     odds1x2?.home,
     odds1x2?.draw,
@@ -4033,19 +4134,71 @@ function MarketCards({
           </span>
         </div>
         {scorerPlayers.length ? (
-          <ScorerBoard
+          <PlayerPropBoard
             draft={draft}
             folded={foldedScorers}
+            label="Goal scorers"
+            markets={SCORER_MARKETS}
+            oddsFor={(entry, field) => {
+              const price = scorerPrices.get(entry.player.playerId);
+
+              // First and last are symmetric ends of the same match, so they
+              // share a price.
+              return roundedOdds(
+                field === "anytimeScorer" ? price?.anytime : price?.first,
+              );
+            }}
             onPick={(field, pick) =>
               patchDraft((previous) => ({ ...previous, [field]: pick }))
             }
             players={scorerPlayers}
-            prices={scorerPrices}
             provisional={scorerPool?.provisional ?? false}
           />
         ) : (
           <p className="muted">
             Scorer picks unavailable: no squad is published for this fixture
+            yet.
+          </p>
+        )}
+      </section>
+
+      <section aria-labelledby="market-booking-heading" className="card">
+        <div className="mp2-card-heading">
+          <h2 id="market-booking-heading">Bookings</h2>
+          <span
+            className="text-muted-foreground cursor-help"
+            title="Settled at full time from the TxLINE per-player card record. Points scale with how likely the player is to be carded, so a striker pays more than a holding midfielder."
+          >
+            <HugeiconsIcon
+              aria-label="How booking points work"
+              icon={InformationCircleIcon}
+              size={16}
+              strokeWidth={2.5}
+            />
+          </span>
+        </div>
+        {bookingPlayers.length ? (
+          <PlayerPropBoard
+            draft={draft}
+            folded={foldedBookings}
+            label="Bookings"
+            markets={BOOKING_MARKETS}
+            oddsFor={(entry, field) => {
+              const price = bookingPrices.get(entry.player.playerId);
+
+              return roundedOdds(
+                field === "bookedPlayer" ? price?.booked : price?.sentOff,
+              );
+            }}
+            onPick={(field, pick) =>
+              patchDraft((previous) => ({ ...previous, [field]: pick }))
+            }
+            players={bookingPlayers}
+            provisional={scorerPool?.provisional ?? false}
+          />
+        ) : (
+          <p className="muted">
+            Booking picks unavailable: no squad is published for this fixture
             yet.
           </p>
         )}
@@ -4206,6 +4359,24 @@ function TicketCard({
               "lastScorer",
               draft.lastScorer === "none" ? undefined : draft.lastScorer.odds,
             ),
+          },
+        ]
+      : []),
+    ...(draft.bookedPlayer
+      ? [
+          {
+            market: "Booked",
+            pick: shortPlayerName(draft.bookedPlayer.name),
+            pts: scorerPoints("bookedPlayer", draft.bookedPlayer.odds),
+          },
+        ]
+      : []),
+    ...(draft.sentOffPlayer
+      ? [
+          {
+            market: "Sent off",
+            pick: shortPlayerName(draft.sentOffPlayer.name),
+            pts: scorerPoints("sentOffPlayer", draft.sentOffPlayer.odds),
           },
         ]
       : []),

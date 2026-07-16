@@ -4408,7 +4408,7 @@ dt {
   align-items: center;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(0, 1fr) repeat(3, 62px);
+  grid-template-columns: minmax(0, 1fr) repeat(var(--mp2-scorer-cols, 3), 62px);
 }
 .mp2 .card .mp2-scorer-head {
   background: rgba(255, 255, 255, 0.045);
