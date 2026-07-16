@@ -85,7 +85,6 @@ import {
   formatKickoffLabel,
   formatKickoffTime,
   formatMinute,
-  formatUtcTime,
   getDisplayScore,
   getDisplayUpdates,
   isOddsUpdatesData,
@@ -253,7 +252,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const loadedFixtureRef = useRef<number | null>(null);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
   const [streamUpdates, setStreamUpdates] = useState<TxlineUpdateData[]>([]);
-  const [liveOddsNote, setLiveOddsNote] = useState<string | null>(null);
   const [shareLabel, setShareLabel] = useState("Share");
   const [matchTab, setMatchTab] = useState<MatchTab>("overview");
   const now = useNow();
@@ -514,7 +512,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     }
 
     const scoreStream = new EventSource("/api/txline/scores/stream");
-    const oddsStream = new EventSource("/api/txline/odds/stream");
 
     scoreStream.onopen = () => setStreamStatus("connected");
     scoreStream.onerror = () => setStreamStatus("unavailable");
@@ -550,33 +547,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       });
     };
 
-    oddsStream.onmessage = (event) => {
-      const record = safeParseJson(event.data);
-
-      if (
-        !record ||
-        record.FixtureId !== fixtureId ||
-        record.SuperOddsType !== "1X2_PARTICIPANT_RESULT" ||
-        record.MarketParameters ||
-        record.MarketPeriod
-      ) {
-        return;
-      }
-
-      const pct = Array.isArray(record.Pct) ? record.Pct.map(Number) : [];
-
-      if (pct.length >= 3 && pct.every(Number.isFinite)) {
-        setLiveOddsNote(
-          `TxLINE 1X2: ${pct[0].toFixed(1)}% / ${pct[1].toFixed(1)}% / ${pct[2].toFixed(1)}%`,
-        );
-      }
-    };
 
     return () => {
       scoreStream.close();
-      oddsStream.close();
       setStreamUpdates([]);
-      setLiveOddsNote(null);
       setStreamStatus("idle");
     };
   }, [fixtureId, liveStreamEligible]);
@@ -1776,30 +1750,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
               momentum={momentum}
             />
-
-            <section className="card" aria-labelledby="odds-heading">
-              <h2 id="odds-heading">Odds</h2>
-              {!(details.oddsUpdates?.data?.board ??
-              details.oddsUpdates?.data?.closingBoard) ? (
-                <p className="muted">
-                  {details.odds?.data?.marketNote ?? "No odds snapshot available."}
-                </p>
-              ) : null}
-              {liveOddsNote ? (
-                <p className="muted">Live from odds stream: {liveOddsNote}</p>
-              ) : null}
-              <OddsBoardView
-                board={
-                  finished
-                    ? details.oddsUpdates?.data?.closingBoard ??
-                      details.oddsUpdates?.data?.board
-                    : details.oddsUpdates?.data?.board
-                }
-                finished={finished}
-                fixture={fixture}
-              />
-              <OddsMovement oddsUpdates={details.oddsUpdates} />
-            </section>
           </div>
         ) : null}
 
@@ -2574,90 +2524,6 @@ function MatchInfoSection({
 // Current prices across TxLINE's three market families (decimal odds). For
 // finished matches the caller passes the pre-match closing board, since final
 // in-play prices are just the settled result.
-function OddsBoardView({
-  board,
-  finished,
-  fixture,
-}: {
-  board?: OddsBoard;
-  finished: boolean;
-  fixture: WorldCupFixture;
-}) {
-  if (!board || (!board.result && !board.overUnder.length && !board.asianHandicap.length)) {
-    return null;
-  }
-
-  const decimal = (value: number) => value.toFixed(2);
-  // TxLINE quotes every quarter-line; show only the classic .5 lines (no
-  // push/void outcomes), capped to keep the board readable.
-  const mainLines = (lines: OddsBoard["overUnder"]) =>
-    lines
-      .filter((entry) => (entry.line * 2) % 1 === 0 && entry.line % 1 !== 0)
-      .slice(0, 6);
-
-  const overUnder = mainLines(board.overUnder);
-  const handicap = mainLines(board.asianHandicap);
-
-  return (
-    <div className="odds-board">
-      <p className="muted">
-        {finished
-          ? "Closing prices (last pre-match quotes)."
-          : "Latest quoted prices."}
-      </p>
-      {board.result ? (
-        <div className="odds-market">
-          <p className="stat-title">Match result</p>
-          <div className="odds-line">
-            <span className="odds-cell">
-              <em>{fixture.homeTeam}</em> {decimal(board.result.home)}
-            </span>
-            <span className="odds-cell">
-              <em>Draw</em> {decimal(board.result.draw)}
-            </span>
-            <span className="odds-cell">
-              <em>{fixture.awayTeam}</em> {decimal(board.result.away)}
-            </span>
-          </div>
-        </div>
-      ) : null}
-      {overUnder.length ? (
-        <div className="odds-market">
-          <p className="stat-title">Total goals over/under</p>
-          {overUnder.map((entry) => (
-            <div className="odds-line" key={entry.line}>
-              <span className="odds-cell muted">{entry.line}</span>
-              <span className="odds-cell">
-                <em>Over</em> {decimal(entry.prices[0])}
-              </span>
-              <span className="odds-cell">
-                <em>Under</em> {decimal(entry.prices[1])}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {handicap.length ? (
-        <div className="odds-market">
-          <p className="stat-title">Asian handicap ({fixture.homeTeam})</p>
-          {handicap.map((entry) => (
-            <div className="odds-line" key={entry.line}>
-              <span className="odds-cell muted">
-                {entry.line > 0 ? `+${entry.line}` : entry.line}
-              </span>
-              <span className="odds-cell">
-                <em>{fixture.homeTeam}</em> {decimal(entry.prices[0])}
-              </span>
-              <span className="odds-cell">
-                <em>{fixture.awayTeam}</em> {decimal(entry.prices[1])}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 function LineupGoalIcon() {
   return (
@@ -5281,41 +5147,6 @@ function buildSideOffers(
   }));
 }
 
-function OddsMovement({
-  oddsUpdates,
-}: {
-  oddsUpdates: ApiResult<TxlineOddsUpdatesData> | null;
-}) {
-  const series = oddsUpdates?.data?.series;
-
-  if (!series?.length) {
-    return null;
-  }
-
-  const recent = series.slice(-12);
-
-  return (
-    <details>
-      <summary>
-        Odds movement (1X2): {series.length} meaningful change(s)
-      </summary>
-      <ol>
-        {recent.map((point) => (
-          <li key={point.ts}>
-            {formatUtcTime(point.ts)} UTC - home {point.home.toFixed(1)}% / draw{" "}
-            {point.draw.toFixed(1)}% / away {point.away.toFixed(1)}%
-          </li>
-        ))}
-      </ol>
-      <p>
-        Compacted server-side from{" "}
-        {oddsUpdates?.data?.count ?? "many"} raw TxLINE odds update records:
-        full-match 1X2 points where any probability moved at least 0.5
-        percentage points, capped to the last 30.
-      </p>
-    </details>
-  );
-}
 
 // Commentary feed replicated from Google's match timeline (inspected on the
 // real Argentina v Switzerland page): bordered #202124 cards with an
