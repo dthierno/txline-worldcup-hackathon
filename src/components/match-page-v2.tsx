@@ -1416,8 +1416,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 <MatchMediaSection fixtureId={fixture.fixtureId} />
               ) : null}
 
-              {preMatchPlay ? <HeadToHeadSection fixture={fixture} /> : null}
-
               <section className="card mp2-overview-card" aria-labelledby="glance-heading">
                 <div className="mp2-card-heading">
                   <h2 id="glance-heading">Match at a glance</h2>
