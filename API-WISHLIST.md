@@ -16,9 +16,12 @@ feed roughly one hour before kickoff. There is no earlier signal — no
 probable/projected lineup, no squad list per fixture, not even a roster
 endpoint per team.
 
-**Workaround:** we project each side's XI from their previous match's
-`lineups` record (recovered from our own recorded feeds) and label it
-"Predicted XI" until the official record lands.
+**Workaround:** we project each side's XI from our own recorded feeds —
+majority starters across their last three matches, red-carded players
+excluded — and label it "Predicted XI" until the official record lands.
+Rumor-grade sources (SofaScore/FotMob predicted lineups, beat journalists)
+have no legitimate API, which is exactly why a TxLINE endpoint here would be
+differentiating.
 
 **Idea:** a `/fixtures/{id}/squads` endpoint (tournament rosters exist weeks
 ahead) and, if scout coverage allows, a `ProbableLineups` record type ahead of

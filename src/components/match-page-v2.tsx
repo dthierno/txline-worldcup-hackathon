@@ -2834,8 +2834,9 @@ function LineupsSection({
       {lineups?.data?.predicted ? (
         <p className="mp2-lineup-predicted">
           <span className="mp2-play-pill">Predicted XI</span>
-          Based on each side&apos;s previous match - the official lineups land
-          about an hour before kickoff and replace this view.
+          Projected from each side&apos;s recent matches, suspensions applied -
+          the official lineups land about an hour before kickoff and replace
+          this view.
         </p>
       ) : null}
       {teams?.length ? (
