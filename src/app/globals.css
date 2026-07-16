@@ -5251,48 +5251,48 @@ dt {
   will-change: transform, opacity;
 }
 .mp2 .mp2-hero-bg .mp2bg-drift-blue {
-  animation: mp2bg-blue 13s ease-in-out infinite alternate;
+  animation: mp2bg-blue 11s ease-in-out infinite alternate;
 }
 .mp2 .mp2-hero-bg .mp2bg-drift-green {
-  animation: mp2bg-green 17s ease-in-out infinite alternate;
+  animation: mp2bg-green 15s ease-in-out infinite alternate;
 }
 .mp2 .mp2-hero-bg .mp2bg-drift-arc {
-  animation: mp2bg-arc 21s ease-in-out infinite alternate;
+  animation: mp2bg-arc 19s ease-in-out infinite alternate;
 }
 .mp2 .mp2-hero-bg .mp2bg-drift-arc2 {
-  animation: mp2bg-arc 21s ease-in-out infinite alternate-reverse;
+  animation: mp2bg-arc 19s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes mp2bg-blue {
   from {
-    opacity: 0.82;
-    transform: translate(0, 0) scale(1.02);
+    opacity: 0.55;
+    transform: translate(0, 0) scale(1.03);
   }
   to {
     opacity: 1;
-    transform: translate(-1.6%, 2.5%) scale(1.07);
+    transform: translate(-4%, 4%) scale(1.14);
   }
 }
 
 @keyframes mp2bg-green {
   from {
-    opacity: 0.85;
-    transform: translate(0, 0) scale(1.02);
+    opacity: 0.6;
+    transform: translate(0, 0) scale(1.03);
   }
   to {
     opacity: 1;
-    transform: translate(1.4%, -2%) scale(1.06);
+    transform: translate(3.5%, -3%) scale(1.12);
   }
 }
 
 @keyframes mp2bg-arc {
   from {
-    opacity: 0.88;
-    transform: translate(0, 0);
+    opacity: 0.75;
+    transform: translate(0, 0) scale(1);
   }
   to {
     opacity: 1;
-    transform: translate(9px, 4px);
+    transform: translate(26px, 10px) scale(1.06);
   }
 }
 
