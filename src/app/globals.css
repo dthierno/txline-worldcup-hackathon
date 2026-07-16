@@ -5542,24 +5542,3 @@ dt {
 .fsm-chart {
   margin-bottom: 22px;
 }
-
-/* Stats tab: one card per stat family on a two-up grid. */
-.mp2 .mp2-stat-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.mp2 .card.mp2-stat-card {
-  align-content: start;
-  display: grid;
-  gap: 14px;
-}
-.mp2 .mp2-stat-note {
-  margin: 2px 4px 0;
-}
-
-@media (max-width: 720px) {
-  .mp2 .mp2-stat-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
