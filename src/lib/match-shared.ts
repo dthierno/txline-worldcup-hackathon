@@ -3,6 +3,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import type { ScorerPool } from "./api-football-player-media";
 import type { MatchOutcome } from "./prediction-engine";
 import type { NormalizedLineups, OddsBoard } from "./txline-normalize";
 import type { WorldCupFixture } from "./world-cup-fixtures";
@@ -132,6 +133,8 @@ export type GameDetails = {
   oddsUpdates: ApiResult<TxlineOddsUpdatesData> | null;
   oddsValidation: ApiResult<TxlineOddsValidationData> | null;
   score: ApiResult<TxlineScoreData> | null;
+  // Only the v2 match page offers scorer markets, so only it loads the pool.
+  scorerPool?: ApiResult<ScorerPool> | null;
   updates: ApiResult<TxlineUpdateData[]> | null;
   validation: ApiResult<TxlineValidationData> | null;
 };

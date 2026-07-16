@@ -4402,6 +4402,13 @@ dt {
     grid-template-columns: 1fr;
   }
 }
+/* Scorer chips swipe sideways like the other chip rails, bar hidden. */
+.mp2 .mp2-scorer-strip {
+  scrollbar-width: none;
+}
+.mp2 .mp2-scorer-strip::-webkit-scrollbar {
+  display: none;
+}
 /* Thin, quiet scrollbars on the page's internal scrollers. */
 .mp2 .feed-scroll,
 .mp2-side .call-list {

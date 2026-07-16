@@ -5,8 +5,12 @@
 export type WinnerPick = "home" | "draw" | "away";
 export type LinePick = "over" | "under";
 
+// playerId settles against the TxLINE goal feed. A pick taken before TxLINE
+// published an XI carries a provider squad id instead, which belongs to another
+// id space and can never match: it is flagged provisional until the real XI
+// lands and rewrites it, and it voids rather than loses if it never does.
 export type FirstScorerPick =
-  | { name: string; playerId: number }
+  | { name: string; playerId: number; provisional?: boolean }
   | "none";
 
 export type DoubleChancePick = "draw_away" | "home_away" | "home_draw";
@@ -415,6 +419,14 @@ function settleSidePick(
   );
 }
 
+// A pick still carrying a provider squad id was never rewritten onto the TxLINE
+// id the goal feed reports, so nothing can confirm or deny it. Voiding is the
+// honest close: a fan is never charged a loss for a market the data cannot
+// decide, and it stays open while the match can still reconcile.
+function unreconciledStatus(outcome: MatchOutcome): MarketStatus {
+  return outcome.finished ? "void" : "open";
+}
+
 function scorerGoalLabel(
   goal: { playerId?: number; scorerName?: string } | null,
   finished: boolean,
@@ -441,6 +453,8 @@ function settleFirstScorer(
 
   if (pick === "none") {
     status = firstGoal ? "lost" : outcome.finished ? "won" : "open";
+  } else if (pick.provisional) {
+    status = unreconciledStatus(outcome);
   } else if (!firstGoal) {
     status = outcome.finished ? "lost" : "open";
   } else if (typeof firstGoal.playerId !== "number") {
@@ -488,6 +502,8 @@ function settleAnytimeScorer(
 
   if (pick === "none") {
     status = goals.length ? "lost" : outcome.finished ? "won" : "open";
+  } else if (pick.provisional) {
+    status = unreconciledStatus(outcome);
   } else if (
     goals.some((goal) => goal.playerId === pick.playerId)
   ) {
@@ -528,6 +544,8 @@ function settleLastScorer(
     status = "open";
   } else if (pick === "none") {
     status = lastGoal ? "lost" : "won";
+  } else if (pick.provisional) {
+    status = unreconciledStatus(outcome);
   } else if (!lastGoal) {
     status = "lost";
   } else if (typeof lastGoal.playerId !== "number") {

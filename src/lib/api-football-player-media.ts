@@ -42,6 +42,36 @@ export type PlayerMediaEnrichment = {
   resolved: number;
 };
 
+export type ScorerPoolPlayer = {
+  imageUrl?: string;
+  name: string;
+  // TxLINE player id on a verified pool; provider id on a provisional one.
+  playerId: number;
+  position?: LineupPosition;
+  // The provider squad entry this TxLINE player matched, when one did. It is
+  // the only bridge between the two id spaces.
+  providerId?: number;
+  shirtNumber?: number;
+};
+
+export type ScorerPoolTeam = {
+  isHome: boolean;
+  players: ScorerPoolPlayer[];
+  teamName: string;
+};
+
+// Scorer picks settle against TxLINE goal-feed player ids, but TxLINE only
+// publishes an XI about an hour before kickoff. Before that the pool falls back
+// to the provider squad, whose ids belong to a different space: such a pool is
+// flagged provisional, and a pick taken from it has to be rewritten to the
+// TxLINE id (via providerId on the verified pool) before it can settle.
+export type ScorerPool = {
+  configured: boolean;
+  provider: "api-football";
+  provisional: boolean;
+  teams: ScorerPoolTeam[];
+};
+
 const teamCache = new Map<string, CachedValue<number | null>>();
 const squadCache = new Map<string, CachedValue<ApiFootballPlayer[]>>();
 
@@ -249,17 +279,12 @@ function candidateScore(
   return score;
 }
 
-function resolvePlayerPhoto(
+function resolvePlayerMatch(
   player: NormalizedLineupPlayer,
   squad: ApiFootballPlayer[],
   now: number,
-): string | undefined {
+): ApiFootballPlayer | undefined {
   const ranked = squad
-    .filter(
-      (candidate) =>
-        typeof candidate.photo === "string" &&
-        /^https:\/\//i.test(candidate.photo),
-    )
     .map((candidate) => ({
       candidate,
       score: candidateScore(player, candidate, now),
@@ -268,12 +293,19 @@ function resolvePlayerPhoto(
   const best = ranked[0];
   const runnerUp = ranked[1];
 
-  // A high floor plus a clear lead avoids silently assigning a photo to the
-  // wrong player when names are short or shared by squad mates.
+  // A high floor plus a clear lead avoids silently pairing the wrong squad mate
+  // when names are short or shared.
   if (!best || best.score < 90) return undefined;
   if (runnerUp && best.score - runnerUp.score < 12) return undefined;
 
-  return best.candidate.photo;
+  return best.candidate;
+}
+
+function matchedPhoto(candidate: ApiFootballPlayer | undefined): string | undefined {
+  return typeof candidate?.photo === "string" &&
+    /^https:\/\//i.test(candidate.photo)
+    ? candidate.photo
+    : undefined;
 }
 
 function readCached<T>(
@@ -474,7 +506,9 @@ export async function enrichLineupsWithApiFootballImages(
       players: team.players.map((player) => {
         if (player.imageUrl) return player;
 
-        const imageUrl = resolvePlayerPhoto(player, squads[teamIndex] ?? [], now);
+        const imageUrl = matchedPhoto(
+          resolvePlayerMatch(player, squads[teamIndex] ?? [], now),
+        );
 
         if (!imageUrl) return player;
 
@@ -499,6 +533,132 @@ export async function enrichLineupsWithApiFootballImages(
       resolved: 0,
     };
   }
+}
+
+function verifiedPoolTeams(
+  lineups: NormalizedLineups,
+  squads: ApiFootballPlayer[][],
+  now: number,
+): ScorerPoolTeam[] {
+  return lineups.teams.map((team, teamIndex) => ({
+    isHome: team.isHome,
+    players: team.players.flatMap((player) => {
+      // A player TxLINE carries no id for can never settle, so it is not offered.
+      if (typeof player.playerId !== "number") return [];
+
+      const match = resolvePlayerMatch(player, squads[teamIndex] ?? [], now);
+      const shirtNumber = Number.parseInt(player.number ?? "", 10);
+
+      return [
+        {
+          imageUrl: player.imageUrl ?? matchedPhoto(match),
+          name: player.name,
+          playerId: player.playerId,
+          position: player.position,
+          providerId: match?.id,
+          shirtNumber: Number.isFinite(shirtNumber) ? shirtNumber : undefined,
+        },
+      ];
+    }),
+    teamName: team.teamName,
+  }));
+}
+
+function provisionalPoolTeams(
+  teams: Array<{ isHome: boolean; teamName: string }>,
+  squads: ApiFootballPlayer[][],
+): ScorerPoolTeam[] {
+  return teams.map((team, teamIndex) => ({
+    isHome: team.isHome,
+    players: (squads[teamIndex] ?? []).flatMap((player) =>
+      typeof player.id === "number" && player.name
+        ? [
+            {
+              imageUrl: matchedPhoto(player),
+              name: player.name,
+              playerId: player.id,
+              position: providerPosition(player.position) ?? undefined,
+              providerId: player.id,
+              shirtNumber:
+                typeof player.number === "number" ? player.number : undefined,
+            },
+          ]
+        : [],
+    ),
+    teamName: team.teamName,
+  }));
+}
+
+// Builds the player pool the scorer markets pick from: the TxLINE XI once it
+// exists, otherwise the provider squad so the markets are playable in the days
+// before kickoff rather than only in the final hour.
+export async function resolveScorerPool(
+  lineups: NormalizedLineups | null,
+  fixtureTeams: Array<{ isHome: boolean; teamName: string }>,
+  options: ResolverOptions = {},
+): Promise<ScorerPool> {
+  const apiKey = options.apiKey ?? process.env.API_FOOTBALL_KEY ?? "";
+  const origin = (
+    options.origin ??
+    process.env.API_FOOTBALL_ORIGIN ??
+    DEFAULT_ORIGIN
+  ).replace(/\/$/, "");
+  const fetcher = options.fetcher ?? fetch;
+  const now = options.now ?? Date.now();
+  // The TxLINE XI names the teams itself; before it lands the fixture does.
+  const teams = lineups
+    ? lineups.teams.map((team) => ({
+        isHome: team.isHome,
+        teamName: team.teamName,
+      }))
+    : fixtureTeams;
+
+  if (!apiKey) {
+    return {
+      configured: false,
+      provider: "api-football",
+      provisional: false,
+      teams: lineups ? verifiedPoolTeams(lineups, [], now) : [],
+    };
+  }
+
+  let squads: ApiFootballPlayer[][] = [];
+
+  try {
+    squads = await Promise.all(
+      teams.map(async (team) => {
+        try {
+          return await resolveTeamSquad(team.teamName, apiKey, origin, fetcher, now);
+        } catch {
+          return [];
+        }
+      }),
+    );
+  } catch {
+    squads = [];
+  }
+
+  if (lineups) {
+    return {
+      configured: true,
+      provider: "api-football",
+      provisional: false,
+      teams: verifiedPoolTeams(lineups, squads, now),
+    };
+  }
+
+  const provisional = provisionalPoolTeams(teams, squads);
+  // A pool missing one side would read as "that team cannot score", so a
+  // half-resolved provisional pool is treated as no pool at all.
+  const usable =
+    provisional.length > 0 && provisional.every((team) => team.players.length);
+
+  return {
+    configured: true,
+    provider: "api-football",
+    provisional: true,
+    teams: usable ? provisional : [],
+  };
 }
 
 export function clearApiFootballMediaCache(): void {

@@ -321,6 +321,47 @@ describe("settlePrediction", () => {
     expect(byMarket["Anytime scorer"].status).toBe("lost");
   });
 
+  it("voids a provisional scorer pick instead of losing it", () => {
+    // Taken off a provider squad before TxLINE published an XI, so playerId 99
+    // is a provider id the goal feed will never report - even though this fan
+    // named the player who actually scored.
+    const settlement = settlePrediction(
+      makePrediction({
+        anytimeScorer: { name: "Hakimi, Achraf", playerId: 99, provisional: true },
+        firstScorer: { name: "Hakimi, Achraf", playerId: 99, provisional: true },
+        lastScorer: { name: "Hakimi, Achraf", playerId: 99, provisional: true },
+      }),
+      makeOutcome({
+        firstGoal: { playerId: 7, scorerName: "Hakimi, Achraf" },
+        goals: [{ playerId: 7, scorerName: "Hakimi, Achraf" }],
+      }),
+      teams,
+    );
+    const byMarket = Object.fromEntries(
+      settlement.markets.map((market) => [market.market, market]),
+    );
+
+    for (const market of ["Anytime scorer", "First scorer", "Last scorer"]) {
+      expect(byMarket[market].status).toBe("void");
+      expect(byMarket[market].points).toBe(0);
+    }
+  });
+
+  it("keeps a provisional scorer pick open while the match can still reconcile", () => {
+    const settlement = settlePrediction(
+      makePrediction({
+        firstScorer: { name: "Hakimi, Achraf", playerId: 99, provisional: true },
+      }),
+      makeOutcome({ finished: false, firstGoal: { playerId: 7 } }),
+      teams,
+    );
+    const first = settlement.markets.find(
+      (market) => market.market === "First scorer",
+    );
+
+    expect(first?.status).toBe("open");
+  });
+
   it("settles double-chance side picks at full time, scaled by odds", () => {
     const settlement = settlePrediction(
       makePrediction({

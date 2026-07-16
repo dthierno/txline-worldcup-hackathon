@@ -65,6 +65,10 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 
+import type {
+  ScorerPool,
+  ScorerPoolPlayer,
+} from "@/lib/api-football-player-media";
 import {
   buildOutcome,
   countShotsOnTarget,
@@ -113,6 +117,7 @@ import {
   sidePickPoints,
   winnerPoints,
   type DoubleChancePick,
+  type FirstScorerPick,
   type MatchOutcome,
   type MatchPrediction,
   type SidePick,
@@ -151,6 +156,7 @@ import {
   normalizeScoreSnapshot,
   withoutRaw,
   type GoalEvent,
+  type LineupPosition,
   type MomentumBucket,
   type NormalizedLineups,
   type OddsBoard,
@@ -232,6 +238,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     oddsUpdates: null,
     oddsValidation: null,
     score: null,
+    scorerPool: null,
     updates: null,
     validation: null,
   });
@@ -245,6 +252,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const [matchTab, setMatchTab] = useState<MatchTab>("overview");
   const now = useNow();
   const playCard = usePlayCard(fixtureId);
+  const scorerPool = details.scorerPool?.data ?? null;
+  const reconcileScorerPicks = playCard.reconcile;
+
+  useEffect(() => {
+    reconcileScorerPicks(scorerPool);
+  }, [reconcileScorerPicks, scorerPool]);
 
   useEffect(() => {
     const syncTabFromUrl = () => setMatchTab(matchTabFromLocation());
@@ -369,6 +382,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           oddsUpdates: null,
           oddsValidation: null,
           score: null,
+          scorerPool: null,
           updates: null,
           validation: null,
         });
@@ -384,6 +398,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         lineups,
         fixtureValidation,
         oddsValidation,
+        scorerPool,
       ] = await Promise.all([
         fetchJson<TxlineScoreData>(`/api/txline/scores/${fixtureId}`),
         fetchJson<TxlineUpdateData[]>(
@@ -406,6 +421,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         fetchJson<TxlineOddsValidationData>(
           `/api/txline/odds/${fixtureId}/validation`,
         ),
+        fetchJson<ScorerPool>(`/api/txline/scores/${fixtureId}/scorer-pool`),
       ]);
 
       if (!cancelled) {
@@ -417,6 +433,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           oddsUpdates,
           oddsValidation,
           score,
+          scorerPool,
           updates,
           validation,
         });
@@ -1386,9 +1403,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   board={playBoard}
                   draft={playCard.draft}
                   fixture={fixture}
-                  lineups={details.lineups?.data ?? null}
                   odds1x2={playOdds}
                   patchDraft={playCard.patchDraft}
+                  scorerPool={scorerPool}
                 />
               ) : null}
 
@@ -2929,6 +2946,36 @@ function LineupsSection({
 }
 
 // Local prediction-card state shared by the market cards (main column) and
+// Rewrites one scorer pick from the provider id space onto the TxLINE ids the
+// goal feed settles against, using the provider id each verified player matched.
+// A pick that bridges to nobody is dropped: the player is not in the matchday
+// squad, so leaving it on the card would promise a payout that cannot happen.
+function reconcileScorerPick(
+  pick: FirstScorerPick | null | undefined,
+  players: ScorerPoolPlayer[],
+): FirstScorerPick | null | undefined {
+  if (!pick || pick === "none" || !pick.provisional) return pick;
+
+  const bridged = players.find((player) => player.providerId === pick.playerId);
+
+  return bridged ? { name: bridged.name, playerId: bridged.playerId } : null;
+}
+
+function reconcileScorers(
+  prediction: MatchPrediction,
+  players: ScorerPoolPlayer[],
+): MatchPrediction {
+  const anytimeScorer = reconcileScorerPick(prediction.anytimeScorer, players);
+  const firstScorer = reconcileScorerPick(prediction.firstScorer, players);
+  const lastScorer = reconcileScorerPick(prediction.lastScorer, players);
+
+  return anytimeScorer === prediction.anytimeScorer &&
+    firstScorer === prediction.firstScorer &&
+    lastScorer === prediction.lastScorer
+    ? prediction
+    : { ...prediction, anytimeScorer, firstScorer, lastScorer };
+}
+
 // the live ticket (rail). Lazy-reads localStorage once per fixture.
 function usePlayCard(fixtureId: number) {
   const [state, setState] = useState(() => ({
@@ -2954,6 +3001,29 @@ function usePlayCard(fixtureId: number) {
     },
     [],
   );
+
+  // Called once the TxLINE XI lands. The saved copy matters most: it is what the
+  // home page settles from, and it is the only copy that outlives this page.
+  const reconcile = useCallback((pool: ScorerPool | null) => {
+    if (!pool || pool.provisional || !pool.teams?.length) return;
+
+    const players = pool.teams.flatMap((team) => team.players);
+
+    setState((previous) => {
+      const draft = reconcileScorers(previous.draft, players);
+      const saved = previous.saved
+        ? reconcileScorers(previous.saved, players)
+        : null;
+
+      if (draft === previous.draft && saved === previous.saved) {
+        return previous;
+      }
+
+      if (saved) savePrediction(saved);
+
+      return { ...previous, draft, saved };
+    });
+  }, []);
 
   const save = useCallback(
     (odds1x2: { away: number; draw: number; home: number } | null) => {
@@ -2991,6 +3061,7 @@ function usePlayCard(fixtureId: number) {
     confirmation: state.confirmation,
     draft: state.draft,
     patchDraft,
+    reconcile,
     save,
     saved: state.saved,
   };
@@ -3088,6 +3159,168 @@ function OutcomeCircle({ iso }: { iso: string | null | undefined }) {
   );
 }
 
+const SCORER_MARKETS = [
+  {
+    field: "firstScorer",
+    pts: PREDICTION_POINTS.firstScorer,
+    title: "First scorer",
+  },
+  {
+    field: "anytimeScorer",
+    pts: PREDICTION_POINTS.anytimeScorer,
+    title: "Anytime scorer",
+  },
+  {
+    field: "lastScorer",
+    pts: PREDICTION_POINTS.lastScorer,
+    title: "Last scorer",
+  },
+] as const;
+
+const SCORER_RANK: Record<LineupPosition, number> = {
+  DEF: 2,
+  FWD: 0,
+  GK: 3,
+  MID: 1,
+};
+
+type ScorerEntry = {
+  likely: boolean;
+  player: ScorerPoolPlayer;
+  teamName: string;
+};
+
+// One scorer market. Defenders and keepers fold away behind the same quiet row
+// the Match result card uses for its long tail of scorelines; a pick from that
+// tail stays on screen, so collapsing the panel never hides the current call.
+function ScorerMarketPanel({
+  current,
+  folded,
+  market,
+  onPick,
+  players,
+  provisional,
+}: {
+  current: FirstScorerPick | null;
+  folded: number;
+  market: { pts: number; title: string };
+  onPick: (pick: FirstScorerPick | null) => void;
+  players: ScorerEntry[];
+  provisional: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const pickedId = current && current !== "none" ? current.playerId : null;
+  const visible = players.filter(
+    (entry) =>
+      expanded || entry.likely || entry.player.playerId === pickedId,
+  );
+
+  return (
+    <div className="overflow-hidden rounded-[18px] bg-black/25">
+      <h3 className="mp2-subhead">
+        {market.title}
+        <span className="mp2-card-hint">+{market.pts} pts</span>
+      </h3>
+      <div className="p-3.5">
+        <ToggleGroup
+          aria-label={market.title}
+          className="mp2-scorer-strip w-full gap-2 overflow-x-auto pb-1"
+          onValueChange={(groupValue: unknown[]) => {
+            const picked = groupValue[0] as string | undefined;
+
+            if (picked === undefined) {
+              onPick(null);
+              return;
+            }
+
+            if (picked === "none") {
+              onPick("none");
+              return;
+            }
+
+            const found = players.find(
+              (candidate) => String(candidate.player.playerId) === picked,
+            );
+
+            if (!found) {
+              onPick(null);
+              return;
+            }
+
+            const pick = {
+              name: found.player.name,
+              playerId: found.player.playerId,
+            };
+
+            onPick(provisional ? { ...pick, provisional: true } : pick);
+          }}
+          value={
+            current === "none"
+              ? ["none"]
+              : pickedId === null
+                ? []
+                : [String(pickedId)]
+          }
+        >
+          <ToggleGroupItem
+            aria-label="No goal scorer"
+            className="shrink-0 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+            value="none"
+            variant="outline"
+          >
+            No goal scorer
+          </ToggleGroupItem>
+          {visible.map(({ player, teamName }) => (
+            <ToggleGroupItem
+              aria-label={`${formatPlayerDisplayName(player.name)}, ${teamName}`}
+              className="shrink-0 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
+              key={player.playerId}
+              title={teamName}
+              value={String(player.playerId)}
+              variant="outline"
+            >
+              <Avatar size="sm">
+                {player.imageUrl ? (
+                  <AvatarImage alt="" src={player.imageUrl} />
+                ) : null}
+                <AvatarFallback>{player.name[0]}</AvatarFallback>
+              </Avatar>
+              {shortPlayerName(player.name)}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        {folded ? (
+          <button
+            aria-label={
+              expanded
+                ? `Show fewer ${market.title.toLowerCase()} players`
+                : `Show more ${market.title.toLowerCase()} players`
+            }
+            className="text-muted-foreground hover:text-foreground mt-3 flex h-9 w-full items-center justify-center gap-1 rounded-2xl bg-white/[0.03] transition-colors hover:bg-white/[0.06]"
+            onClick={() => setExpanded((value) => !value)}
+            type="button"
+          >
+            <span className="text-xs leading-4 font-medium">
+              {expanded ? "Fewer players" : `More players (${folded})`}
+            </span>
+            <HugeiconsIcon
+              icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
+              size={12}
+              strokeWidth={2.5}
+            />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// An unplaceable position sorts with the midfield rather than the fold: showing
+// one extra chip beats burying a striker whose position never came through.
+function scorerRank(position: LineupPosition | undefined): number {
+  return position ? SCORER_RANK[position] : SCORER_RANK.MID;
+}
+
 // Pre-kickoff market cards, kept to the shadcn preset: outline ToggleGroups
 // for every market (pressed = primary, the commitment colour), plain Inputs
 // for the exact score, an AvatarGroup for the league tally, and an Accordion
@@ -3096,16 +3329,16 @@ function MarketCards({
   board,
   draft,
   fixture,
-  lineups,
   odds1x2,
   patchDraft,
+  scorerPool,
 }: {
   board: OddsBoard | undefined;
   draft: MatchPrediction;
   fixture: WorldCupFixture;
-  lineups: NormalizedLineups | null;
   odds1x2: { away: number; draw: number; home: number } | null;
   patchDraft: (recipe: (previous: MatchPrediction) => MatchPrediction) => void;
+  scorerPool: ScorerPool | null;
 }) {
   const draftSidePicks = draft.sidePicks ?? [];
   // Double chance is the one side market on offer; it panels into the Match
@@ -3149,11 +3382,22 @@ function MarketCards({
     { field: "totalCorners", label: "Corners", line: PREDICTION_LINES.corners },
     { field: "totalCards", label: "Cards", line: PREDICTION_LINES.cards },
   ];
-  const scorerPlayers = (lineups?.teams ?? []).flatMap((team) =>
-    team.players
-      .filter((player) => typeof player.playerId === "number")
-      .map((player) => ({ player, teamName: team.teamName })),
+  // Attackers first, then the rest of the outfield. The provider files only
+  // four position buckets, and it files most wingers and every attacking
+  // midfielder under MID, so "likely to score" has to mean FWD plus MID rather
+  // than FWD alone - France name two attackers and eleven midfielders.
+  const scorerPlayers = (scorerPool?.teams ?? []).flatMap((team) =>
+    [...team.players]
+      .sort(
+        (a, b) => scorerRank(a.position) - scorerRank(b.position),
+      )
+      .map((player) => ({
+        likely: scorerRank(player.position) < scorerRank("DEF"),
+        player,
+        teamName: team.teamName,
+      })),
   );
+  const foldedScorers = scorerPlayers.filter((entry) => !entry.likely).length;
   const resultShares = impliedShares([
     odds1x2?.home,
     odds1x2?.draw,
@@ -3668,112 +3912,27 @@ function MarketCards({
         </div>
         {scorerPlayers.length ? (
           <div className="mt-3.5 flex flex-col gap-3">
-            {(
-              [
-                {
-                  field: "firstScorer",
-                  pts: PREDICTION_POINTS.firstScorer,
-                  title: "First scorer",
-                },
-                {
-                  field: "anytimeScorer",
-                  pts: PREDICTION_POINTS.anytimeScorer,
-                  title: "Anytime scorer",
-                },
-                {
-                  field: "lastScorer",
-                  pts: PREDICTION_POINTS.lastScorer,
-                  title: "Last scorer",
-                },
-              ] as const
-            ).map((market) => {
-              const current = draft[market.field];
-
-              return (
-                <div
-                  className="overflow-hidden rounded-[18px] bg-black/25"
-                  key={market.field}
-                >
-                  <h3 className="mp2-subhead">
-                    {market.title}
-                    <span className="mp2-card-hint">+{market.pts} pts</span>
-                  </h3>
-                  <div className="p-3.5">
-                    <ToggleGroup
-                      aria-label={market.title}
-                      className="w-full gap-2 overflow-x-auto pb-1"
-                      onValueChange={(groupValue: unknown[]) => {
-                        const picked = groupValue[0] as string | undefined;
-
-                        patchDraft((previous) => {
-                          if (picked === undefined) {
-                            return { ...previous, [market.field]: null };
-                          }
-
-                          if (picked === "none") {
-                            return { ...previous, [market.field]: "none" };
-                          }
-
-                          const found = scorerPlayers.find(
-                            (candidate) =>
-                              String(candidate.player.playerId) === picked,
-                          );
-
-                          return {
-                            ...previous,
-                            [market.field]: found
-                              ? {
-                                  name: found.player.name,
-                                  playerId: found.player.playerId as number,
-                                }
-                              : null,
-                          };
-                        });
-                      }}
-                      value={
-                        current === "none"
-                          ? ["none"]
-                          : current?.playerId != null
-                            ? [String(current.playerId)]
-                            : []
-                      }
-                    >
-                      <ToggleGroupItem
-                        aria-label="No goal scorer"
-                        className="shrink-0 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
-                        value="none"
-                        variant="outline"
-                      >
-                        No goal scorer
-                      </ToggleGroupItem>
-                      {scorerPlayers.map(({ player, teamName }) => (
-                        <ToggleGroupItem
-                          aria-label={`${formatPlayerDisplayName(player.name)}, ${teamName}`}
-                          className="shrink-0 aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
-                          key={player.playerId}
-                          title={teamName}
-                          value={String(player.playerId)}
-                          variant="outline"
-                        >
-                          <Avatar size="sm">
-                            {player.imageUrl ? (
-                              <AvatarImage alt="" src={player.imageUrl} />
-                            ) : null}
-                            <AvatarFallback>{player.name[0]}</AvatarFallback>
-                          </Avatar>
-                          {shortPlayerName(player.name)}
-                        </ToggleGroupItem>
-                      ))}
-                    </ToggleGroup>
-                  </div>
-                </div>
-              );
-            })}
+            {SCORER_MARKETS.map((market) => (
+              <ScorerMarketPanel
+                current={draft[market.field] ?? null}
+                folded={foldedScorers}
+                key={market.field}
+                market={market}
+                onPick={(pick) =>
+                  patchDraft((previous) => ({
+                    ...previous,
+                    [market.field]: pick,
+                  }))
+                }
+                players={scorerPlayers}
+                provisional={scorerPool?.provisional ?? false}
+              />
+            ))}
           </div>
         ) : (
           <p className="muted">
-            Scorer picks unavailable: TxLINE has not published a player list
-            for this fixture yet.
+            Scorer picks unavailable: no squad is published for this fixture
+            yet.
           </p>
         )}
       </section>

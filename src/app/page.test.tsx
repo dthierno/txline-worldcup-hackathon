@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MatchPage } from "@/components/match-page";
@@ -223,6 +223,10 @@ const genericLiveSemiFinal = {
   stage: "World Cup",
 };
 
+// Stands in for the unrelated id space the provider squads live in: a pick made
+// before TxLINE published an XI carries one of these instead of a TxLINE id.
+const PROVIDER_ID_OFFSET = 9000;
+
 const lineupsData = {
   teams: [
     {
@@ -298,6 +302,31 @@ function mockFetch() {
     if (url.includes("/api/txline/scores/") && url.endsWith("/lineups")) {
       return respond({
         data: lineupsData,
+        source: "TxLINE score feed lineups records",
+      });
+    }
+
+    // The verified pool the scorer markets pick from: TxLINE published an XI,
+    // so the ids are already the ones the goal feed settles against, and each
+    // player carries the provider id it matched so provisional picks made
+    // before the XI existed can be rewritten onto it.
+    if (url.includes("/api/txline/scores/") && url.endsWith("/scorer-pool")) {
+      return respond({
+        data: {
+          configured: true,
+          provider: "api-football",
+          provisional: false,
+          teams: lineupsData.teams.map((team) => ({
+            isHome: team.isHome,
+            players: team.players.map((player) => ({
+              name: player.name,
+              playerId: player.playerId,
+              providerId: player.playerId + PROVIDER_ID_OFFSET,
+              shirtNumber: Number(player.number),
+            })),
+            teamName: team.teamName,
+          })),
+        },
         source: "TxLINE score feed lineups records",
       });
     }
@@ -767,6 +796,77 @@ describe("MatchPageV2 banner", () => {
       firstScorer: "none",
       totalGoals: "over",
       winner: "home",
+    });
+  });
+
+  // A pick made days out carries a provider squad id, which the TxLINE goal feed
+  // would never match. The page has to rewrite it the moment a verified XI
+  // arrives, and it has to rewrite the saved copy - that is what the home page
+  // settles from once this page is closed.
+  it("rewrites a provisional scorer pick onto its TxLINE id once the XI lands", async () => {
+    window.localStorage.setItem(
+      "fan-forecast.predictions.v1",
+      JSON.stringify({
+        "999001": {
+          awayGoals: null,
+          firstScorer: {
+            name: "A. Ounahi",
+            playerId: 222 + PROVIDER_ID_OFFSET,
+            provisional: true,
+          },
+          fixtureId: 999001,
+          homeGoals: null,
+          savedAt: "2026-07-04T10:00:00.000Z",
+          totalCards: null,
+          totalCorners: null,
+          totalGoals: null,
+          winner: null,
+        },
+      }),
+    );
+
+    render(<MatchPageV2 fixtureId={999001} />);
+
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem("fan-forecast.predictions.v1") ?? "{}",
+      );
+
+      expect(stored["999001"].firstScorer).toEqual({
+        name: "Ounahi, Azzedine",
+        playerId: 222,
+      });
+    });
+  });
+
+  it("drops a provisional pick whose player is not in the matchday squad", async () => {
+    window.localStorage.setItem(
+      "fan-forecast.predictions.v1",
+      JSON.stringify({
+        "999001": {
+          awayGoals: null,
+          firstScorer: { name: "Left At Home", playerId: 424242, provisional: true },
+          fixtureId: 999001,
+          homeGoals: null,
+          savedAt: "2026-07-04T10:00:00.000Z",
+          totalCards: null,
+          totalCorners: null,
+          totalGoals: null,
+          winner: null,
+        },
+      }),
+    );
+
+    render(<MatchPageV2 fixtureId={999001} />);
+
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.localStorage.getItem("fan-forecast.predictions.v1") ?? "{}",
+      );
+
+      // Nothing to bridge to, so the pick cannot settle and must not sit on the
+      // card promising points.
+      expect(stored["999001"].firstScorer).toBeNull();
     });
   });
 
