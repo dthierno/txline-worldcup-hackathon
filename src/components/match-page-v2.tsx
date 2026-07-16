@@ -3329,37 +3329,26 @@ function ScorerBoard({
       index < SCORER_FOLD ||
       pickedIds.includes(entry.player.playerId),
   );
-  // A row is one player against every market; entry === null is the "nobody
-  // scores" row, which is a call on each market like any other.
   const marketCell = (
-    entry: ScorerEntry | null,
+    entry: ScorerEntry,
     market: (typeof SCORER_MARKETS)[number],
   ) => {
     const pick = draft[market.field] ?? null;
-    const pressed = entry
-      ? pick !== null &&
-        pick !== "none" &&
-        pick.playerId === entry.player.playerId
-      : pick === "none";
-    const who = entry
-      ? formatPlayerDisplayName(entry.player.name)
-      : "No goal scorer";
-    const price = entry ? scorerOdds(prices, entry, market.field) : undefined;
+    const pressed =
+      pick !== null &&
+      pick !== "none" &&
+      pick.playerId === entry.player.playerId;
+    const price = scorerOdds(prices, entry, market.field);
     const points = scorerPoints(market.field, price);
 
     return (
       <Toggle
-        aria-label={`${who}, ${market.title.toLowerCase()}, pays ${points} points`}
+        aria-label={`${formatPlayerDisplayName(entry.player.name)}, ${market.title.toLowerCase()}, pays ${points} points`}
         className="mp2-scorer-cell aria-pressed:bg-primary/85 aria-pressed:text-primary-foreground"
         key={market.field}
         onPressedChange={(next: boolean) => {
           if (!next) {
             onPick(market.field, null);
-            return;
-          }
-
-          if (!entry) {
-            onPick(market.field, "none");
             return;
           }
 
@@ -3392,7 +3381,7 @@ function ScorerBoard({
         {visible.map((entry) => (
           <div className="mp2-scorer-row" key={entry.player.playerId}>
             <span className="mp2-scorer-player">
-              <Avatar size="sm">
+              <Avatar>
                 {entry.player.imageUrl ? (
                   <AvatarImage alt="" src={entry.player.imageUrl} />
                 ) : null}
@@ -3402,7 +3391,7 @@ function ScorerBoard({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   alt=""
-                  className="size-3.5 shrink-0 rounded-full object-cover ring-1 ring-white/15"
+                  className="size-[18px] shrink-0 rounded-full object-cover ring-1 ring-white/15"
                   src={`https://flagcdn.com/w40/${entry.iso}.png`}
                   title={entry.teamName}
                 />
@@ -3414,12 +3403,6 @@ function ScorerBoard({
             {SCORER_MARKETS.map((market) => marketCell(entry, market))}
           </div>
         ))}
-        <div className="mp2-scorer-row mp2-scorer-nobody">
-          <span className="mp2-scorer-player">
-            <span className="mp2-scorer-name">No goal scorer</span>
-          </span>
-          {SCORER_MARKETS.map((market) => marketCell(null, market))}
-        </div>
         {folded ? (
           <button
             aria-label={

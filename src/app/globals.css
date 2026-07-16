@@ -4432,19 +4432,11 @@ dt {
   min-width: 0;
 }
 .mp2 .mp2-scorer-name {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.mp2 .mp2-scorer-nobody {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  margin-top: 10px;
-  padding-top: 10px;
-}
-.mp2 .mp2-scorer-nobody .mp2-scorer-name {
-  color: var(--muted-foreground);
 }
 .mp2 .mp2-scorer-cell {
   width: 100%;

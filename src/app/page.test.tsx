@@ -769,10 +769,10 @@ describe("MatchPageV2 banner", () => {
     // The scorer board is a row per player against a column per market, so each
     // cell names both.
     await user.click(
-      screen.getByRole("button", { name: /No goal scorer, first scorer/ }),
+      screen.getByRole("button", { name: /Ounahi.*first scorer/ }),
     );
     await user.click(
-      screen.getByRole("button", { name: /Ounahi.*anytime scorer/ }),
+      screen.getByRole("button", { name: /Bench Player.*anytime scorer/ }),
     );
     await user.click(screen.getByRole("button", { name: "Save picks" }));
 
@@ -786,8 +786,8 @@ describe("MatchPageV2 banner", () => {
     );
 
     expect(stored["999001"]).toMatchObject({
-      anytimeScorer: { playerId: 222 },
-      firstScorer: "none",
+      anytimeScorer: { playerId: 333 },
+      firstScorer: { playerId: 222 },
       totalGoals: "over",
       winner: "home",
     });
