@@ -5137,7 +5137,7 @@ dt {
 }
 .mp2-ticket-payout-label {
   color: var(--muted-foreground);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .mp2-ticket-payout-value {
