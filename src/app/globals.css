@@ -5642,3 +5642,366 @@ dt {
   font-weight: 800;
   letter-spacing: 0.04em;
 }
+
+/* Live calls tab: a full-width arena - hero + scoreboard up top, type filter
+   chips, then open/settled call groups in the app's glass. Namespaced lcx- so
+   it stays independent of the sidebar lc- slip. */
+.lcx {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.lcx-hero {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  justify-content: space-between;
+}
+.lcx-hero-copy {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.lcx-hero-title {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+.lcx-hero-title h2 {
+  margin: 0;
+}
+.lcx-live {
+  align-items: center;
+  background: color-mix(in srgb, #ff5a5a 16%, transparent);
+  border-radius: 999px;
+  color: #ff7a7a;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.06em;
+  padding: 4px 11px 4px 9px;
+  text-transform: uppercase;
+}
+.lcx-live-dot {
+  animation: lcx-pulse 1.4s ease-in-out infinite;
+  background: #ff5a5a;
+  border-radius: 50%;
+  height: 7px;
+  width: 7px;
+}
+@keyframes lcx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.78);
+  }
+}
+.lcx-hero-sub {
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 9px 0 0;
+  max-width: 62ch;
+}
+.lcx-board {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+.lcx-metric {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 76px;
+  padding: 12px 14px;
+}
+.lcx-metric-value {
+  color: #fff;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+}
+.lcx-metric-accent {
+  color: var(--won);
+}
+.lcx-metric-label {
+  color: var(--muted-foreground);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.lcx-form {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+  height: 22px;
+}
+.lcx-pip {
+  border-radius: 50%;
+  height: 9px;
+  width: 9px;
+}
+.lcx-pip-won {
+  background: var(--won);
+}
+.lcx-pip-lost {
+  background: var(--lost);
+}
+.lcx-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lcx-filter {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 12px;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.lcx-filter span {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.lcx-filter:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+.lcx-filter.is-active {
+  background: #fff;
+  border-color: #fff;
+  color: #10101a;
+}
+.lcx-filter-count {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  min-width: 18px;
+  padding: 1px 6px;
+  text-align: center;
+}
+.lcx-filter.is-active .lcx-filter-count {
+  background: rgba(16, 16, 26, 0.12);
+  color: #10101a;
+}
+.lcx-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lcx-group + .lcx-group {
+  margin-top: 6px;
+}
+.lcx-group-label {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.lcx-group-open {
+  align-items: center;
+  color: #fff;
+  display: inline-flex;
+  gap: 8px;
+}
+.lcx-group-open::before {
+  animation: lcx-pulse 1.4s ease-in-out infinite;
+  background: var(--brand);
+  border-radius: 50%;
+  content: "";
+  height: 8px;
+  width: 8px;
+}
+.lcx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lcx-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  column-gap: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 13px 16px;
+  transition: background 0.15s ease;
+}
+.lcx-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.lcx-row-open {
+  border-color: color-mix(in srgb, var(--brand) 32%, transparent);
+}
+.lcx-row-won {
+  border-color: color-mix(in srgb, var(--won) 24%, transparent);
+}
+.lcx-row-icon {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+.lcx-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.lcx-row-top {
+  align-items: center;
+  column-gap: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+.lcx-row-q {
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  min-width: 0;
+}
+.lcx-row-meta {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 6px;
+  line-height: 1.4;
+}
+.lcx-row-meta > span + span::before {
+  color: rgba(255, 255, 255, 0.28);
+  content: "·";
+  margin-right: 6px;
+}
+.lcx-min {
+  font-variant-numeric: tabular-nums;
+}
+.lcx-outcome {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 600;
+}
+.lcx-chip {
+  border-radius: 999px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 4px 11px;
+  white-space: nowrap;
+}
+.lcx-chip-won {
+  background: color-mix(in srgb, var(--won) 16%, transparent);
+  color: var(--won);
+}
+.lcx-chip-lost {
+  background: rgba(248, 113, 113, 0.14);
+  color: #f87171;
+}
+.lcx-chip-muted {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted-foreground);
+}
+.lcx-chip-picked {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.lcx-chip-open {
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  color: #9dc0ff;
+}
+.lcx-none {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  margin: 2px 0 0;
+  padding: 8px 0;
+}
+.lcx-empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 0 10px;
+  text-align: center;
+}
+.lcx-empty-ghosts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 440px;
+  width: 100%;
+}
+.lcx-empty-ghost {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px dashed rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  height: 54px;
+}
+.lcx-empty-ghost:nth-child(2) {
+  opacity: 0.7;
+}
+.lcx-empty-ghost:nth-child(3) {
+  opacity: 0.45;
+}
+.lcx-empty-title {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+.lcx-empty-sub {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 48ch;
+}
+@media (max-width: 560px) {
+  .lcx-board {
+    width: 100%;
+  }
+  .lcx-metric {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lcx-live-dot,
+  .lcx-group-open::before {
+    animation: none;
+  }
+}

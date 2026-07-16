@@ -745,6 +745,22 @@ describe("MatchPageV2 banner", () => {
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveFocus();
   });
 
+  it("opens the dedicated Live calls tab", async () => {
+    const user = userEvent.setup();
+
+    render(<MatchPageV2 fixtureId={18237038} />);
+
+    await user.click(screen.getByRole("tab", { name: "Live calls" }));
+    expect(screen.getByRole("tab", { name: "Live calls" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(window.location.search).toBe("?tab=calls");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Live calls" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows a kickoff note instead of zero stats before the match starts", async () => {
     render(<MatchPageV2 fixtureId={999001} />);
 

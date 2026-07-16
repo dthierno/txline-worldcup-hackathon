@@ -177,6 +177,7 @@ import {
 import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 
 type MatchTab =
+  | "calls"
   | "knockout"
   | "lineups"
   | "overview"
@@ -188,6 +189,7 @@ const MATCH_TABS: Array<{ label: string; value: MatchTab }> = [
   { label: "Lineups", value: "lineups" },
   { label: "Stats", value: "stats" },
   { label: "Timeline", value: "timeline" },
+  { label: "Live calls", value: "calls" },
   { label: "Knockout", value: "knockout" },
 ];
 
@@ -1794,33 +1796,21 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
         {matchTab === "timeline" ? (
           <div className="mp2-tab-stack">
-            <div className="mp2-timeline-grid">
-              <div className="mp2-timeline-main">
-                <UpdatesSection
-                  fixture={fixture}
-                  lineups={details.lineups?.data ?? null}
-                  players={playerDirectory}
-                  updates={
-                    snapshotUpdates?.data?.length
-                      ? { ...snapshotUpdates, data: combinedUpdates }
-                      : combinedUpdates.length
-                        ? {
-                            data: combinedUpdates,
-                            source: "TxLINE live score stream",
-                          }
-                        : snapshotUpdates
-                  }
-                />
-              </div>
-              <aside className="mp2-timeline-side">
-                <GoalCallsSection
-                  key={`calls-${fixture.fixtureId}`}
-                  calls={liveCalls}
-                  fixtureId={fixture.fixtureId}
-                  live={liveStreamEligible}
-                />
-              </aside>
-            </div>
+            <UpdatesSection
+              fixture={fixture}
+              lineups={details.lineups?.data ?? null}
+              players={playerDirectory}
+              updates={
+                snapshotUpdates?.data?.length
+                  ? { ...snapshotUpdates, data: combinedUpdates }
+                  : combinedUpdates.length
+                    ? {
+                        data: combinedUpdates,
+                        source: "TxLINE live score stream",
+                      }
+                    : snapshotUpdates
+              }
+            />
 
             <VerificationSection
               detailsLoading={detailsLoading}
@@ -1840,6 +1830,15 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               validation={details.validation}
             />
           </div>
+        ) : null}
+
+        {matchTab === "calls" ? (
+          <LiveCallsPanel
+            key={`calls-${fixture.fixtureId}`}
+            calls={liveCalls}
+            fixtureId={fixture.fixtureId}
+            live={liveStreamEligible}
+          />
         ) : null}
 
         {matchTab === "knockout" ? (
@@ -1998,7 +1997,44 @@ function CallPromptDialog({
   );
 }
 
-export function GoalCallsSection({
+type CallKind = "added" | "corner" | "goal" | "next" | "var";
+
+const CALL_KIND_LABELS: Record<CallKind, string> = {
+  added: "Added time",
+  corner: "Corners",
+  goal: "Goals",
+  next: "Next goal",
+  var: "VAR",
+};
+
+// Filter order: the two goal-family calls lead, specials trail.
+const CALL_KIND_ORDER: CallKind[] = ["goal", "next", "corner", "var", "added"];
+
+function callKindOf(question: string): CallKind {
+  if (/corner/i.test(question)) return "corner";
+  if (/added time/i.test(question)) return "added";
+  if (/VAR/i.test(question)) return "var";
+  if (/next goal/i.test(question)) return "next";
+
+  return "goal";
+}
+
+function CallKindIcon({ kind }: { kind: CallKind }) {
+  if (kind === "corner") {
+    return (
+      <svg fill="currentColor" height="11" viewBox="0 0 10 10" width="11">
+        <path d="M2 1h1v8H2zM3.6 1.4l4.4 1.8-4.4 1.8z" />
+      </svg>
+    );
+  }
+
+  if (kind === "added") return <StopwatchIcon />;
+  if (kind === "var") return <span className="lc-var">VAR</span>;
+
+  return <LineupGoalIcon />;
+}
+
+export function LiveCallsPanel({
   calls,
   fixtureId,
   live,
@@ -2012,6 +2048,7 @@ export function GoalCallsSection({
     loadGoalCalls(fixtureId),
   );
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [filter, setFilter] = useState<"all" | CallKind>("all");
   const handleDismiss = useCallback((key: string) => {
     setDismissed((previous) => {
       const next = new Set(previous);
@@ -2021,33 +2058,6 @@ export function GoalCallsSection({
       return next;
     });
   }, []);
-
-  if (calls.length === 0) {
-    return null;
-  }
-
-  const openCall = live
-    ? [...calls]
-        .reverse()
-        .find(
-          (call) =>
-            !call.resolved &&
-            !call.voided &&
-            !answers[call.key] &&
-            !dismissed.has(call.key),
-        )
-    : undefined;
-  const points = calls.reduce((total, call) => {
-    const answer = answers[call.key];
-
-    if (!call.resolved || call.voided || !answer || call.correctIndex === undefined) {
-      return total;
-    }
-
-    return (
-      total + (answerIndex(answer.answer) === call.correctIndex ? GOAL_CALL_POINTS : 0)
-    );
-  }, 0);
 
   function answer(callKey: string, index: 0 | 1) {
     const record: GoalCallAnswer = {
@@ -2059,14 +2069,104 @@ export function GoalCallsSection({
     setAnswers((previous) => ({ ...previous, [callKey]: record }));
   }
 
+  // During a live match, surface the most recent still-open call for a prompt.
+  const openCall = live
+    ? [...calls]
+        .reverse()
+        .find(
+          (call) =>
+            !call.resolved &&
+            !call.voided &&
+            !answers[call.key] &&
+            !dismissed.has(call.key),
+        )
+    : undefined;
+
+  // One pass builds the scoreboard (points, hit rate), the form strip and the
+  // per-type counts that drive the filter chips.
+  let answered = 0;
+  let correctCalls = 0;
+  const form: Array<"lost" | "won"> = [];
+  const kindCounts = new Map<CallKind, number>();
+
+  for (const call of calls) {
+    const kind = callKindOf(call.question);
+
+    kindCounts.set(kind, (kindCounts.get(kind) ?? 0) + 1);
+
+    const record = mounted ? answers[call.key] : undefined;
+
+    if (!call.resolved || call.voided || !record || call.correctIndex === undefined) {
+      continue;
+    }
+
+    answered += 1;
+
+    const hit = answerIndex(record.answer) === call.correctIndex;
+
+    if (hit) correctCalls += 1;
+
+    form.push(hit ? "won" : "lost");
+  }
+
+  const points = correctCalls * GOAL_CALL_POINTS;
+  const hitRate = answered
+    ? `${Math.round((correctCalls / answered) * 100)}%`
+    : "\u2014";
+
+  const kinds = CALL_KIND_ORDER.filter((kind) => kindCounts.has(kind));
+  const visible = [...calls]
+    .reverse()
+    .filter((call) => filter === "all" || callKindOf(call.question) === filter);
+  const openRows = visible.filter((call) => !call.resolved && !call.voided);
+  const settledRows = visible.filter((call) => call.resolved || call.voided);
+
+  function renderCall(call: LiveUiCall) {
+    const kind = callKindOf(call.question);
+    const record = mounted ? answers[call.key] : undefined;
+    const correct =
+      call.resolved && !call.voided && record && call.correctIndex !== undefined
+        ? answerIndex(record.answer) === call.correctIndex
+        : null;
+    const picked = record
+      ? call.options[answerIndex(record.answer)] ?? record.answer
+      : null;
+    const chip = call.voided
+      ? { label: "Void", tone: "muted" }
+      : !call.resolved
+        ? picked
+          ? { label: picked, tone: "picked" }
+          : { label: "Open", tone: "open" }
+        : correct === null
+          ? { label: "\u2014", tone: "muted" }
+          : correct
+            ? { label: `+${GOAL_CALL_POINTS}`, tone: "won" }
+            : { label: "0", tone: "lost" };
+
+    return (
+      <li className={`lcx-row lcx-row-${chip.tone}`} key={call.key}>
+        <span aria-hidden className="lcx-row-icon">
+          <CallKindIcon kind={kind} />
+        </span>
+        <div className="lcx-row-body">
+          <div className="lcx-row-top">
+            <span className="lcx-row-q">{call.question}</span>
+            <span className={`lcx-chip lcx-chip-${chip.tone}`}>{chip.label}</span>
+          </div>
+          <div className="lcx-row-meta">
+            <span className="lcx-min">{call.minute}</span>
+            {call.resolved && !call.voided ? (
+              <span className="lcx-outcome">{call.outcome}</span>
+            ) : null}
+            {picked ? <span className="lcx-you">You: {picked}</span> : null}
+          </div>
+        </div>
+      </li>
+    );
+  }
+
   return (
-    <section className="card" aria-labelledby="goal-calls-heading">
-      <div className="lc-head">
-        <h2 id="goal-calls-heading">Live calls</h2>
-        {mounted && points > 0 ? (
-          <span className="lc-earned">+{points} pts</span>
-        ) : null}
-      </div>
+    <section aria-labelledby="live-calls-heading" className="card lcx">
       {openCall && mounted ? (
         <CallPromptDialog
           key={openCall.key}
@@ -2075,65 +2175,122 @@ export function GoalCallsSection({
           onDismiss={handleDismiss}
         />
       ) : null}
-      <ul className="lc-list">
-        {[...calls].reverse().map((call) => {
-          const callAnswer = mounted ? answers[call.key] : undefined;
-          const correct =
-            call.resolved && !call.voided && callAnswer && call.correctIndex !== undefined
-              ? answerIndex(callAnswer.answer) === call.correctIndex
-              : null;
-          const picked = callAnswer
-            ? call.options[answerIndex(callAnswer.answer)] ?? callAnswer.answer
-            : null;
-          const chip = call.voided
-            ? { label: "Void", tone: "muted" }
-            : !call.resolved
-              ? picked
-                ? { label: picked, tone: "picked" }
-                : { label: "Open", tone: "muted" }
-              : correct === null
-                ? { label: "\u2014", tone: "muted" }
-                : correct
-                  ? { label: `+${GOAL_CALL_POINTS}`, tone: "won" }
-                  : { label: "0", tone: "lost" };
-          const icon = /corner/i.test(call.question) ? (
-            <svg fill="currentColor" height="11" viewBox="0 0 10 10" width="11">
-              <path d="M2 1h1v8H2zM3.6 1.4l4.4 1.8-4.4 1.8z" />
-            </svg>
-          ) : /added time/i.test(call.question) ? (
-            <StopwatchIcon />
-          ) : /VAR/i.test(call.question) ? (
-            <span className="lc-var">VAR</span>
-          ) : (
-            <LineupGoalIcon />
-          );
 
-          return (
-            <li className="lc-row" key={call.key}>
-              <span aria-hidden className="lc-icon">
-                {icon}
+      <header className="lcx-hero">
+        <div className="lcx-hero-copy">
+          <div className="lcx-hero-title">
+            <h2 id="live-calls-heading">Live calls</h2>
+            {live ? (
+              <span className="lcx-live">
+                <span className="lcx-live-dot" />
+                Live
               </span>
-              <span className="lc-copy">
-                <span className="lc-question">{call.question}</span>
-                <span className="lc-meta">
-                  {call.minute}
-                  {call.resolved && !call.voided ? ` \u00b7 ${call.outcome}` : ""}
-                  {picked && correct === null && !call.voided
-                    ? ` \u00b7 You: ${picked}`
-                    : picked && correct !== null
-                      ? ` \u00b7 You: ${picked}`
-                      : ""}
-                </span>
+            ) : null}
+          </div>
+          <p className="lcx-hero-sub">
+            Snap predictions on live TxLINE moments - a shot about to drop, the
+            next corner, a VAR check - and score the instant the verified feed
+            settles them.
+          </p>
+        </div>
+        <div className="lcx-board">
+          <div className="lcx-metric">
+            <span className="lcx-metric-value lcx-metric-accent">
+              {mounted ? `+${points}` : "+0"}
+            </span>
+            <span className="lcx-metric-label">Points</span>
+          </div>
+          <div className="lcx-metric">
+            <span className="lcx-metric-value">
+              {mounted && answered ? `${correctCalls}/${answered}` : "\u2014"}
+            </span>
+            <span className="lcx-metric-label">Correct</span>
+          </div>
+          <div className="lcx-metric">
+            <span className="lcx-metric-value">{mounted ? hitRate : "\u2014"}</span>
+            <span className="lcx-metric-label">Hit rate</span>
+          </div>
+          {mounted && form.length ? (
+            <div className="lcx-metric">
+              <span className="lcx-form">
+                {form.slice(-9).map((tone, index) => (
+                  <span className={`lcx-pip lcx-pip-${tone}`} key={index} />
+                ))}
               </span>
-              <span className={`lc-chip lc-${chip.tone}`}>{chip.label}</span>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="muted">
-        Live micro-calls on TxLINE moments (close plays, next corner, added
-        time), settled by the verified feed.
-      </p>
+              <span className="lcx-metric-label">Form</span>
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      {calls.length === 0 ? (
+        <div className="lcx-empty">
+          <div aria-hidden className="lcx-empty-ghosts">
+            <span className="lcx-empty-ghost" />
+            <span className="lcx-empty-ghost" />
+            <span className="lcx-empty-ghost" />
+          </div>
+          <p className="lcx-empty-title">No calls yet</p>
+          <p className="lcx-empty-sub">
+            When the match kicks off, live micro-calls appear here the moment a
+            play turns dangerous - and settle themselves against the TxLINE
+            feed.
+          </p>
+        </div>
+      ) : (
+        <>
+          {kinds.length > 1 ? (
+            <div aria-label="Filter calls by type" className="lcx-filters">
+              <button
+                className={`lcx-filter${filter === "all" ? " is-active" : ""}`}
+                onClick={() => setFilter("all")}
+                type="button"
+              >
+                All <span className="lcx-filter-count">{calls.length}</span>
+              </button>
+              {kinds.map((kind) => (
+                <button
+                  className={`lcx-filter${filter === kind ? " is-active" : ""}`}
+                  key={kind}
+                  onClick={() => setFilter(kind)}
+                  type="button"
+                >
+                  {CALL_KIND_LABELS[kind]}{" "}
+                  <span className="lcx-filter-count">{kindCounts.get(kind)}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {openRows.length ? (
+            <div className="lcx-group">
+              <span className="lcx-group-label lcx-group-open">
+                {live ? "Open now" : "Open"}
+              </span>
+              <ul className="lcx-list">{openRows.map((call) => renderCall(call))}</ul>
+            </div>
+          ) : null}
+
+          {settledRows.length ? (
+            <div className="lcx-group">
+              <span className="lcx-group-label">Settled</span>
+              <ul className="lcx-list">
+                {settledRows.map((call) => renderCall(call))}
+              </ul>
+            </div>
+          ) : null}
+
+          {!openRows.length && !settledRows.length ? (
+            <p className="lcx-none">
+              No{" "}
+              {filter === "all"
+                ? ""
+                : `${CALL_KIND_LABELS[filter].toLowerCase()} `}
+              calls in this match.
+            </p>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
