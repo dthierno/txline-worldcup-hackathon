@@ -4805,9 +4805,23 @@ function TicketCard({
           ))}
         </ul>
       ) : (
-        <p className="mp2-ticket-empty">
-          No picks yet - tap any market to put it on your card.
-        </p>
+        <div className="mp2-ticket-empty">
+          {/* A blank slip: ghost rows in the shape the real picks will take,
+              receding like unprinted lines on the counterfoil. */}
+          <div aria-hidden className="mp2-ticket-ghosts">
+            {[0, 1, 2].map((row) => (
+              <span className="mp2-ticket-ghost" key={row}>
+                <i className="mp2-ghost-circle" />
+                <span className="mp2-ghost-lines">
+                  <i className="mp2-ghost-label" />
+                  <i className="mp2-ghost-pick" />
+                </span>
+                <i className="mp2-ghost-chip" />
+              </span>
+            ))}
+          </div>
+          <p>No picks yet - tap any market to put it on your card.</p>
+        </div>
       )}
       <div aria-hidden className="mp2-ticket-tear" />
       <PotentialPoints points={potentialPoints} />
