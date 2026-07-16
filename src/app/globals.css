@@ -5075,9 +5075,9 @@ dt {
 }
 .mp2-ticket-pts {
   align-self: center;
-  background: color-mix(in srgb, var(--won) 14%, transparent);
+  background: rgba(255, 255, 255, 0.09);
   border-radius: 999px;
-  color: var(--won);
+  color: #fff;
   font-size: 10px;
   font-weight: 700;
   grid-column: 3;
@@ -5140,7 +5140,7 @@ dt {
   text-transform: uppercase;
 }
 .mp2-ticket-payout-value {
-  color: var(--won);
+  color: #fff;
   font-size: 15px;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
