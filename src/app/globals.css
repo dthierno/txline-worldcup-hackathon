@@ -5125,12 +5125,15 @@ dt {
 .mp2-ticket-tear::after {
   right: -32px;
 }
-/* Counterfoil payoff: one quiet row, weight carries the hierarchy. */
+/* Counterfoil payoff: boxed on the same glass as the slip rows above it. */
 .mp2-ticket-payout {
   align-items: baseline;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
   display: flex;
   gap: 10px;
   justify-content: space-between;
+  padding: 9px 11px;
 }
 .mp2-ticket-payout-label {
   color: var(--muted-foreground);
