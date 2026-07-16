@@ -27,11 +27,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  Bar,
-  BarChart,
-  Cell,
-  ReferenceDot,
-  ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts";
@@ -153,7 +148,6 @@ import {
   extractGoalCalls,
   extractGoals,
   extractMatchInfo,
-  extractMomentum,
   extractPenaltyEvents,
   extractSettleableCalls,
   extractSubstitutionEvents,
@@ -170,6 +164,7 @@ import {
   type SideMarkets,
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
+import { FlashMomentum } from "@/components/flash-momentum";
 import { matchClips } from "@/lib/match-media";
 import { teamFlag, teamGlow } from "@/lib/team-visuals";
 import {
@@ -822,7 +817,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     { away: 0, home: 0 },
   );
   const matchInfo = extractMatchInfo(combinedUpdates);
-  const momentum = extractMomentum(combinedUpdates);
   // Current match second: the scout clock plus wall time elapsed since the
   // record that reported it (only while the clock runs).
   const liveClockSeconds =
@@ -1742,13 +1736,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               )}
             </section>
 
-            <MomentumSection
-              awayColor={(awayIso && teamGlow[awayIso]) || "#8b8b96"}
-              extraTime={hadExtraTime}
+            <FlashMomentum
+              awayIso={awayIso}
               fixture={fixture}
               goals={goals}
-              homeColor={(homeIso && teamGlow[homeIso]) || "#8b8b96"}
-              momentum={momentum}
+              homeIso={homeIso}
+              updates={combinedUpdates}
             />
           </div>
         ) : null}
@@ -2071,256 +2064,12 @@ export function GoalCallsSection({
 
 // Tooltip for the momentum chart: the hovered 5-minute window with each
 // side's raw pressure score.
-function MomentumTooltip({
-  active,
-  awayTeam,
-  homeTeam,
-  payload,
-}: {
-  active?: boolean;
-  awayTeam: string;
-  homeTeam: string;
-  payload?: Array<{
-    payload?: { away: number; home: number; label?: string };
-  }>;
-}) {
-  const bucket = payload?.[0]?.payload;
-
-  if (!active || !bucket?.label) {
-    return null;
-  }
-
-  return (
-    <div className="mmt-tip">
-      <div className="mmt-tip-label">{bucket.label}</div>
-      <div>
-        {homeTeam} {bucket.home} · {awayTeam} {bucket.away}
-      </div>
-    </div>
-  );
-}
 
 // Attack momentum as FotMob-style diverging bars (shadcn chart / recharts):
 // one signed value per 5-minute bucket - home pressure minus away pressure -
 // drawn upward in the home colour and downward in the away colour. Discrete
 // bars mean a live match simply stops at its latest bucket; nothing
 // interpolates across the unplayed timeline.
-function MomentumSection({
-  awayColor,
-  extraTime,
-  fixture,
-  goals,
-  homeColor,
-  momentum,
-}: {
-  awayColor: string;
-  extraTime: boolean;
-  fixture: WorldCupFixture;
-  goals: GoalEvent[];
-  homeColor: string;
-  momentum: MomentumBucket[];
-}) {
-  if (momentum.length < 2) {
-    return null;
-  }
-
-  // Two near-identical team colours (Spain red vs Belgium red) would make
-  // the two halves of the chart indistinguishable - fall back to a neutral
-  // for the away side, FotMob-style.
-  const channel = (hex: string, i: number) =>
-    Number.parseInt(hex.slice(i, i + 2), 16);
-  const colorDistance = Math.hypot(
-    channel(homeColor, 1) - channel(awayColor, 1),
-    channel(homeColor, 3) - channel(awayColor, 3),
-    channel(homeColor, 5) - channel(awayColor, 5),
-  );
-  const chartAwayColor = colorDistance < 100 ? "#e5e7eb" : awayColor;
-
-  // The scout clock overruns each period's nominal end during stoppage time
-  // (H1 runs past 45', ET2 past 120'), which would stretch the timeline and
-  // drift markers past their separators. Football convention instead: clamp
-  // into the period window, so a 45+2' goal sits ON the halftime line and a
-  // 120+1' goal at the AET edge.
-  const PERIOD_WINDOW: Record<number, [number, number]> = {
-    2: [0, 45],
-    3: [45, 45],
-    4: [45, 90],
-    5: [90, 90],
-    6: [90, 90],
-    7: [90, 105],
-    8: [105, 105],
-    9: [105, 120],
-    10: [120, 120],
-  };
-  const clampToPeriod = (rawMinute: number, statusId?: number) => {
-    const window =
-      statusId !== undefined
-        ? PERIOD_WINDOW[statusId > 10 ? 10 : statusId]
-        : undefined;
-
-    return window
-      ? Math.min(Math.max(rawMinute, window[0]), window[1])
-      : rawMinute;
-  };
-  const maxMinute = extraTime ? 120 : 90;
-  // Buckets past the timeline end (stoppage) fold into the final slot,
-  // grid-aligned so every bar sits centred in a 5-minute band.
-  const bucketPoints = new Map<
-    number,
-    { away: number; home: number; label: string }
-  >();
-
-  for (const bucket of momentum) {
-    const minute = Math.min(bucket.startMinute + 2.5, maxMinute - 2.5);
-    const existing = bucketPoints.get(minute);
-
-    bucketPoints.set(minute, {
-      away: (existing?.away ?? 0) + bucket.awayPressure,
-      home: (existing?.home ?? 0) + bucket.homePressure,
-      label: existing
-        ? `${existing.label.split("-")[0]}-${bucket.startMinute + 5}'`
-        : `${bucket.startMinute}-${bucket.startMinute + 5}'`,
-    });
-  }
-
-  // Every 5-minute slot up to the latest active bucket gets an entry (quiet
-  // spells as zero), so the bars form one contiguous band and recharts sizes
-  // each bar to its slot instead of a fixed width.
-  const lastBucketMinute = Math.max(...bucketPoints.keys());
-  const data = [];
-
-  for (let minute = 2.5; minute <= lastBucketMinute; minute += 5) {
-    const bucket = bucketPoints.get(minute);
-
-    data.push({
-      away: bucket?.away ?? 0,
-      home: bucket?.home ?? 0,
-      label: bucket?.label ?? `${minute - 2.5}-${minute + 2.5}'`,
-      minute,
-      net: (bucket?.home ?? 0) - (bucket?.away ?? 0),
-    });
-  }
-  const peak = Math.max(1, ...data.map((entry) => Math.abs(entry.net)));
-  // Symmetric Y domain keeps the zero baseline dead centre; padding leaves
-  // room for the goal badges pinned near the edges.
-  const lim = peak * 1.3;
-  const separators = [45, ...(extraTime ? [90] : [])];
-  const tickLabel = (minute: number) =>
-    minute === 0
-      ? "0'"
-      : minute === 45
-        ? "HT"
-        : minute === 90
-          ? "FT"
-          : minute === 120
-            ? "AET"
-            : `${minute}'`;
-  const goalDot = (props: { cx?: number; cy?: number }) => (
-    <g>
-      <circle
-        cx={props.cx}
-        cy={props.cy}
-        fill="#101014"
-        r="10"
-        stroke="rgba(255, 255, 255, 0.18)"
-      />
-      <text
-        dominantBaseline="central"
-        fontSize="11"
-        textAnchor="middle"
-        x={props.cx}
-        y={(props.cy ?? 0) + 0.5}
-      >
-        ⚽
-      </text>
-    </g>
-  );
-  const chartConfig = {
-    away: { color: chartAwayColor, label: fixture.awayTeam },
-    home: { color: homeColor, label: fixture.homeTeam },
-  } satisfies ChartConfig;
-
-  return (
-    <section className="card" aria-labelledby="momentum-heading">
-      <h2 id="momentum-heading">Momentum</h2>
-      <ChartContainer className="mmt-chart" config={chartConfig}>
-        <BarChart
-          barCategoryGap={1}
-          data={data}
-          margin={{ bottom: 0, left: 10, right: 10, top: 6 }}
-        >
-          <XAxis
-            axisLine={false}
-            dataKey="minute"
-            domain={[0, maxMinute]}
-            height={24}
-            interval={0}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 11, fontWeight: 700 }}
-            tickFormatter={tickLabel}
-            tickLine={false}
-            tickMargin={8}
-            ticks={[0, ...separators, maxMinute]}
-            type="number"
-          />
-          <YAxis domain={[-lim, lim]} hide type="number" />
-          <ReferenceLine stroke="rgba(255, 255, 255, 0.08)" y={0} />
-          {separators.map((minute) => (
-            <ReferenceLine
-              key={minute}
-              stroke="rgba(255, 255, 255, 0.16)"
-              strokeDasharray="0.1 8"
-              strokeLinecap="round"
-              strokeWidth={2.5}
-              x={minute}
-            />
-          ))}
-          <ChartTooltip
-            content={
-              <MomentumTooltip
-                awayTeam={fixture.awayTeam}
-                homeTeam={fixture.homeTeam}
-              />
-            }
-            cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
-          />
-          <Bar dataKey="net" isAnimationActive={false} radius={3}>
-            {data.map((entry) => (
-              <Cell
-                fill={entry.net >= 0 ? homeColor : chartAwayColor}
-                key={entry.minute}
-              />
-            ))}
-          </Bar>
-          {goals.map((goal) => (
-            <ReferenceDot
-              key={goal.seq}
-              r={10}
-              shape={goalDot}
-              x={Math.min(
-                clampToPeriod((goal.clockSeconds ?? 0) / 60, goal.statusId),
-                maxMinute,
-              )}
-              y={goal.scoringSide === "home" ? lim * 0.82 : -lim * 0.82}
-            />
-          ))}
-        </BarChart>
-      </ChartContainer>
-      <p className="momentum-legend muted">
-        <span
-          className="momentum-dot"
-          style={{ backgroundColor: homeColor }}
-        />{" "}
-        {fixture.homeTeam}
-        <span
-          className="momentum-dot"
-          style={{ backgroundColor: chartAwayColor }}
-        />{" "}
-        {fixture.awayTeam} — net attack pressure from TxLINE possession
-        phases, shots and corners, per 5 minutes. Balls mark goals.
-      </p>
-    </section>
-  );
-}
 
 type FifaHighlight = {
   publishDate?: string;

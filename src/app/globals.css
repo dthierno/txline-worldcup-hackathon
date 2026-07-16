@@ -5438,3 +5438,106 @@ dt {
      inline with the minute badge. */
   position: static;
 }
+
+/* Flashscore-style momentum widget: measured palette and metrics from their
+   rendered widget (period #0f2d37, guides/lines #555e61, home bars #fff, away
+   #777e81, captions #c8cdcd; 26px header/footer rows around a 158px chart;
+   20px incident badges on #00141e with #555e61 hairlines). */
+.mp2 .fsm-card {
+  padding: 16px;
+}
+.fsm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fsm-chart {
+  position: relative;
+}
+.fsm-team {
+  align-items: center;
+  color: #eee;
+  display: flex;
+  gap: 4px;
+  min-height: 20px;
+}
+.fsm-team img {
+  border-radius: 50%;
+  height: 14px;
+  object-fit: cover;
+  width: 14px;
+}
+.fsm-team span {
+  font-size: 12px;
+  font-weight: 700;
+}
+.fsm-legend {
+  align-items: center;
+  color: #c8cdcd;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: -20px;
+  min-height: 20px;
+}
+.fsm-legend span {
+  font-size: 12px;
+  font-weight: 700;
+}
+.fsm-period {
+  fill: #0f2d37;
+}
+.fsm-dot {
+  fill: #555e61;
+}
+.fsm-bar {
+  fill: #fff;
+}
+.fsm-bar-away {
+  fill: #777e81;
+}
+.fsm-hit {
+  fill: transparent;
+}
+.fsm-incident {
+  align-items: center;
+  background: #00141e;
+  border: 1px solid #555e61;
+  border-radius: 4px;
+  color: #eee;
+  display: flex;
+  height: 20px;
+  justify-content: center;
+  margin-left: -10px;
+  position: absolute;
+  top: -4px;
+  width: 20px;
+  z-index: 2;
+}
+.fsm-incident-away {
+  top: 142px;
+}
+.fsm-redcard {
+  background: #dc0000;
+  border-radius: 1.5px;
+  display: block;
+  height: 12px;
+  transform: rotate(8deg);
+  width: 9px;
+}
+.fsm-incident-line {
+  background: #555e61;
+  position: absolute;
+  width: 1px;
+  z-index: 1;
+}
+.fsm-time {
+  color: #c8cdcd;
+  font-size: 13px;
+  position: absolute;
+  bottom: -22px;
+  transform: translateX(-50%);
+}
+.fsm-chart {
+  margin-bottom: 22px;
+}
