@@ -2020,7 +2020,12 @@ export function GoalCallsSection({
 
   return (
     <section className="card" aria-labelledby="goal-calls-heading">
-      <h2 id="goal-calls-heading">Live calls</h2>
+      <div className="lc-head">
+        <h2 id="goal-calls-heading">Live calls</h2>
+        {mounted && points > 0 ? (
+          <span className="lc-earned">+{points} pts</span>
+        ) : null}
+      </div>
       {openCall && mounted ? (
         <CallPromptDialog
           key={openCall.key}
@@ -2029,39 +2034,62 @@ export function GoalCallsSection({
           onDismiss={handleDismiss}
         />
       ) : null}
-      <ul className="call-list">
+      <ul className="lc-list">
         {[...calls].reverse().map((call) => {
           const callAnswer = mounted ? answers[call.key] : undefined;
           const correct =
             call.resolved && !call.voided && callAnswer && call.correctIndex !== undefined
               ? answerIndex(callAnswer.answer) === call.correctIndex
               : null;
+          const picked = callAnswer
+            ? call.options[answerIndex(callAnswer.answer)] ?? callAnswer.answer
+            : null;
+          const chip = call.voided
+            ? { label: "Void", tone: "muted" }
+            : !call.resolved
+              ? picked
+                ? { label: picked, tone: "picked" }
+                : { label: "Open", tone: "muted" }
+              : correct === null
+                ? { label: "\u2014", tone: "muted" }
+                : correct
+                  ? { label: `+${GOAL_CALL_POINTS}`, tone: "won" }
+                  : { label: "0", tone: "lost" };
+          const icon = /corner/i.test(call.question) ? (
+            <svg fill="currentColor" height="11" viewBox="0 0 10 10" width="11">
+              <path d="M2 1h1v8H2zM3.6 1.4l4.4 1.8-4.4 1.8z" />
+            </svg>
+          ) : /added time/i.test(call.question) ? (
+            <StopwatchIcon />
+          ) : (
+            <LineupGoalIcon />
+          );
 
           return (
-            <li key={call.key}>
-              <span>
-                {call.minute} {call.question}
+            <li className="lc-row" key={call.key}>
+              <span aria-hidden className="lc-icon">
+                {icon}
               </span>
-              <span className="call-outcome">
-                {call.outcome}
-                {callAnswer
-                  ? correct === null
-                    ? ` · you said ${call.options[answerIndex(callAnswer.answer)] ?? callAnswer.answer}`
-                    : correct
-                      ? ` · ✓ +${GOAL_CALL_POINTS}`
-                      : " · ✗ 0"
-                  : call.resolved && !call.voided
-                    ? " · — 0"
-                    : ""}
+              <span className="lc-copy">
+                <span className="lc-question">{call.question}</span>
+                <span className="lc-meta">
+                  {call.minute}
+                  {call.resolved && !call.voided ? ` \u00b7 ${call.outcome}` : ""}
+                  {picked && correct === null && !call.voided
+                    ? ` \u00b7 You: ${picked}`
+                    : picked && correct !== null
+                      ? ` \u00b7 You: ${picked}`
+                      : ""}
+                </span>
               </span>
+              <span className={`lc-chip lc-${chip.tone}`}>{chip.label}</span>
             </li>
           );
         })}
       </ul>
       <p className="muted">
         Live micro-calls on TxLINE moments (close plays, next corner, added
-        time), settled by the verified feed.{" "}
-        {mounted && points > 0 ? `You earned ${points} point(s) here.` : ""}
+        time), settled by the verified feed.
       </p>
     </section>
   );
