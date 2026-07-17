@@ -5691,6 +5691,32 @@ dt {
   flex-direction: column;
   gap: 16px;
 }
+/* The prompt's World Cup washes, dialled down for a full-size card
+   (.mp2 .card outranks a lone class, hence the compound selector). */
+.mp2 .card.lcx {
+  background:
+    radial-gradient(
+      90% 55% at 0% 0%,
+      rgba(250, 61, 61, 0.13),
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 55% at 100% 0%,
+      rgba(0, 68, 255, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      100% 65% at 0% 100%,
+      rgba(139, 92, 246, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(
+      100% 65% at 100% 100%,
+      rgba(74, 222, 128, 0.1),
+      transparent 60%
+    ),
+    #101014;
+}
 .lcx-head {
   align-items: center;
   display: flex;
