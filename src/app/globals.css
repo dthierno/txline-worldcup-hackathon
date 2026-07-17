@@ -5834,7 +5834,7 @@ dt {
 .lcx-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   list-style: none;
   margin: 0;
   padding: 0;
