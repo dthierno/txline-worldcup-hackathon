@@ -75,9 +75,21 @@ const DEMO_CALLS: LiveUiCall[] = [
 export default function GoalCallsDemo() {
   const [ready, setReady] = useState(false);
 
-  // Seed the stored answers before the panel first renders so the won, lost
-  // and picked states show without any interaction.
+  // Reset the demo fixture to exactly the seeded answers before the panel
+  // first renders, so the won, lost and picked states show without any
+  // interaction - and the open call's prompt reappears on every reload even
+  // after it was answered on a previous visit.
   useEffect(() => {
+    try {
+      const key = "fan-forecast.goalcalls.v1";
+      const parsed = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+
+      delete parsed[String(DEMO_FIXTURE_ID)];
+      window.localStorage.setItem(key, JSON.stringify(parsed));
+    } catch {
+      // best effort
+    }
+
     const answeredAt = new Date().toISOString();
 
     saveGoalCall(DEMO_FIXTURE_ID, "static-won", { answer: "0", answeredAt });
@@ -97,11 +109,17 @@ export default function GoalCallsDemo() {
       <h1>Live calls - static states</h1>
       <p className="muted">
         Every state of the live-calls card on one screen: an open call (its
-        prompt pops once), an open call already answered, a won call, a lost
-        one, a skipped one, and a void. Example data, not TxLINE.
+        prompt stays open here - the timer is frozen for design review), an
+        open call already answered, a won call, a lost one, a skipped one, and
+        a void. Example data, not TxLINE.
       </p>
       {ready ? (
-        <LiveCallsPanel calls={DEMO_CALLS} fixtureId={DEMO_FIXTURE_ID} live />
+        <LiveCallsPanel
+          calls={DEMO_CALLS}
+          fixtureId={DEMO_FIXTURE_ID}
+          freezePrompt
+          live
+        />
       ) : null}
     </main>
   );

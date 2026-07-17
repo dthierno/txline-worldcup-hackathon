@@ -1925,10 +1925,12 @@ function playCallChime(key: string) {
 
 function CallPromptDialog({
   call,
+  frozen,
   onAnswer,
   onDismiss,
 }: {
   call: LiveUiCall;
+  frozen?: boolean;
   onAnswer: (index: 0 | 1) => void;
   onDismiss: (key: string) => void;
 }) {
@@ -1941,6 +1943,12 @@ function CallPromptDialog({
   }, [callKey]);
 
   useEffect(() => {
+    // Design-review mode: hold the prompt open with a full window instead of
+    // ticking it down (the static demo uses this).
+    if (frozen) {
+      return;
+    }
+
     const start = Date.now();
     const timer = setInterval(() => {
       const left = Math.max(0, CALL_WINDOW_MS - (Date.now() - start));
@@ -1953,7 +1961,7 @@ function CallPromptDialog({
     }, 100);
 
     return () => clearInterval(timer);
-  }, [callKey, onDismiss]);
+  }, [callKey, frozen, onDismiss]);
 
   return (
     <Dialog
@@ -2037,10 +2045,12 @@ function CallKindIcon({ kind }: { kind: CallKind }) {
 export function LiveCallsPanel({
   calls,
   fixtureId,
+  freezePrompt,
   live,
 }: {
   calls: LiveUiCall[];
   fixtureId: number;
+  freezePrompt?: boolean;
   live: boolean;
 }) {
   const mounted = useIsMounted();
@@ -2175,6 +2185,7 @@ export function LiveCallsPanel({
         <CallPromptDialog
           key={openCall.key}
           call={openCall}
+          frozen={freezePrompt}
           onAnswer={(index) => answer(openCall.key, index)}
           onDismiss={handleDismiss}
         />
