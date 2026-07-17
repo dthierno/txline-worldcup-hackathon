@@ -2150,15 +2150,12 @@ export function LiveCallsPanel({
             : { label: "0", tone: "lost" };
 
     return (
-      <li className={`lcx-row lcx-row-${chip.tone}`} key={call.key}>
+      <li className="lcx-row" key={call.key}>
         <span aria-hidden className="lcx-row-icon">
           <CallKindIcon kind={kind} />
         </span>
         <div className="lcx-row-body">
-          <div className="lcx-row-top">
-            <span className="lcx-row-q">{call.question}</span>
-            <span className={`lcx-chip lcx-chip-${chip.tone}`}>{chip.label}</span>
-          </div>
+          <span className="lcx-row-q">{call.question}</span>
           <div className="lcx-row-meta">
             <span className="lcx-min">{call.minute}</span>
             {call.resolved && !call.voided ? (
@@ -2167,6 +2164,7 @@ export function LiveCallsPanel({
             {picked ? <span className="lcx-you">You: {picked}</span> : null}
           </div>
         </div>
+        <span className={`lcx-chip lcx-chip-${chip.tone}`}>{chip.label}</span>
       </li>
     );
   }
@@ -2275,36 +2273,54 @@ export function LiveCallsPanel({
             </div>
           ) : null}
 
-          {openRows.length ? (
-            <div className="lcx-group">
-              <span className="lcx-group-label lcx-group-open">
-                {live ? "Open now" : "Open"}
-              </span>
-              <ul className="lcx-list">{openRows.map((call) => renderCall(call))}</ul>
-            </div>
-          ) : null}
-
-          {settledRows.length ? (
-            <div className="lcx-group">
-              <span className="lcx-group-label">Settled</span>
-              <ul className="lcx-list">
-                {settledPreview.map((call) => renderCall(call))}
-              </ul>
-              {settledRows.length > SETTLED_CALLS_PREVIEW ? (
-                <button
-                  className="lcx-more"
-                  onClick={() => setExpanded((value) => !value)}
-                  type="button"
-                >
-                  {expanded
-                    ? "Show fewer"
-                    : `Show all ${settledRows.length} calls`}
-                </button>
+          {openRows.length || settledRows.length ? (
+            <div className="lcx-boardwrap">
+              {openRows.length ? (
+                <>
+                  <div className="lcx-board-head">
+                    <span aria-hidden className="lcx-open-dot" />
+                    {live ? "Open now" : "Open"}
+                  </div>
+                  <div className="lcx-board-body">
+                    <ul className="lcx-list">
+                      {openRows.map((call) => renderCall(call))}
+                    </ul>
+                  </div>
+                </>
+              ) : null}
+              {settledRows.length ? (
+                <>
+                  <div className="lcx-board-head">Settled</div>
+                  <div className="lcx-board-body">
+                    <ul className="lcx-list">
+                      {settledPreview.map((call) => renderCall(call))}
+                    </ul>
+                    {settledRows.length > SETTLED_CALLS_PREVIEW ? (
+                      <button
+                        aria-label={
+                          expanded ? "Show fewer calls" : "Show more calls"
+                        }
+                        className="text-muted-foreground hover:text-foreground mt-3 flex h-9 w-full items-center justify-center gap-1 rounded-2xl bg-white/[0.03] transition-colors hover:bg-white/[0.06]"
+                        onClick={() => setExpanded((value) => !value)}
+                        type="button"
+                      >
+                        <span className="text-xs leading-4 font-medium">
+                          {expanded
+                            ? "Fewer calls"
+                            : `More calls (${settledRows.length - SETTLED_CALLS_PREVIEW})`}
+                        </span>
+                        <HugeiconsIcon
+                          icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
+                          size={12}
+                          strokeWidth={2.5}
+                        />
+                      </button>
+                    ) : null}
+                  </div>
+                </>
               ) : null}
             </div>
-          ) : null}
-
-          {!openRows.length && !settledRows.length ? (
+          ) : (
             <p className="lcx-none">
               No{" "}
               {filter === "all"
@@ -2312,7 +2328,7 @@ export function LiveCallsPanel({
                 : `${CALL_KIND_LABELS[filter].toLowerCase()} `}
               calls in this match.
             </p>
-          ) : null}
+          )}
         </>
       )}
     </section>

@@ -5802,89 +5802,69 @@ dt {
   background: rgba(16, 16, 26, 0.12);
   color: #10101a;
 }
-.lcx-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* Call log in the player-board language: one rounded bg-black/25 container,
+   uppercase head strips, flat rows, outline pill chips. */
+.lcx-boardwrap {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 18px;
+  overflow: hidden;
 }
-.lcx-group + .lcx-group {
-  margin-top: 6px;
-}
-.lcx-group-label {
+.lcx-board-head {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.045);
   color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  display: flex;
+  font-size: 10.5px;
+  font-weight: 600;
+  gap: 7px;
+  letter-spacing: 0.02em;
+  padding: 8px 14px;
   text-transform: uppercase;
 }
-.lcx-group-open {
-  align-items: center;
-  color: #fff;
-  display: inline-flex;
-  gap: 8px;
+.lcx-board-body {
+  padding: 14px;
 }
-.lcx-group-open::before {
+.lcx-open-dot {
   animation: lcx-pulse 1.4s ease-in-out infinite;
   background: var(--brand);
   border-radius: 50%;
-  content: "";
-  height: 8px;
-  width: 8px;
+  height: 7px;
+  width: 7px;
 }
 .lcx-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 11px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 .lcx-row {
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
-  column-gap: 14px;
+  column-gap: 10px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  padding: 13px 16px;
-  transition: background 0.15s ease;
-}
-.lcx-row:hover {
-  background: rgba(255, 255, 255, 0.07);
-}
-.lcx-row-open {
-  border-color: color-mix(in srgb, var(--brand) 32%, transparent);
-}
-.lcx-row-won {
-  border-color: color-mix(in srgb, var(--won) 24%, transparent);
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 .lcx-row-icon {
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   border-radius: 50%;
   color: rgba(255, 255, 255, 0.9);
   display: flex;
-  height: 34px;
+  height: 28px;
   justify-content: center;
-  width: 34px;
+  width: 28px;
 }
 .lcx-row-body {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
-}
-.lcx-row-top {
-  align-items: center;
-  column-gap: 12px;
-  display: flex;
-  justify-content: space-between;
 }
 .lcx-row-q {
   color: #fff;
   font-size: 14.5px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
   min-width: 0;
 }
@@ -5893,7 +5873,7 @@ dt {
   color: var(--muted-foreground);
   display: flex;
   flex-wrap: wrap;
-  font-size: 12.5px;
+  font-size: 12px;
   gap: 6px;
   line-height: 1.4;
 }
@@ -5909,53 +5889,35 @@ dt {
   color: rgba(255, 255, 255, 0.82);
   font-weight: 600;
 }
+/* State chips as outline pills, matching the player boards' point chips. */
 .lcx-chip {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   flex: 0 0 auto;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  padding: 4px 11px;
+  font-weight: 650;
+  padding: 4px 12px;
   white-space: nowrap;
 }
 .lcx-chip-won {
-  background: color-mix(in srgb, var(--won) 16%, transparent);
+  border-color: color-mix(in srgb, var(--won) 45%, transparent);
   color: var(--won);
 }
 .lcx-chip-lost {
-  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.4);
   color: #f87171;
 }
 .lcx-chip-muted {
-  background: rgba(255, 255, 255, 0.08);
   color: var(--muted-foreground);
 }
 .lcx-chip-picked {
-  background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
 .lcx-chip-open {
-  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
   color: #9dc0ff;
-}
-.lcx-more {
-  align-self: flex-start;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: pointer;
-  font-size: 12.5px;
-  font-weight: 600;
-  margin-top: 2px;
-  padding: 7px 15px;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-.lcx-more:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: #fff;
 }
 .lcx-none {
   color: var(--muted-foreground);
@@ -6020,7 +5982,7 @@ dt {
 }
 @media (prefers-reduced-motion: reduce) {
   .lcx-live-dot,
-  .lcx-group-open::before {
+  .lcx-open-dot {
     animation: none;
   }
 }
