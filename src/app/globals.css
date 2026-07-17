@@ -6009,6 +6009,28 @@ dt {
   font-weight: 700;
   line-height: 1;
 }
+/* The stake hexagon rides the header band, opposite the close button. */
+.lc-prompt-stake {
+  left: 22px;
+  position: absolute;
+  top: 15px;
+}
+.lc-prompt-stake .pc-points-badge {
+  height: 28px;
+  justify-content: center;
+  left: auto;
+  position: relative;
+  top: auto;
+  transform: none;
+  width: 26px;
+}
+.lc-prompt-stake .pc-points-badge svg {
+  height: 28px;
+  width: 26px;
+}
+.lc-prompt-stake .pc-points-num {
+  font-size: 12px;
+}
 /* Corner close as a proper glass circle button. */
 .lc-prompt [data-slot="dialog-close"] {
   align-items: center;

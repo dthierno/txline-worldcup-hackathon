@@ -1982,6 +1982,13 @@ function CallPromptDialog({
         }
       >
         <DialogTitle className="sr-only">Live call</DialogTitle>
+        {/* What a correct call pays, opposite the close button. */}
+        <span
+          aria-label={`Worth ${GOAL_CALL_POINTS} points`}
+          className="lc-prompt-stake"
+        >
+          <PointsBadge points={GOAL_CALL_POINTS} />
+        </span>
         <DialogDescription className="lc-prompt-question">
           {/* The team renders as an inline flag pill inside the question. */}
           {call.team && call.question.includes(call.team) ? (
