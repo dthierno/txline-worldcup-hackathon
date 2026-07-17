@@ -5766,6 +5766,26 @@ dt {
   gap: 8px;
   padding: 10px 14px;
 }
+.lcx-board-head-split {
+  justify-content: space-between;
+}
+/* Total-points hexagon riding the right side of the Settled strip. */
+.lcx-board-head .pc-points-badge {
+  height: 24px;
+  justify-content: center;
+  left: auto;
+  position: relative;
+  top: auto;
+  transform: none;
+  width: 22px;
+}
+.lcx-board-head .pc-points-badge svg {
+  height: 24px;
+  width: 22px;
+}
+.lcx-board-head .pc-points-num {
+  font-size: 11px;
+}
 .lcx-board-body {
   padding: 14px;
 }

@@ -2092,6 +2092,20 @@ export function LiveCallsPanel({
     kindCounts.set(kind, (kindCounts.get(kind) ?? 0) + 1);
   }
 
+  // Total earned across every settled call, shown on the Settled strip.
+  const points = calls.reduce((total, call) => {
+    const record = mounted ? answers[call.key] : undefined;
+
+    if (!call.resolved || call.voided || !record || call.correctIndex === undefined) {
+      return total;
+    }
+
+    return (
+      total +
+      (answerIndex(record.answer) === call.correctIndex ? GOAL_CALL_POINTS : 0)
+    );
+  }, 0);
+
   const kinds = CALL_KIND_ORDER.filter((kind) => kindCounts.has(kind));
   const visible = [...calls]
     .reverse()
@@ -2245,7 +2259,12 @@ export function LiveCallsPanel({
               ) : null}
               {settledRows.length ? (
                 <>
-                  <div className="lcx-board-head">Settled</div>
+                  <div className="lcx-board-head lcx-board-head-split">
+                    Settled
+                    {mounted ? (
+                      <PointsBadge muted={points === 0} points={points} />
+                    ) : null}
+                  </div>
                   <div className="lcx-board-body">
                     <ul className="lcx-list">
                       {settledPreview.map((call) => renderCall(call))}
