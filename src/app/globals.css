@@ -317,13 +317,16 @@ main {
   width: 100%;
 }
 .app-logo {
+  align-items: center;
   color: #ffffff;
+  display: inline-flex;
   font-size: 30px;
   font-weight: 700;
+  gap: 10px;
   letter-spacing: -0.01em;
 }
 /* "Game" wears the banner's ray palette as an animated gradient sweep. */
-.app-logo span {
+.app-logo-word span {
   animation: logo-sweep 6s ease-in-out infinite alternate;
   background: linear-gradient(
     100deg,
@@ -349,7 +352,7 @@ main {
   to { background-position: 30% 50%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .app-logo span { animation: none; }
+  .app-logo-word span { animation: none; }
 }
 .app-signin {
   align-items: center;

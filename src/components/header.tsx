@@ -5,6 +5,58 @@ import { useEffect, useState } from "react";
 
 import { loadSettlements } from "@/lib/prediction-store";
 
+// The PredGame mark from the intro widget's mock header: a rounded hexagon
+// in the teal-to-blue gradient with the flag glyph punched out in black.
+function PredGameMark({ size }: { size: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="18 25 30 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M29.9206 27.1713C31.8261 26.0542 34.1736 26.0542 36.079 27.1713L43.254 31.3778C45.1594 32.4949 46.3332 34.5594 46.3332 36.7937V45.2067C46.3332 47.4409 45.1594 49.5054 43.254 50.6225L36.079 54.829C34.1736 55.9461 31.8261 55.9461 29.9206 54.829L22.7457 50.6225C20.8403 49.5054 19.6665 47.4409 19.6665 45.2067V36.7937C19.6665 34.5594 20.8403 32.4949 22.7457 31.3778L29.9206 27.1713Z"
+        fill="url(#hd_mark_a)"
+      />
+      <path
+        d="M29.9204 27.1713C31.8258 26.0542 34.1738 26.0542 36.0793 27.1713L39.0063 28.8862L25.8293 51.6752C25.7184 51.8665 25.6214 52.0609 25.5337 52.256L22.7459 50.6218C20.8405 49.5047 19.6665 47.4407 19.6665 45.2065V36.7937C19.6665 34.5595 20.8405 32.4942 22.7459 31.3771L29.9204 27.1713Z"
+        fill="url(#hd_mark_b)"
+      />
+      <path
+        d="M39.1481 41.5288L43.2858 34.1431H31.1858C29.9336 34.1431 28.7699 34.8316 28.1438 35.9373L22.9512 45.1729C22.2775 46.3691 23.1214 47.8574 24.4688 47.8574H27.1842C27.6674 47.8574 28.1165 47.5931 28.3615 47.1619L30.3351 43.6777C30.4576 43.4621 30.6822 43.33 30.9272 43.33H36.1061C37.3651 43.33 38.522 42.6415 39.1481 41.5288Z"
+        fill="black"
+      />
+      <defs>
+        <linearGradient
+          id="hd_mark_a"
+          x1="25.5486"
+          y1="66.3335"
+          x2="49.8078"
+          y2="27.7977"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0.39" stopColor="#5FFF94" />
+          <stop offset="1" stopColor="#136AFF" />
+        </linearGradient>
+        <linearGradient
+          id="hd_mark_b"
+          x1="67.6665"
+          y1="-20.4128"
+          x2="33.4144"
+          y2="55.8148"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0.39" stopColor="#5FFF94" />
+          <stop offset="1" stopColor="#136AFF" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 // The generic account glyph (same person-in-circle path the intro widget's
 // mock header uses).
 function AccountGlyph({ size }: { size: number }) {
@@ -55,7 +107,10 @@ export function Header() {
     <header className="app-header">
       <div className="app-header-inner">
         <Link className="app-logo" href="/" aria-label="PredGame home">
-          Pred<span>Game</span>
+          <PredGameMark size={30} />
+          <span className="app-logo-word">
+            Pred<span>Game</span>
+          </span>
         </Link>
         {points === null ? (
           <button className="app-signin" type="button" aria-label="Sign in">
