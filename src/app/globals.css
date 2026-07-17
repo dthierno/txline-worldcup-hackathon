@@ -4158,10 +4158,14 @@ dt {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
-/* Glance stats reuse the Stats tab's mp2-stat-row design. */
+/* Glance stats reuse the Stats tab's mp2-stat-row design, tighter: the
+   rows' own tab margins are dropped and the grid gap owns the rhythm. */
 .mp2-glance-stats {
   display: grid;
-  gap: 14px;
+  gap: 11px;
+}
+.mp2-glance-stats .mp2-stat-row {
+  margin: 0;
 }
 .mp2-overview-events {
   list-style: none;
