@@ -5982,7 +5982,7 @@ dt {
   margin: 0;
   /* Slightly narrower than the dialog, clearing the corner close button. */
   max-width: 92%;
-  padding: 7px 14px 7px 0;
+  padding: 14px 14px 14px 0;
 }
 /* The team rides inside the question as an inline flag pill. */
 .lc-prompt-team {
