@@ -5981,7 +5981,7 @@ dt {
   line-height: 1.5;
   margin: 0;
   /* Clear the corner close button. */
-  padding: 14px 14px 14px 0;
+  padding: 36px 14px 14px 0;
 }
 /* The team rides inside the question as an inline flag pill. */
 .lc-prompt-team {
