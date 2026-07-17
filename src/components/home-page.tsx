@@ -1119,8 +1119,9 @@ function ScoreStepper({
 }
 
 // Rounded-hexagon points badge: green for a settled prediction, grey when
-// the fan never made one (points left on the table).
-function PointsBadge({ muted, points }: { muted?: boolean; points: number }) {
+// the fan never made one (points left on the table). Shared with the match
+// page's live-calls rows so points read the same everywhere.
+export function PointsBadge({ muted, points }: { muted?: boolean; points: number }) {
   const gradientId = muted ? "pc-badge-fill-muted" : "pc-badge-fill";
 
   return (

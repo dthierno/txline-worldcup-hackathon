@@ -5906,7 +5906,8 @@ dt {
   color: rgba(255, 255, 255, 0.82);
   font-weight: 600;
 }
-/* State chips as outline pills, matching the player boards' point chips. */
+/* State chips as outline pills, matching the player boards' point chips.
+   Settled scores use the shared homepage PointsBadge hexagon instead. */
 .lcx-chip {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -5918,14 +5919,6 @@ dt {
   padding: 4px 12px;
   white-space: nowrap;
 }
-.lcx-chip-won {
-  border-color: color-mix(in srgb, var(--won) 45%, transparent);
-  color: var(--won);
-}
-.lcx-chip-lost {
-  border-color: rgba(248, 113, 113, 0.4);
-  color: #f87171;
-}
 .lcx-chip-muted {
   color: var(--muted-foreground);
 }
@@ -5935,6 +5928,14 @@ dt {
 .lcx-chip-open {
   border-color: color-mix(in srgb, var(--brand) 45%, transparent);
   color: #9dc0ff;
+}
+/* The badge floats on prediction cards; in a call row it sits inline
+   (relative, not static - its inner svg anchors to the badge box). */
+.lcx-row .pc-points-badge {
+  left: auto;
+  position: relative;
+  top: auto;
+  transform: none;
 }
 .lcx-none {
   color: var(--muted-foreground);

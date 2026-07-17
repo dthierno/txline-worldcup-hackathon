@@ -45,6 +45,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { PointsBadge } from "@/components/home-page";
 import { KnockoutBracketLive } from "@/components/knockout-bracket-live";
 import {
   ChartContainer,
@@ -2137,17 +2138,16 @@ export function LiveCallsPanel({
     const picked = record
       ? call.options[answerIndex(record.answer)] ?? record.answer
       : null;
+    // Settled calls score with the homepage hexagon badge (green when the
+    // fan played, grey when they let it pass); everything still in flight
+    // keeps a pill.
     const chip = call.voided
       ? { label: "Void", tone: "muted" }
       : !call.resolved
         ? picked
           ? { label: picked, tone: "picked" }
           : { label: "Open", tone: "open" }
-        : correct === null
-          ? { label: "\u2014", tone: "muted" }
-          : correct
-            ? { label: `+${GOAL_CALL_POINTS}`, tone: "won" }
-            : { label: "0", tone: "lost" };
+        : null;
 
     return (
       <li className="lcx-row" key={call.key}>
@@ -2166,7 +2166,14 @@ export function LiveCallsPanel({
             {picked ? <span className="lcx-you">You: {picked}</span> : null}
           </div>
         </div>
-        <span className={`lcx-chip lcx-chip-${chip.tone}`}>{chip.label}</span>
+        {chip ? (
+          <span className={`lcx-chip lcx-chip-${chip.tone}`}>{chip.label}</span>
+        ) : (
+          <PointsBadge
+            muted={correct === null}
+            points={correct ? GOAL_CALL_POINTS : 0}
+          />
+        )}
       </li>
     );
   }
