@@ -5899,6 +5899,7 @@ dt {
 }
 .lcx-min {
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 .lcx-outcome {
   color: rgba(255, 255, 255, 0.82);
