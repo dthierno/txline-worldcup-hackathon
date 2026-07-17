@@ -5835,7 +5835,7 @@ dt {
 .lcx-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 6px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -5847,6 +5847,8 @@ dt {
   column-gap: 10px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Kill the global li margins - the list gap owns the spacing. */
+  margin: 0;
   padding: 8px 13px;
 }
 .lcx-row-icon {
