@@ -6122,6 +6122,62 @@ dt {
   font-weight: 700;
   line-height: 1;
 }
+/* League dialogs wear the live-call prompt shell (washes + full gradient
+   border ring - no countdown, --lc-progress just stays at 100%). */
+.league-modal-title {
+  color: #fff;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 0;
+  padding: 4px 22px 0 0;
+}
+.league-modal-desc {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0;
+}
+.league-modal .league-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.league-modal .league-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.league-modal .league-input {
+  border-radius: 999px;
+  height: 44px;
+  padding: 0 18px;
+}
+/* The freshly minted invite code, centre stage. */
+.league-code {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  color: #fff;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 16px 0;
+  text-align: center;
+}
+.pred-board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pred-code {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
 /* Corner close as a proper glass circle button. */
 .lc-prompt [data-slot="dialog-close"] {
   align-items: center;

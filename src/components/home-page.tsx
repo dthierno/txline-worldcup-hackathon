@@ -62,16 +62,21 @@ import {
 import {
   isPredictionLocked,
   cacheFixtures,
+  LEAGUES_CHANGED_EVENT,
   loadCachedFixtures,
   loadGoalCalls,
+  loadLeagues,
   loadPrediction,
+  loadSelectedBoard,
   loadStoredResults,
+  saveSelectedBoard,
   saveStoredResult,
   loadPredictions,
   loadSettlements,
   savePrediction,
   saveSettlement,
   settleGoalCallPoints,
+  type StoredLeague,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -1487,6 +1492,58 @@ function PredictionCard({
   );
 }
 
+// Rival pools for the leaderboards. The global board keeps its fixed trio;
+// a league's rivals are drawn deterministically from its invite code, so
+// every visit (and every friend's device) shows the same cast.
+const RIVAL_POOL = [
+  "Amina",
+  "Sam",
+  "Noah",
+  "Lina",
+  "Marco",
+  "Yuki",
+  "Zara",
+  "Leo",
+  "Ines",
+  "Kofi",
+];
+
+function buildLeaderboard(
+  settledPoints: number,
+  league: StoredLeague | null,
+): Array<{ name: string; points: number; you: boolean }> {
+  if (!league) {
+    return [
+      { name: "You", points: settledPoints, you: true },
+      { name: "Amina", points: Math.round(settledPoints * 0.75), you: false },
+      { name: "Sam", points: Math.round(settledPoints * 0.5), you: false },
+      { name: "Noah", points: Math.round(settledPoints * 0.25), you: false },
+    ].sort((left, right) => right.points - left.points);
+  }
+
+  let seed = 0;
+
+  for (const char of league.code) {
+    seed = (seed * 31 + char.charCodeAt(0)) % 997;
+  }
+
+  const rivals = Array.from({ length: 3 }, (_, index) => {
+    const name = RIVAL_POOL[(seed + index * 3) % RIVAL_POOL.length];
+    // Factors spread 0.2-0.95 so the fan usually leads but not always.
+    const factor = 0.2 + (((seed >> (index * 2)) % 16) / 16) * 0.75;
+
+    return {
+      name,
+      points: Math.round(settledPoints * factor),
+      you: false,
+    };
+  });
+
+  return [{ name: "You", points: settledPoints, you: true }, ...rivals].sort(
+    (left, right) => right.points - left.points,
+  );
+}
+
 function PredictionsFeed({
   finals,
   fixtures,
@@ -1634,12 +1691,31 @@ function PredictionsFeed({
     0,
   );
 
-  const leaderboard = [
-    { name: "You", points: settledPoints, you: true },
-    { name: "Amina", points: Math.round(settledPoints * 0.75), you: false },
-    { name: "Sam", points: Math.round(settledPoints * 0.5), you: false },
-    { name: "Noah", points: Math.round(settledPoints * 0.25), you: false },
-  ].sort((left, right) => right.points - left.points);
+  // Device leagues + which board is on show; both live in localStorage and
+  // change from the league dialogs, so listen for their announcement.
+  const [leagues, setLeagues] = useState<StoredLeague[]>([]);
+  const [board, setBoard] = useState("global");
+
+  useEffect(() => {
+    const refresh = () => {
+      setLeagues(loadLeagues());
+      setBoard(loadSelectedBoard());
+    };
+    const timer = setTimeout(refresh, 0);
+
+    window.addEventListener(LEAGUES_CHANGED_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener(LEAGUES_CHANGED_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  const selectedLeague =
+    leagues.find((league) => league.code === board) ?? null;
+  const leaderboard = buildLeaderboard(settledPoints, selectedLeague);
 
   return (
     <div className="pred-layout">
@@ -1675,6 +1751,27 @@ function PredictionsFeed({
       </div>
 
       <aside className="pred-col-side">
+        {leagues.length > 0 ? (
+          <div aria-label="Choose a leaderboard" className="pred-board-tabs">
+            <button
+              className={`lcx-filter${board === "global" ? " is-active" : ""}`}
+              onClick={() => saveSelectedBoard("global")}
+              type="button"
+            >
+              Global
+            </button>
+            {leagues.map((league) => (
+              <button
+                className={`lcx-filter${board === league.code ? " is-active" : ""}`}
+                key={league.code}
+                onClick={() => saveSelectedBoard(league.code)}
+                type="button"
+              >
+                {league.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <ol className="pred-board">
           {leaderboard.map((player, index) => (
             <li
@@ -1690,11 +1787,20 @@ function PredictionsFeed({
             </li>
           ))}
         </ol>
-        <p className="muted">
-          Prototype league stored on this device. Rival scores are simulated;
-          your points and live scores come from TxLINE. Form strips show each
-          team&apos;s real last five tournament results.
-        </p>
+        {selectedLeague ? (
+          <p className="muted">
+            {selectedLeague.name} · invite code{" "}
+            <strong className="pred-code">{selectedLeague.code}</strong> -
+            share it and friends join from the card above. Rival scores are
+            simulated; yours settle from TxLINE.
+          </p>
+        ) : (
+          <p className="muted">
+            Prototype league stored on this device. Rival scores are simulated;
+            your points and live scores come from TxLINE. Form strips show each
+            team&apos;s real last five tournament results.
+          </p>
+        )}
       </aside>
     </div>
   );

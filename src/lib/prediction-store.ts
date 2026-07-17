@@ -9,6 +9,12 @@ const SETTLEMENTS_KEY = "fan-forecast.settlements.v1";
 const GOAL_CALLS_KEY = "fan-forecast.goalcalls.v1";
 const FIXTURES_KEY = "fan-forecast.fixtures.v1";
 const RESULTS_KEY = "fan-forecast.results.v1";
+const LEAGUES_KEY = "fan-forecast.leagues.v1";
+const LEAGUE_BOARD_KEY = "fan-forecast.league-board.v1";
+
+// Fired on window whenever the stored leagues (or the selected board)
+// change, so the homepage leaderboard can refresh without a reload.
+export const LEAGUES_CHANGED_EVENT = "pg:leagues-changed";
 
 export const GOAL_CALL_POINTS = 2;
 
@@ -124,6 +130,62 @@ export function saveGoalCall(
     ...all,
     [String(fixtureId)]: { ...(all[String(fixtureId)] ?? {}), [callKey]: answer },
   });
+}
+
+// Private leagues, device-local like everything else: the code is the id
+// (and the thing friends share), the board selection remembers which
+// leaderboard the fan last looked at.
+export type StoredLeague = {
+  code: string;
+  joinedAt: string;
+  name: string;
+  role: "member" | "owner";
+};
+
+function announceLeaguesChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(LEAGUES_CHANGED_EVENT));
+  }
+}
+
+export function loadLeagues(): StoredLeague[] {
+  return Object.values(readJsonRecord<StoredLeague>(LEAGUES_KEY)).sort(
+    (left, right) => left.joinedAt.localeCompare(right.joinedAt),
+  );
+}
+
+export function saveLeague(league: StoredLeague): void {
+  const all = readJsonRecord<StoredLeague>(LEAGUES_KEY);
+
+  writeJsonRecord(LEAGUES_KEY, { ...all, [league.code]: league });
+  announceLeaguesChanged();
+}
+
+// "global" or a stored league's code.
+export function loadSelectedBoard(): string {
+  if (typeof window === "undefined") {
+    return "global";
+  }
+
+  try {
+    return window.localStorage.getItem(LEAGUE_BOARD_KEY) ?? "global";
+  } catch {
+    return "global";
+  }
+}
+
+export function saveSelectedBoard(board: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(LEAGUE_BOARD_KEY, board);
+  } catch {
+    // best effort
+  }
+
+  announceLeaguesChanged();
 }
 
 export type StoredResult = {
