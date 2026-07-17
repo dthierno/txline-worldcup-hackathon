@@ -1143,6 +1143,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       fixture={fixture}
       now={now}
       outcome={outcome}
+      scorerPool={scorerPool}
     />
   );
 
@@ -1617,8 +1618,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 />
               ) : null}
 
-              {finished ? playSection : null}
-
               {finished ? (
                 <MatchMediaSection fixtureId={fixture.fixtureId} />
               ) : null}
@@ -1695,6 +1694,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   kickoffUtc={fixture.kickoffUtc}
                 />
               ) : null}
+
+              {/* After full time the fan's slip settles as a ticket under
+                  the match summary. */}
+              {finished ? playSection : null}
 
               {preMatchPlay ? (
                 <TicketCard
@@ -4565,7 +4568,13 @@ function MarketCards({
 // perfect-card total, and the save action.
 // The counterfoil payoff: a big green total that counts up or down with a
 // spring whenever a pick changes, plus a pop on the new value.
-function PotentialPoints({ points }: { points: number }) {
+function PotentialPoints({
+  label = "Potential win",
+  points,
+}: {
+  label?: string;
+  points: number;
+}) {
   const reducedMotion = useReducedMotion();
   const [display, setDisplay] = useState(points);
   const previous = useRef(points);
@@ -4592,7 +4601,7 @@ function PotentialPoints({ points }: { points: number }) {
 
   return (
     <div className="mp2-ticket-payout" title="If every pick hits">
-      <span className="mp2-ticket-payout-label">Potential win</span>
+      <span className="mp2-ticket-payout-label">{label}</span>
       <span className="mp2-ticket-payout-value">+{display} pts</span>
     </div>
   );
@@ -4905,16 +4914,72 @@ function TicketCard({
   );
 }
 
+// Visual for a settled slip row, derived from the settlement's market and
+// pick labels: flags for team outcomes, arrows for lines, the player's face
+// for player markets.
+function settledRowVisual(
+  market: string,
+  pick: string,
+  fixture: WorldCupFixture,
+  scorerPool: ScorerPool | null,
+): TicketVisual {
+  const homeIso = teamFlag(fixture.homeTeam) ?? null;
+  const awayIso = teamFlag(fixture.awayTeam) ?? null;
+  const sideIso = (name: string) =>
+    name === fixture.homeTeam ? homeIso : name === fixture.awayTeam ? awayIso : null;
+
+  if (/^(over|under)/i.test(pick)) {
+    return {
+      kind: "updown",
+      pick: /^over/i.test(pick) ? "over" : "under",
+    };
+  }
+
+  if (/exact score/i.test(market)) {
+    return { isos: [homeIso, awayIso], kind: "circles" };
+  }
+
+  if (/scorer|booked|sent off/i.test(market)) {
+    for (const team of scorerPool?.teams ?? []) {
+      const found = team.players.find(
+        (player) => shortPlayerName(player.name) === pick,
+      );
+
+      if (found) {
+        return {
+          imageUrl: found.imageUrl,
+          initial: pick[0] ?? "?",
+          kind: "player",
+        };
+      }
+    }
+
+    return { initial: pick[0] ?? "?", kind: "player" };
+  }
+
+  // "Draw or Spain" double chances become two overlapping circles.
+  if (pick.includes(" or ")) {
+    return {
+      isos: pick.split(" or ").map((part) => sideIso(part.trim())),
+      kind: "circles",
+    };
+  }
+
+  return { isos: [sideIso(pick)], kind: "circles" };
+}
+
 function PredictionSection({
   calls,
   fixture,
   now,
   outcome,
+  scorerPool,
 }: {
   calls: SettleableCall[];
   fixture: WorldCupFixture;
   now: number | null;
   outcome: MatchOutcome | null;
+  scorerPool: ScorerPool | null;
 }) {
   const mounted = useIsMounted();
   const [saved] = useState<MatchPrediction | null>(() =>
@@ -4977,7 +5042,48 @@ function PredictionSection({
     );
   }
 
+  const finalTicket = Boolean(outcome?.finished);
+
   if (!saved) {
+    // After full time an unplayed match still shows the ticket - blank slip,
+    // nothing won.
+    if (finalTicket) {
+      return (
+        <section
+          aria-label={`Your result: ${fixture.homeTeam} vs ${fixture.awayTeam}`}
+          className="card mp2-ticket-card"
+        >
+          <div aria-hidden className="mp2-ticket-art">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img alt="" src="/ticket-header.jpg" />
+          </div>
+          <div className="mp2-ticket-head">
+            <h2 className="mp2-ticket-title">
+              {fixture.homeTeam} vs {fixture.awayTeam}
+            </h2>
+            <span className="mp2-play-pill">0 picks</span>
+          </div>
+          <div className="mp2-ticket-empty">
+            <div aria-hidden className="mp2-ticket-ghosts">
+              {[0, 1, 2].map((row) => (
+                <span className="mp2-ticket-ghost" key={row}>
+                  <i className="mp2-ghost-circle" />
+                  <span className="mp2-ghost-lines">
+                    <i className="mp2-ghost-label" />
+                    <i className="mp2-ghost-pick" />
+                  </span>
+                  <i className="mp2-ghost-chip" />
+                </span>
+              ))}
+            </div>
+            <p className="sr-only">No picks were saved for this match.</p>
+          </div>
+          <div aria-hidden className="mp2-ticket-tear" />
+          <PotentialPoints label="Points won" points={0} />
+        </section>
+      );
+    }
+
     return (
       <section className="card mp2-play" aria-labelledby="prediction-heading">
         <div className="mp2-play-head">
@@ -4995,6 +5101,105 @@ function PredictionSection({
   const totalPoints = settlement
     ? settlement.totalPoints + settledCallPoints
     : 0;
+
+  // Full time with a saved slip: the ticket comes back stamped - every row
+  // settled, the counterfoil totalling what the fan actually won.
+  if (finalTicket && settlement) {
+    const rowCount =
+      settlement.markets.length + (settledCallPoints > 0 ? 1 : 0);
+
+    return (
+      <section
+        aria-label={`Your result: ${fixture.homeTeam} vs ${fixture.awayTeam}`}
+        className="card mp2-ticket-card"
+      >
+        <div aria-hidden className="mp2-ticket-art">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" src="/ticket-header.jpg" />
+        </div>
+        <div className="mp2-ticket-head">
+          <h2 className="mp2-ticket-title">
+            {fixture.homeTeam} vs {fixture.awayTeam}
+          </h2>
+          <span className="mp2-play-pill">
+            {rowCount} pick{rowCount === 1 ? "" : "s"}
+          </span>
+        </div>
+        <ul className="mp2-ticket-list">
+          {settlement.markets.map((market) => {
+            const visual = settledRowVisual(
+              market.market,
+              market.pick,
+              fixture,
+              scorerPool,
+            );
+
+            return (
+              <li key={`${market.market}-${market.pick}`}>
+                <span aria-hidden className="mp2-ticket-visual">
+                  {visual.kind === "player" ? (
+                    <Avatar className="size-6">
+                      {visual.imageUrl ? (
+                        <AvatarImage alt="" src={visual.imageUrl} />
+                      ) : null}
+                      <AvatarFallback>{visual.initial}</AvatarFallback>
+                    </Avatar>
+                  ) : visual.kind === "updown" ? (
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#3f3f46] text-white/85 ring-1 ring-white/10">
+                      <HugeiconsIcon
+                        aria-hidden
+                        icon={
+                          visual.pick === "over"
+                            ? ArrowUp01Icon
+                            : ArrowDown01Icon
+                        }
+                        size={12}
+                        strokeWidth={2.5}
+                      />
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <OutcomeCircle iso={visual.isos[0]} />
+                      {visual.isos.length > 1 ? (
+                        <span className="-ml-2 flex">
+                          <OutcomeCircle iso={visual.isos[1]} />
+                        </span>
+                      ) : null}
+                    </span>
+                  )}
+                </span>
+                <span className="mp2-ticket-market">{market.market}</span>
+                <span className={`mp2-ticket-pts mp2-ticket-${market.status}`}>
+                  {market.status === "won"
+                    ? `+${market.points}`
+                    : market.status === "open"
+                      ? "–"
+                      : "0"}
+                </span>
+                <span className="mp2-ticket-pick">{market.pick}</span>
+              </li>
+            );
+          })}
+          {settledCallPoints > 0 ? (
+            <li key="live-calls">
+              <span aria-hidden className="mp2-ticket-visual">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#3f3f46] text-white/85 ring-1 ring-white/10">
+                  <LineupGoalIcon />
+                </span>
+              </span>
+              <span className="mp2-ticket-market">Live calls</span>
+              <span className="mp2-ticket-pts mp2-ticket-won">
+                +{settledCallPoints}
+              </span>
+              <span className="mp2-ticket-pick">Answered in play</span>
+            </li>
+          ) : null}
+        </ul>
+        <div aria-hidden className="mp2-ticket-tear" />
+        <PotentialPoints label="Points won" points={totalPoints} />
+      </section>
+    );
+  }
 
   return (
     <section className="card mp2-play" aria-labelledby="prediction-heading">
@@ -5053,9 +5258,7 @@ function PredictionSection({
             ) : null}
           </ul>
           <p className="muted">
-            {settlement.final
-              ? "Final settlement, computed deterministically from the TxLINE feed."
-              : "Provisional - markets settle as the verified feed confirms them."}
+            Provisional - markets settle as the verified feed confirms them.
           </p>
         </>
       ) : (
