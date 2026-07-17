@@ -5980,8 +5980,9 @@ dt {
   font-weight: 650;
   line-height: 1.55;
   margin: 0;
-  /* Clear the dialog's corner close button. */
-  padding-right: 22px;
+  /* Slightly narrower than the dialog, clearing the corner close button. */
+  max-width: 92%;
+  padding-right: 14px;
 }
 /* The team rides inside the question as an inline flag pill. */
 .lc-prompt-team {
@@ -5993,7 +5994,7 @@ dt {
   gap: 6px;
   line-height: 1;
   margin: 0 2px;
-  padding: 3px 11px 3px 5px;
+  padding: 3px 9px 3px 4px;
   vertical-align: -5px;
 }
 .lc-prompt-team img {
