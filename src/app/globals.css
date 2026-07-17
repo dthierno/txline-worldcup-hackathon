@@ -5980,8 +5980,9 @@ dt {
   font-weight: 650;
   line-height: 1.5;
   margin: 0;
-  /* Clear the corner close button. */
-  padding: 36px 14px 14px 0;
+  /* First line shares the row with the close button; the right padding
+     keeps the text clear of it. */
+  padding: 0 44px 14px 0;
 }
 /* The team rides inside the question as an inline flag pill. */
 .lc-prompt-team {
@@ -6021,8 +6022,8 @@ dt {
   height: 30px;
   justify-content: center;
   opacity: 1;
-  right: 16px;
-  top: 16px;
+  right: 22px;
+  top: 22px;
   transition:
     background 0.15s ease,
     color 0.15s ease;
