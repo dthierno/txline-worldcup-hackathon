@@ -1651,7 +1651,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   // Same row design as the Stats tab: centred values with the
                   // per-side share bars underneath.
                   <div className="mp2-glance-stats">
-                    {topStatRows.slice(0, 4).map((row) => {
+                    {topStatRows.slice(0, 6).map((row) => {
                       const total = row.home + row.away;
                       const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
                       const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
