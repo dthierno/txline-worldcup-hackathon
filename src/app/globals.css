@@ -4197,6 +4197,11 @@ dt {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
+.mp2-winprob-won {
+  color: var(--won);
+  font-style: normal;
+  font-weight: 800;
+}
 
 /* Glance stats reuse the Stats tab's mp2-stat-row design, tighter: the
    rows' own tab margins are dropped and the grid gap owns the rhythm. */

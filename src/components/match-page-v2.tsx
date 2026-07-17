@@ -1136,6 +1136,15 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           home: 100 / details.odds.data.homeWinProbability,
         }
       : null;
+  // Which side the finished match actually went to, for the legend check.
+  const resultSide =
+    finished && displayScore
+      ? displayScore.homeGoals > displayScore.awayGoals
+        ? "home"
+        : displayScore.awayGoals > displayScore.homeGoals
+          ? "away"
+          : "draw"
+      : null;
   // Fair 1X2 chances for the overview strip, implied from whichever TxLINE
   // prices the play card quotes (live board, closing board, or snapshot).
   const winShares = playOdds
@@ -1638,18 +1647,26 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 live={liveStreamEligible}
               />
 
-              {/* TxLINE's demarginated 1X2 as a segmented bar - the fair
-                  chances this match carried into kickoff. */}
+              {/* TxLINE's demarginated 1X2 as a segmented bar. Finished
+                  matches reframe it as the pre-match view - the result is
+                  known, so the chances read as the story of how the market
+                  rated it - with a check on the side that actually won. */}
               {!notStarted && winProbs ? (
                 <section
                   aria-labelledby="winprob-heading"
                   className="card mp2-overview-card"
                 >
                   <div className="mp2-card-heading">
-                    <h2 id="winprob-heading">Win probability</h2>
+                    <h2 id="winprob-heading">
+                      {finished ? "Pre-match chances" : "Win probability"}
+                    </h2>
                     <span
                       className="text-muted-foreground cursor-help"
-                      title="Fair probabilities from TxLINE's demarginated 1X2 prices, frozen at kickoff."
+                      title={
+                        finished
+                          ? "How TxLINE's demarginated 1X2 prices rated the teams before kickoff."
+                          : "Fair probabilities from TxLINE's demarginated 1X2 prices, moving with the live board."
+                      }
                     >
                       <HugeiconsIcon
                         aria-label="About these probabilities"
@@ -1687,6 +1704,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                       ) : null}
                       {fixture.homeTeam}
                       <strong>{Math.round(winProbs.home)}%</strong>
+                      {resultSide === "home" ? (
+                        <em
+                          aria-label={`${fixture.homeTeam} won`}
+                          className="mp2-winprob-won"
+                        >
+                          ✓
+                        </em>
+                      ) : null}
                     </span>
                     <span>
                       Draw
@@ -1699,6 +1724,14 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                       ) : null}
                       {fixture.awayTeam}
                       <strong>{Math.round(winProbs.away)}%</strong>
+                      {resultSide === "away" ? (
+                        <em
+                          aria-label={`${fixture.awayTeam} won`}
+                          className="mp2-winprob-won"
+                        >
+                          ✓
+                        </em>
+                      ) : null}
                     </span>
                   </div>
                 </section>
