@@ -361,6 +361,49 @@ main {
 .app-signin:hover {
   color: #ffffff;
 }
+/* Signed-in chip, matching the intro widget's mock header: outer glass pill,
+   inner dark capsule with the teal-green hex token and points, avatar right. */
+.app-user {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  padding: 3px 8px 3px 3px;
+  transition: background 0.2s ease;
+}
+.app-user:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.app-user-pts {
+  align-items: center;
+  background: rgba(47, 47, 47, 0.8);
+  border-radius: 999px;
+  color: #dedede;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  padding: 5px 11px;
+}
+.app-user-pts strong {
+  color: #fff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.app-user-hex {
+  background: conic-gradient(from 90deg, #78d2ff 0deg, #5fff94 360deg);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  height: 11px;
+  width: 11px;
+}
+.app-user-avatar {
+  align-items: center;
+  color: #8f8f98;
+  display: inline-flex;
+}
 
 section {
   margin-top: 32px;
