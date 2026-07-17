@@ -1973,7 +1973,14 @@ function CallPromptDialog({
         }
       }}
     >
-      <DialogContent className="lc-prompt">
+      <DialogContent
+        className="lc-prompt"
+        style={
+          {
+            "--lc-progress": `${(remaining / CALL_WINDOW_MS) * 100}%`,
+          } as CSSProperties
+        }
+      >
         <div className="lc-prompt-eyebrow">
           <DialogTitle className="lc-prompt-label">
             <span aria-hidden className="lc-prompt-dot" />
@@ -2004,12 +2011,6 @@ function CallPromptDialog({
             call.question
           )}
         </DialogDescription>
-        <div aria-hidden className="lc-prompt-timer">
-          <div
-            className="lc-prompt-timer-fill"
-            style={{ width: `${(remaining / CALL_WINDOW_MS) * 100}%` }}
-          />
-        </div>
         <div className="lc-prompt-actions">
           <button
             className="lc-prompt-btn lc-prompt-btn-main"

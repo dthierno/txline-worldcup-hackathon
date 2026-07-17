@@ -6035,23 +6035,31 @@ dt {
   font-size: 15px;
   font-weight: 700;
 }
-.lc-prompt-timer {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  height: 4px;
-  overflow: hidden;
-}
-.lc-prompt-timer-fill {
-  background: linear-gradient(
-    90deg,
-    #fa3d3d 0%,
-    #8b5cf6 34%,
-    #0044ff 67%,
-    #4ade80 100%
+/* The countdown IS the border: a World Cup gradient ring swept by a conic
+   gradient that drains with --lc-progress (set inline from the timer). */
+.lc-prompt::before {
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  background: conic-gradient(
+    from -90deg,
+    #fa3d3d 0,
+    #8b5cf6 calc(var(--lc-progress, 100%) * 0.34),
+    #0044ff calc(var(--lc-progress, 100%) * 0.67),
+    #4ade80 var(--lc-progress, 100%),
+    transparent var(--lc-progress, 100%)
   );
-  border-radius: 999px;
-  height: 100%;
-  transition: width 0.1s linear;
+  border-radius: inherit;
+  content: "";
+  inset: -1px;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  pointer-events: none;
+  position: absolute;
 }
 .lc-prompt-actions {
   display: grid;
