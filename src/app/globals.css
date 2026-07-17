@@ -5703,74 +5703,60 @@ dt {
     transform: scale(0.78);
   }
 }
-/* Scoreboard: one segmented glass strip, hairline dividers between metrics.
-   Rendered only once at least one call has been answered and settled. */
+/* Scoreboard: a slim inline stat line, no container - each metric is its
+   value beside a muted caption. Rendered once a call has settled. */
 .lcx-board {
-  align-self: flex-start;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  align-items: center;
   display: flex;
-  flex: 0 0 auto;
-  padding: 11px 6px;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding: 0;
 }
 .lcx-metric {
   align-items: center;
   display: flex;
-  flex-direction: column;
   gap: 6px;
-  min-width: 74px;
-  padding: 0 16px;
-}
-.lcx-metric + .lcx-metric {
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
-}
-/* Uniform value band so every metric's label lands on the same line, whether
-   the value is text, the form pips, or the points hexagon. */
-.lcx-metric-value,
-.lcx-form,
-.lcx-metric-points .pc-points-badge {
-  align-items: center;
-  display: flex;
-  height: 24px;
 }
 .lcx-metric-value {
   color: #fff;
-  font-size: 19px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1;
 }
 .lcx-metric-label {
   color: var(--muted-foreground);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .lcx-form {
-  gap: 5px;
+  align-items: center;
+  display: flex;
+  gap: 4px;
 }
 /* Points metric shows the shared hexagon badge instead of plain text. */
 .lcx-metric-points .pc-points-badge {
+  height: 20px;
   justify-content: center;
   left: auto;
   position: relative;
   top: auto;
   transform: none;
-  width: 22px;
+  width: 18px;
 }
 .lcx-metric-points .pc-points-badge svg {
-  height: 24px;
-  width: 22px;
+  height: 20px;
+  width: 18px;
 }
 .lcx-metric-points .pc-points-num {
-  font-size: 11.5px;
+  font-size: 10.5px;
 }
 .lcx-pip {
   border-radius: 50%;
-  height: 9px;
-  width: 9px;
+  height: 7px;
+  width: 7px;
 }
 .lcx-pip-won {
   background: var(--won);
