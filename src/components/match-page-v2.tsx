@@ -2183,12 +2183,6 @@ export function LiveCallsPanel({
       <header className="lcx-head">
         <div className="lcx-title">
           <h2 id="live-calls-heading">Live calls</h2>
-          {live ? (
-            <span className="lcx-live">
-              <span className="lcx-live-dot" />
-              Live
-            </span>
-          ) : null}
         </div>
         <span
           className="text-muted-foreground cursor-help"

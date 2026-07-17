@@ -5669,29 +5669,6 @@ dt {
   font-weight: 700;
   margin: 0;
 }
-/* Green LIVE badge, matching the app's other live states (match header
-   status pill, homepage cards). */
-.lcx-live {
-  align-items: center;
-  background: #10321d;
-  border: 1px solid #1f6b3d;
-  border-radius: 999px;
-  color: var(--won);
-  display: inline-flex;
-  font-size: 11px;
-  font-weight: 700;
-  gap: 6px;
-  letter-spacing: 0.06em;
-  padding: 3px 10px 3px 8px;
-  text-transform: uppercase;
-}
-.lcx-live-dot {
-  animation: lcx-pulse 1.4s ease-in-out infinite;
-  background: var(--won);
-  border-radius: 50%;
-  height: 6px;
-  width: 6px;
-}
 @keyframes lcx-pulse {
   0%,
   100% {
@@ -5966,7 +5943,6 @@ dt {
   text-wrap: balance;
 }
 @media (prefers-reduced-motion: reduce) {
-  .lcx-live-dot,
   .lcx-open-dot {
     animation: none;
   }
