@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 
 import { loadSettlements } from "@/lib/prediction-store";
 
-// The PredGame mark from the intro widget's mock header: a rounded hexagon
-// in the teal-to-blue gradient with the flag glyph punched out in black.
+// The PredGame mark: the intro widget's rounded-hexagon style (teal-to-blue
+// gradient with the lighter sheen) but with our own glyph - a bold black
+// check, the called-it-right stamp the whole game is about.
 function PredGameMark({ size }: { size: number }) {
   return (
     <svg
@@ -26,8 +27,11 @@ function PredGameMark({ size }: { size: number }) {
         fill="url(#hd_mark_b)"
       />
       <path
-        d="M39.1481 41.5288L43.2858 34.1431H31.1858C29.9336 34.1431 28.7699 34.8316 28.1438 35.9373L22.9512 45.1729C22.2775 46.3691 23.1214 47.8574 24.4688 47.8574H27.1842C27.6674 47.8574 28.1165 47.5931 28.3615 47.1619L30.3351 43.6777C30.4576 43.4621 30.6822 43.33 30.9272 43.33H36.1061C37.3651 43.33 38.522 42.6415 39.1481 41.5288Z"
-        fill="black"
+        d="M26.5 42.1 L31.4 46.9 L39.7 34.9"
+        stroke="black"
+        strokeWidth="4.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <defs>
         <linearGradient
