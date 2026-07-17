@@ -5669,25 +5669,28 @@ dt {
   font-weight: 700;
   margin: 0;
 }
+/* Green LIVE badge, matching the app's other live states (match header
+   status pill, homepage cards). */
 .lcx-live {
   align-items: center;
-  background: color-mix(in srgb, #ff5a5a 16%, transparent);
+  background: #10321d;
+  border: 1px solid #1f6b3d;
   border-radius: 999px;
-  color: #ff7a7a;
+  color: var(--won);
   display: inline-flex;
   font-size: 11px;
   font-weight: 700;
   gap: 6px;
   letter-spacing: 0.06em;
-  padding: 4px 11px 4px 9px;
+  padding: 3px 10px 3px 8px;
   text-transform: uppercase;
 }
 .lcx-live-dot {
   animation: lcx-pulse 1.4s ease-in-out infinite;
-  background: #ff5a5a;
+  background: var(--won);
   border-radius: 50%;
-  height: 7px;
-  width: 7px;
+  height: 6px;
+  width: 6px;
 }
 @keyframes lcx-pulse {
   0%,
@@ -5715,12 +5718,21 @@ dt {
   align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   min-width: 74px;
   padding: 0 16px;
 }
 .lcx-metric + .lcx-metric {
   border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+/* Uniform value band so every metric's label lands on the same line, whether
+   the value is text, the form pips, or the points hexagon. */
+.lcx-metric-value,
+.lcx-form,
+.lcx-metric-points .pc-points-badge {
+  align-items: center;
+  display: flex;
+  height: 24px;
 }
 .lcx-metric-value {
   color: #fff;
@@ -5728,9 +5740,6 @@ dt {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1;
-}
-.lcx-metric-accent {
-  color: var(--won);
 }
 .lcx-metric-label {
   color: var(--muted-foreground);
@@ -5740,10 +5749,23 @@ dt {
   text-transform: uppercase;
 }
 .lcx-form {
-  align-items: center;
-  display: flex;
   gap: 5px;
-  height: 19px;
+}
+/* Points metric shows the shared hexagon badge instead of plain text. */
+.lcx-metric-points .pc-points-badge {
+  justify-content: center;
+  left: auto;
+  position: relative;
+  top: auto;
+  transform: none;
+  width: 22px;
+}
+.lcx-metric-points .pc-points-badge svg {
+  height: 24px;
+  width: 22px;
+}
+.lcx-metric-points .pc-points-num {
+  font-size: 11.5px;
 }
 .lcx-pip {
   border-radius: 50%;

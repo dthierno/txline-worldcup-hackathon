@@ -2214,10 +2214,8 @@ export function LiveCallsPanel({
 
       {mounted && answered > 0 ? (
         <div className="lcx-board">
-          <div className="lcx-metric">
-            <span className="lcx-metric-value lcx-metric-accent">
-              +{points}
-            </span>
+          <div className="lcx-metric lcx-metric-points">
+            <PointsBadge muted={points === 0} points={points} />
             <span className="lcx-metric-label">Points</span>
           </div>
           <div className="lcx-metric">
