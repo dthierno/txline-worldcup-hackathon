@@ -1986,13 +1986,6 @@ function CallPromptDialog({
             style={{ width: `${(remaining / CALL_WINDOW_MS) * 100}%` }}
           />
         </div>
-        <div className="lc-prompt-note">
-          <span>{Math.ceil(remaining / 1000)}s to answer</span>
-          <span className="lc-prompt-worth">
-            Pays
-            <PointsBadge points={GOAL_CALL_POINTS} />
-          </span>
-        </div>
         <div className="lc-prompt-actions">
           <button
             className="lc-prompt-btn lc-prompt-btn-main"

@@ -6007,9 +6007,9 @@ dt {
 }
 .lc-prompt-question {
   color: #fff;
-  font-size: 15.5px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.35;
   margin: 0;
 }
 .lc-prompt-timer {
@@ -6029,40 +6029,6 @@ dt {
   border-radius: 999px;
   height: 100%;
   transition: width 0.1s linear;
-}
-.lc-prompt-note {
-  align-items: center;
-  color: var(--muted-foreground);
-  display: flex;
-  font-size: 12px;
-  gap: 12px;
-  justify-content: space-between;
-  line-height: 1.4;
-}
-.lc-prompt-worth {
-  align-items: center;
-  color: rgba(255, 255, 255, 0.85);
-  display: inline-flex;
-  flex: 0 0 auto;
-  font-size: 11.5px;
-  font-weight: 650;
-  gap: 5px;
-}
-.lc-prompt-worth .pc-points-badge {
-  height: 20px;
-  justify-content: center;
-  left: auto;
-  position: relative;
-  top: auto;
-  transform: none;
-  width: 18px;
-}
-.lc-prompt-worth .pc-points-badge svg {
-  height: 20px;
-  width: 18px;
-}
-.lc-prompt-worth .pc-points-num {
-  font-size: 9.5px;
 }
 .lc-prompt-actions {
   display: grid;
