@@ -4158,32 +4158,10 @@ dt {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
+/* Glance stats reuse the Stats tab's mp2-stat-row design. */
 .mp2-glance-stats {
   display: grid;
-}
-.mp2-glance-stat {
-  align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.055);
-  display: grid;
-  font-size: 13px;
-  grid-template-columns: 52px minmax(0, 1fr) 52px;
-  min-height: 42px;
-}
-.mp2-glance-stat:first-child {
-  border-top: 0;
-}
-.mp2-glance-stat > strong {
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-.mp2-glance-stat > strong:last-child {
-  text-align: right;
-}
-.mp2-glance-stat > span {
-  color: #b7b7c1;
-  font-weight: 550;
-  text-align: center;
+  gap: 14px;
 }
 .mp2-overview-events {
   list-style: none;

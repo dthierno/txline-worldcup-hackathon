@@ -1648,14 +1648,43 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                     Match statistics will appear after kickoff.
                   </p>
                 ) : topStatRows.length ? (
+                  // Same row design as the Stats tab: centred values with the
+                  // per-side share bars underneath.
                   <div className="mp2-glance-stats">
-                    {topStatRows.slice(0, 4).map((row) => (
-                      <div className="mp2-glance-stat" key={row.label}>
-                        <strong>{row.homeDisplay ?? row.home}</strong>
-                        <span>{row.label}</span>
-                        <strong>{row.awayDisplay ?? row.away}</strong>
-                      </div>
-                    ))}
+                    {topStatRows.slice(0, 4).map((row) => {
+                      const total = row.home + row.away;
+                      const homeWidth = total > 0 ? (row.home / total) * 100 : 50;
+                      const awayWidth = total > 0 ? (row.away / total) * 100 : 50;
+
+                      return (
+                        <div
+                          aria-label={`${row.label}: ${fixture.homeTeam} ${row.homeDisplay ?? row.home}, ${fixture.awayTeam} ${row.awayDisplay ?? row.away}`}
+                          className="mp2-stat-row"
+                          key={row.label}
+                          role="img"
+                        >
+                          <div className="mp2-stat-values">
+                            <span>{row.homeDisplay ?? row.home}</span>
+                            <span>{row.label}</span>
+                            <span>{row.awayDisplay ?? row.away}</span>
+                          </div>
+                          <div className="mp2-stat-bars" aria-hidden="true">
+                            <span className="mp2-stat-track home">
+                              <span
+                                className={row.home > row.away ? "leading" : ""}
+                                style={{ width: `${homeWidth}%` }}
+                              />
+                            </span>
+                            <span className="mp2-stat-track away">
+                              <span
+                                className={row.away > row.home ? "leading" : ""}
+                                style={{ width: `${awayWidth}%` }}
+                              />
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="muted">No match statistics are available yet.</p>
