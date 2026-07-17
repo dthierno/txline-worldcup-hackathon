@@ -56,11 +56,8 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 
 import type {
   ScorerPool,
@@ -1972,31 +1969,54 @@ function CallPromptDialog({
         }
       }}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Live call</DialogTitle>
-          <DialogDescription>{call.question}</DialogDescription>
-        </DialogHeader>
-        <Progress value={(remaining / CALL_WINDOW_MS) * 100} />
-        <p className="muted">
-          {Math.ceil(remaining / 1000)}s to answer - resolves early if the
-          play settles first.
-        </p>
-        <DialogFooter className="gap-3 sm:justify-center">
-          <Button
-            className="h-12 flex-1 text-base font-semibold"
+      <DialogContent className="lc-prompt">
+        <div className="lc-prompt-eyebrow">
+          <DialogTitle className="lc-prompt-label">
+            <span aria-hidden className="lc-prompt-dot" />
+            Live call
+          </DialogTitle>
+          <span className="lc-prompt-minute">{call.minute}</span>
+        </div>
+        <div className="lc-prompt-q">
+          <span aria-hidden className="lc-prompt-icon">
+            <CallKindIcon kind={callKindOf(call.question)} />
+          </span>
+          <DialogDescription className="lc-prompt-question">
+            {call.question}
+          </DialogDescription>
+        </div>
+        <div aria-hidden className="lc-prompt-timer">
+          <div
+            className="lc-prompt-timer-fill"
+            style={{ width: `${(remaining / CALL_WINDOW_MS) * 100}%` }}
+          />
+        </div>
+        <div className="lc-prompt-note">
+          <span>
+            {Math.ceil(remaining / 1000)}s to answer - resolves early if the
+            play settles first.
+          </span>
+          <span className="lc-prompt-worth">
+            Pays
+            <PointsBadge points={GOAL_CALL_POINTS} />
+          </span>
+        </div>
+        <div className="lc-prompt-actions">
+          <button
+            className="lc-prompt-btn lc-prompt-btn-main"
             onClick={() => onAnswer(0)}
+            type="button"
           >
-            {call.options[0]}
-          </Button>
-          <Button
-            className="h-12 flex-1 text-base font-semibold"
+            <span>{call.options[0]}</span>
+          </button>
+          <button
+            className="lc-prompt-btn lc-prompt-btn-alt"
             onClick={() => onAnswer(1)}
-            variant="outline"
+            type="button"
           >
-            {call.options[1]}
-          </Button>
-        </DialogFooter>
+            <span>{call.options[1]}</span>
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );
