@@ -5930,12 +5930,22 @@ dt {
   color: #9dc0ff;
 }
 /* The badge floats on prediction cards; in a call row it sits inline
-   (relative, not static - its inner svg anchors to the badge box). */
+   (relative, not static - its inner svg anchors to the badge box) and a
+   size down from the card version. */
 .lcx-row .pc-points-badge {
+  height: 28px;
   left: auto;
   position: relative;
   top: auto;
   transform: none;
+  width: 26px;
+}
+.lcx-row .pc-points-badge svg {
+  height: 28px;
+  width: 26px;
+}
+.lcx-row .pc-points-num {
+  font-size: 12.5px;
 }
 .lcx-none {
   color: var(--muted-foreground);
