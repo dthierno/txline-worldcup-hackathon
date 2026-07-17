@@ -5850,7 +5850,7 @@ dt {
 .lcx-row {
   align-items: center;
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 999px;
+  border-radius: 14px;
   column-gap: 10px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
