@@ -2182,41 +2182,48 @@ export function LiveCallsPanel({
         />
       ) : null}
 
-      <header className="lcx-hero">
-        <div className="lcx-hero-copy">
-          <div className="lcx-hero-title">
-            <h2 id="live-calls-heading">Live calls</h2>
-            {live ? (
-              <span className="lcx-live">
-                <span className="lcx-live-dot" />
-                Live
-              </span>
-            ) : null}
-          </div>
-          <p className="lcx-hero-sub">
-            Snap predictions on live TxLINE moments - a shot about to drop, the
-            next corner, a VAR check - and score the instant the verified feed
-            settles them.
-          </p>
+      <header className="lcx-head">
+        <div className="lcx-title">
+          <h2 id="live-calls-heading">Live calls</h2>
+          {live ? (
+            <span className="lcx-live">
+              <span className="lcx-live-dot" />
+              Live
+            </span>
+          ) : null}
         </div>
+        <span
+          className="text-muted-foreground cursor-help"
+          title="Snap predictions on live TxLINE moments - a shot about to drop, the next corner, a VAR check - scored the instant the verified feed settles them."
+        >
+          <HugeiconsIcon
+            aria-label="How live calls work"
+            icon={InformationCircleIcon}
+            size={16}
+            strokeWidth={2.5}
+          />
+        </span>
+      </header>
+
+      {mounted && answered > 0 ? (
         <div className="lcx-board">
           <div className="lcx-metric">
             <span className="lcx-metric-value lcx-metric-accent">
-              {mounted ? `+${points}` : "+0"}
+              +{points}
             </span>
             <span className="lcx-metric-label">Points</span>
           </div>
           <div className="lcx-metric">
             <span className="lcx-metric-value">
-              {mounted && answered ? `${correctCalls}/${answered}` : "\u2014"}
+              {correctCalls}/{answered}
             </span>
             <span className="lcx-metric-label">Correct</span>
           </div>
           <div className="lcx-metric">
-            <span className="lcx-metric-value">{mounted ? hitRate : "\u2014"}</span>
+            <span className="lcx-metric-value">{hitRate}</span>
             <span className="lcx-metric-label">Hit rate</span>
           </div>
-          {mounted && form.length ? (
+          {form.length ? (
             <div className="lcx-metric">
               <span className="lcx-form">
                 {form.slice(-9).map((tone, index) => (
@@ -2227,7 +2234,7 @@ export function LiveCallsPanel({
             </div>
           ) : null}
         </div>
-      </header>
+      ) : null}
 
       {calls.length === 0 ? (
         <div className="lcx-empty">

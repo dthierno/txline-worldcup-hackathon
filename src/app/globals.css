@@ -5649,25 +5649,24 @@ dt {
 .lcx {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
-.lcx-hero {
+.lcx-head {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px 28px;
+  gap: 16px;
   justify-content: space-between;
 }
-.lcx-hero-copy {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-.lcx-hero-title {
+.lcx-title {
   align-items: center;
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
-.lcx-hero-title h2 {
+/* Same heading treatment as the sibling overview cards (mp2-card-heading). */
+.lcx-title h2 {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
   margin: 0;
 }
 .lcx-live {
@@ -5701,32 +5700,31 @@ dt {
     transform: scale(0.78);
   }
 }
-.lcx-hero-sub {
-  color: var(--muted-foreground);
-  font-size: 13.5px;
-  line-height: 1.5;
-  margin: 9px 0 0;
-  max-width: 62ch;
-}
+/* Scoreboard: one segmented glass strip, hairline dividers between metrics.
+   Rendered only once at least one call has been answered and settled. */
 .lcx-board {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 10px;
-}
-.lcx-metric {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
   display: flex;
+  flex: 0 0 auto;
+  padding: 11px 6px;
+}
+.lcx-metric {
+  align-items: center;
+  display: flex;
   flex-direction: column;
   gap: 5px;
-  min-width: 76px;
-  padding: 12px 14px;
+  min-width: 74px;
+  padding: 0 16px;
+}
+.lcx-metric + .lcx-metric {
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
 }
 .lcx-metric-value {
   color: #fff;
-  font-size: 22px;
+  font-size: 19px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1;
@@ -5745,7 +5743,7 @@ dt {
   align-items: center;
   display: flex;
   gap: 5px;
-  height: 22px;
+  height: 19px;
 }
 .lcx-pip {
   border-radius: 50%;
