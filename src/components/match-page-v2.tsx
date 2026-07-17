@@ -1982,11 +1982,6 @@ function CallPromptDialog({
         }
       >
         <DialogTitle className="sr-only">Live call</DialogTitle>
-        {/* What a correct call pays, opposite the close button. */}
-        <span className="lc-prompt-stake">
-          <PointsBadge points={GOAL_CALL_POINTS} stake />
-          <span className="lc-prompt-stake-text">Potential</span>
-        </span>
         <DialogDescription className="lc-prompt-question">
           {/* The team renders as an inline flag pill inside the question. */}
           {call.team && call.question.includes(call.team) ? (
@@ -2010,6 +2005,7 @@ function CallPromptDialog({
             call.question
           )}
         </DialogDescription>
+        {/* Market-chip language: each option carries its payout. */}
         <div className="lc-prompt-actions">
           <button
             className="lc-prompt-btn lc-prompt-btn-main"
@@ -2017,6 +2013,7 @@ function CallPromptDialog({
             type="button"
           >
             <span>{call.options[0]}</span>
+            <span className="lc-prompt-btn-pts">+{GOAL_CALL_POINTS}</span>
           </button>
           <button
             className="lc-prompt-btn lc-prompt-btn-alt"
@@ -2024,6 +2021,7 @@ function CallPromptDialog({
             type="button"
           >
             <span>{call.options[1]}</span>
+            <span className="lc-prompt-btn-pts">+{GOAL_CALL_POINTS}</span>
           </button>
         </div>
       </DialogContent>

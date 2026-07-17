@@ -6009,38 +6009,6 @@ dt {
   font-weight: 700;
   line-height: 1;
 }
-/* The stake hexagon rides the header band, opposite the close button. */
-.lc-prompt-stake {
-  align-items: center;
-  display: flex;
-  gap: 7px;
-  left: 22px;
-  position: absolute;
-  top: 15px;
-}
-.lc-prompt-stake-text {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.lc-prompt-stake .pc-points-badge {
-  height: 28px;
-  justify-content: center;
-  left: auto;
-  position: relative;
-  top: auto;
-  transform: none;
-  width: 26px;
-}
-.lc-prompt-stake .pc-points-badge svg {
-  height: 28px;
-  width: 26px;
-}
-.lc-prompt-stake .pc-points-num {
-  font-size: 12px;
-}
 /* Corner close as a proper glass circle button. */
 .lc-prompt [data-slot="dialog-close"] {
   align-items: center;
@@ -6096,9 +6064,13 @@ dt {
   grid-template-columns: 1fr 1fr;
 }
 .lc-prompt-btn {
+  align-items: center;
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
+  display: flex;
+  gap: 7px;
+  justify-content: center;
   padding: 11px 10px;
   transition:
     background 0.15s ease,
@@ -6111,6 +6083,17 @@ dt {
 .lc-prompt-btn span {
   font-size: 14px;
   font-weight: 650;
+}
+/* Each option carries its payout, market-chip style. */
+.lc-prompt-btn .lc-prompt-btn-pts {
+  font-size: 12px;
+  font-weight: 700;
+}
+.lc-prompt-btn-main .lc-prompt-btn-pts {
+  color: rgba(16, 16, 26, 0.55);
+}
+.lc-prompt-btn-alt .lc-prompt-btn-pts {
+  color: var(--muted-foreground);
 }
 .lc-prompt-btn-main {
   background: #fff;
