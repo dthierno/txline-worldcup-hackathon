@@ -5847,7 +5847,7 @@ dt {
   column-gap: 10px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: 10px 14px;
+  padding: 8px 13px;
 }
 .lcx-row-icon {
   align-items: center;
