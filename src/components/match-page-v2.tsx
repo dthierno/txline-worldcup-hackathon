@@ -1136,6 +1136,15 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           home: 100 / details.odds.data.homeWinProbability,
         }
       : null;
+  // Fair 1X2 chances for the overview strip, implied from whichever TxLINE
+  // prices the play card quotes (live board, closing board, or snapshot).
+  const winShares = playOdds
+    ? impliedShares([playOdds.home, playOdds.draw, playOdds.away])
+    : [];
+  const winProbs =
+    winShares.length === 3 && winShares.every((share) => share !== null)
+      ? { away: winShares[2]!, draw: winShares[1]!, home: winShares[0]! }
+      : null;
   const playSection = (
     <PredictionSection
       key={fixture.fixtureId}
@@ -1628,6 +1637,83 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 fixtureId={fixture.fixtureId}
                 live={liveStreamEligible}
               />
+
+              {/* TxLINE's demarginated 1X2 as a segmented bar - the fair
+                  chances this match carried into kickoff. */}
+              {!notStarted && winProbs ? (
+                <section
+                  aria-labelledby="winprob-heading"
+                  className="card mp2-overview-card"
+                >
+                  <div className="mp2-card-heading">
+                    <h2 id="winprob-heading">Win probability</h2>
+                    <span
+                      className="text-muted-foreground cursor-help"
+                      title="Fair probabilities from TxLINE's demarginated 1X2 prices, frozen at kickoff."
+                    >
+                      <HugeiconsIcon
+                        aria-label="About these probabilities"
+                        icon={InformationCircleIcon}
+                        size={16}
+                        strokeWidth={2.5}
+                      />
+                    </span>
+                  </div>
+                  <div aria-hidden className="mp2-winprob-bar">
+                    <span
+                      style={{
+                        background:
+                          (homeIso && teamGlow[homeIso]) || "#4f8cff",
+                        width: `${winProbs.home}%`,
+                      }}
+                    />
+                    <span
+                      className="mp2-winprob-draw"
+                      style={{ width: `${winProbs.draw}%` }}
+                    />
+                    <span
+                      style={{
+                        background:
+                          (awayIso && teamGlow[awayIso]) || "#fa3d3d",
+                        width: `${winProbs.away}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="mp2-winprob-legend">
+                    <span>
+                      {homeIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img alt="" src={`https://flagcdn.com/w40/${homeIso}.png`} />
+                      ) : null}
+                      {fixture.homeTeam}
+                      <strong>{Math.round(winProbs.home)}%</strong>
+                    </span>
+                    <span>
+                      Draw
+                      <strong>{Math.round(winProbs.draw)}%</strong>
+                    </span>
+                    <span>
+                      {awayIso ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img alt="" src={`https://flagcdn.com/w40/${awayIso}.png`} />
+                      ) : null}
+                      {fixture.awayTeam}
+                      <strong>{Math.round(winProbs.away)}%</strong>
+                    </span>
+                  </div>
+                </section>
+              ) : null}
+
+              {/* The pressure story, same chart as the Stats tab. */}
+              {!notStarted ? (
+                <FlashMomentum
+                  awayIso={awayIso}
+                  fixture={fixture}
+                  goals={goals}
+                  homeIso={homeIso}
+                  updates={combinedUpdates}
+                />
+              ) : null}
 
               <section className="card mp2-overview-card" aria-labelledby="glance-heading">
                 <div className="mp2-card-heading">

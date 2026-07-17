@@ -4158,6 +4158,46 @@ dt {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
+/* Win probability: TxLINE's demarginated 1X2 as one segmented bar. */
+.mp2-winprob-bar {
+  border-radius: 999px;
+  display: flex;
+  gap: 3px;
+  height: 10px;
+  overflow: hidden;
+}
+.mp2-winprob-bar > span {
+  border-radius: 999px;
+  height: 100%;
+}
+.mp2-winprob-draw {
+  background: rgba(255, 255, 255, 0.18);
+}
+.mp2-winprob-legend {
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 550;
+  justify-content: space-between;
+  margin-top: 11px;
+}
+.mp2-winprob-legend > span {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+.mp2-winprob-legend img {
+  border-radius: 50%;
+  height: 16px;
+  object-fit: cover;
+  width: 16px;
+}
+.mp2-winprob-legend strong {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 /* Glance stats reuse the Stats tab's mp2-stat-row design, tighter: the
    rows' own tab margins are dropped and the grid gap owns the rhythm. */
 .mp2-glance-stats {
