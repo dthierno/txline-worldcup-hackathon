@@ -5949,27 +5949,30 @@ dt {
   background:
     radial-gradient(
       110% 80% at 0% 0%,
-      rgba(250, 61, 61, 0.16),
+      rgba(250, 61, 61, 0.13),
       transparent 55%
     ),
     radial-gradient(
       110% 80% at 100% 0%,
-      rgba(0, 68, 255, 0.2),
+      rgba(0, 68, 255, 0.16),
       transparent 55%
     ),
     radial-gradient(
       120% 90% at 0% 100%,
-      rgba(139, 92, 246, 0.15),
+      rgba(139, 92, 246, 0.12),
       transparent 60%
     ),
     radial-gradient(
       120% 90% at 100% 100%,
-      rgba(74, 222, 128, 0.13),
+      rgba(74, 222, 128, 0.1),
       transparent 60%
     ),
     #141419;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 22px;
+  border-radius: 20px;
+  gap: 14px;
+  max-width: 420px;
+  padding: 22px;
 }
 .lc-prompt-eyebrow {
   align-items: center;
@@ -5980,11 +5983,11 @@ dt {
 }
 .lc-prompt-label {
   align-items: center;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.85);
   display: flex;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  gap: 7px;
+  gap: 6px;
   letter-spacing: 0.08em;
   margin: 0;
   text-transform: uppercase;
@@ -5993,50 +5996,26 @@ dt {
   animation: lcx-pulse 1.4s ease-in-out infinite;
   background: var(--won);
   border-radius: 50%;
-  height: 7px;
-  width: 7px;
+  height: 6px;
+  width: 6px;
 }
 .lc-prompt-minute {
   color: var(--muted-foreground);
-  font-size: 12.5px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
-.lc-prompt-q {
-  align-items: center;
-  display: flex;
-  gap: 13px;
-}
-.lc-prompt-icon {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50%;
-  color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  flex: 0 0 auto;
-  height: 44px;
-  justify-content: center;
-  width: 44px;
-}
-.lc-prompt-icon svg {
-  height: 19px;
-  width: 19px;
-}
-.lc-prompt-icon .lc-var {
-  font-size: 10.5px;
-}
 .lc-prompt-question {
   color: #fff;
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1.35;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.4;
   margin: 0;
 }
 .lc-prompt-timer {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  height: 6px;
+  height: 4px;
   overflow: hidden;
 }
 .lc-prompt-timer-fill {
@@ -6055,7 +6034,7 @@ dt {
   align-items: center;
   color: var(--muted-foreground);
   display: flex;
-  font-size: 12.5px;
+  font-size: 12px;
   gap: 12px;
   justify-content: space-between;
   line-height: 1.4;
@@ -6065,37 +6044,36 @@ dt {
   color: rgba(255, 255, 255, 0.85);
   display: inline-flex;
   flex: 0 0 auto;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 650;
-  gap: 6px;
+  gap: 5px;
 }
 .lc-prompt-worth .pc-points-badge {
-  height: 22px;
+  height: 20px;
   justify-content: center;
   left: auto;
   position: relative;
   top: auto;
   transform: none;
-  width: 20px;
+  width: 18px;
 }
 .lc-prompt-worth .pc-points-badge svg {
-  height: 22px;
-  width: 20px;
+  height: 20px;
+  width: 18px;
 }
 .lc-prompt-worth .pc-points-num {
-  font-size: 10px;
+  font-size: 9.5px;
 }
 .lc-prompt-actions {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   grid-template-columns: 1fr 1fr;
-  margin-top: 2px;
 }
 .lc-prompt-btn {
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
-  padding: 13px 10px;
+  padding: 11px 10px;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
@@ -6105,8 +6083,8 @@ dt {
   transform: scale(0.98);
 }
 .lc-prompt-btn span {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 650;
 }
 .lc-prompt-btn-main {
   background: #fff;

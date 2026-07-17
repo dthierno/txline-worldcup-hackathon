@@ -1977,14 +1977,9 @@ function CallPromptDialog({
           </DialogTitle>
           <span className="lc-prompt-minute">{call.minute}</span>
         </div>
-        <div className="lc-prompt-q">
-          <span aria-hidden className="lc-prompt-icon">
-            <CallKindIcon kind={callKindOf(call.question)} />
-          </span>
-          <DialogDescription className="lc-prompt-question">
-            {call.question}
-          </DialogDescription>
-        </div>
+        <DialogDescription className="lc-prompt-question">
+          {call.question}
+        </DialogDescription>
         <div aria-hidden className="lc-prompt-timer">
           <div
             className="lc-prompt-timer-fill"
@@ -1992,10 +1987,7 @@ function CallPromptDialog({
           />
         </div>
         <div className="lc-prompt-note">
-          <span>
-            {Math.ceil(remaining / 1000)}s to answer - resolves early if the
-            play settles first.
-          </span>
+          <span>{Math.ceil(remaining / 1000)}s to answer</span>
           <span className="lc-prompt-worth">
             Pays
             <PointsBadge points={GOAL_CALL_POINTS} />
