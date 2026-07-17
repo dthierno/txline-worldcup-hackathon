@@ -5759,8 +5759,10 @@ dt {
 .lcx-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
+/* Font sizing sits on the button class itself (beats the unlayered
+   button { font: inherit } reset by specificity). */
 .lcx-filter {
   align-items: center;
   background: rgba(255, 255, 255, 0.04);
@@ -5769,16 +5771,15 @@ dt {
   color: var(--muted-foreground);
   cursor: pointer;
   display: inline-flex;
-  gap: 6px;
-  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 5px;
+  line-height: 1.4;
+  padding: 4px 10px;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
     color 0.15s ease;
-}
-.lcx-filter span {
-  font-size: 12.5px;
-  font-weight: 600;
 }
 .lcx-filter:hover {
   background: rgba(255, 255, 255, 0.07);
@@ -5790,16 +5791,16 @@ dt {
   color: #10101a;
 }
 .lcx-filter-count {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  min-width: 18px;
-  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  min-width: 16px;
+  padding: 1px 5px;
   text-align: center;
 }
 .lcx-filter.is-active .lcx-filter-count {
-  background: rgba(16, 16, 26, 0.12);
+  background: rgba(16, 16, 26, 0.1);
   color: #10101a;
 }
 /* Call log in the player-board language: one rounded bg-black/25 container,
