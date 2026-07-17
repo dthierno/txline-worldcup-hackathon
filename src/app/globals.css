@@ -5765,8 +5765,8 @@ dt {
    button { font: inherit } reset by specificity). */
 .lcx-filter {
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
+  border: 0;
   border-radius: 999px;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -5778,16 +5778,14 @@ dt {
   padding: 5px 11px;
   transition:
     background 0.15s ease,
-    border-color 0.15s ease,
     color 0.15s ease;
 }
 .lcx-filter:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 .lcx-filter.is-active {
   background: #fff;
-  border-color: #fff;
   color: #10101a;
 }
 .lcx-filter-count {
