@@ -6006,7 +6006,8 @@ dt {
   font-weight: 500;
   line-height: 1.5;
   margin: 0;
-  max-width: 48ch;
+  max-width: 68ch;
+  text-wrap: balance;
 }
 @media (max-width: 560px) {
   .lcx-board {
