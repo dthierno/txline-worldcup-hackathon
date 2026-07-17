@@ -1884,10 +1884,21 @@ function PredictionsFeed({
               className={`pred-row${player.you ? " pred-you" : ""}`}
               key={player.name}
             >
-              <span className="pred-rank">{index + 1}</span>
+              <span
+                className={`pred-rank${index === 0 ? " pred-rank-first" : ""}`}
+              >
+                {index + 1}
+              </span>
+              <span aria-hidden className="pred-avatar">
+                {player.name[0]}
+              </span>
               <span className="pred-player">
                 {player.name}
-                {player.you ? "" : " · simulated"}
+                {player.you ? null : (
+                  <em className="pred-sim" title="Simulated rival">
+                    sim
+                  </em>
+                )}
               </span>
               <span className="pred-points">{player.points} pts</span>
             </li>

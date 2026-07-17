@@ -2526,34 +2526,75 @@ dt {
 }
 .pred-board {
   background: #141419;
-  border: 1px solid #23232b;
-  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
   list-style: none;
   margin: 0 0 12px;
   overflow: hidden;
-  padding: 0;
+  padding: 5px;
 }
 .pred-row {
   align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 13px;
   display: flex;
-  gap: 12px;
-  padding: 12px 16px;
-}
-.pred-row:first-child {
-  border-top: none;
+  gap: 11px;
+  margin: 0;
+  padding: 10px 12px;
 }
 .pred-rank {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 50%;
   color: var(--muted-foreground);
-  font-size: 13px;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  width: 16px;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+/* The leader's rank wears the win green. */
+.pred-rank-first {
+  background: var(--won);
+  color: #10101a;
+}
+.pred-avatar {
+  align-items: center;
+  background: #3f3f46;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
 }
 .pred-player {
+  align-items: center;
   color: #fff;
+  display: flex;
   flex: 1;
   font-size: 14px;
   font-weight: 600;
+  gap: 7px;
+  min-width: 0;
+}
+/* Honesty chip: rivals are simulated, said quietly. */
+.pred-sim {
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  text-transform: uppercase;
 }
 .pred-points {
   color: var(--won);
@@ -2562,10 +2603,13 @@ dt {
   font-variant-numeric: tabular-nums;
 }
 .pred-you {
-  background: color-mix(in srgb, var(--won) 6%, transparent);
+  background: color-mix(in srgb, var(--won) 8%, transparent);
 }
-.pred-you .pred-rank {
+.pred-you .pred-rank:not(.pred-rank-first) {
   color: var(--won);
+}
+.pred-you .pred-avatar {
+  background: color-mix(in srgb, var(--won) 22%, #3f3f46);
 }
 
 /* Collapsible "Past results" section in the Predictions tab. */
