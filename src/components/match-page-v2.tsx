@@ -2243,9 +2243,11 @@ export function LiveCallsPanel({
           ) : null}
 
           {openRows.length || settledRows.length ? (
-            <div className="lcx-boardwrap">
+            <>
+              {/* Open and settled live in their own board containers so a
+                  live match reads as two clean subsections. */}
               {openRows.length ? (
-                <>
+                <div className="lcx-boardwrap">
                   <div className="lcx-board-head">
                     <span aria-hidden className="lcx-open-dot" />
                     {live ? "Open now" : "Open"}
@@ -2255,10 +2257,10 @@ export function LiveCallsPanel({
                       {openRows.map((call) => renderCall(call))}
                     </ul>
                   </div>
-                </>
+                </div>
               ) : null}
               {settledRows.length ? (
-                <>
+                <div className="lcx-boardwrap">
                   <div className="lcx-board-head lcx-board-head-split">
                     Settled
                     {mounted ? (
@@ -2291,9 +2293,9 @@ export function LiveCallsPanel({
                       </button>
                     ) : null}
                   </div>
-                </>
+                </div>
               ) : null}
-            </div>
+            </>
           ) : (
             <p className="lcx-none">
               No{" "}
