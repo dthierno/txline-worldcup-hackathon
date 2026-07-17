@@ -1981,13 +1981,7 @@ function CallPromptDialog({
           } as CSSProperties
         }
       >
-        <div className="lc-prompt-eyebrow">
-          <DialogTitle className="lc-prompt-label">
-            <span aria-hidden className="lc-prompt-dot" />
-            Live call
-          </DialogTitle>
-          <span className="lc-prompt-minute">{call.minute}</span>
-        </div>
+        <DialogTitle className="sr-only">Live call</DialogTitle>
         <DialogDescription className="lc-prompt-question">
           {/* The team renders as an inline flag pill inside the question. */}
           {call.team && call.question.includes(call.team) ? (

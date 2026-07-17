@@ -5974,43 +5974,14 @@ dt {
   max-width: 420px;
   padding: 22px;
 }
-.lc-prompt-eyebrow {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  /* Clear the dialog's corner close button. */
-  padding-right: 26px;
-}
-.lc-prompt-label {
-  align-items: center;
-  color: rgba(255, 255, 255, 0.85);
-  display: flex;
-  font-size: 11px;
-  font-weight: 700;
-  gap: 6px;
-  letter-spacing: 0.08em;
-  margin: 0;
-  text-transform: uppercase;
-}
-.lc-prompt-dot {
-  animation: lcx-pulse 1.4s ease-in-out infinite;
-  background: var(--won);
-  border-radius: 50%;
-  height: 6px;
-  width: 6px;
-}
-.lc-prompt-minute {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
 .lc-prompt-question {
   color: #fff;
   font-size: 18px;
   font-weight: 650;
   line-height: 1.55;
   margin: 0;
+  /* Clear the dialog's corner close button. */
+  padding-right: 22px;
 }
 /* The team rides inside the question as an inline flag pill. */
 .lc-prompt-team {
@@ -6100,8 +6071,7 @@ dt {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lcx-open-dot,
-  .lc-prompt-dot {
+  .lcx-open-dot {
     animation: none;
   }
 }
