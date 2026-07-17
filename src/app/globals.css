@@ -5834,16 +5834,19 @@ dt {
 .lcx-list {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 8px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 .lcx-row {
   align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
   column-gap: 10px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 10px 12px;
 }
 .lcx-row-icon {
   align-items: center;
