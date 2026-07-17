@@ -680,11 +680,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       minute: formatMinute(call.clockSeconds) || "—",
       options: ["Goal", "No goal"] as [string, string],
       outcome: call.resolved ? (call.stood ? "⚽ Goal" : "No goal") : "Open",
-      promptContext: callTeam(call.participant) ? "close play" : "Close play",
-      promptQuestion: "Does it end in a goal?",
-      question: `Close play${
-        callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
-      } - does it end in a goal?`,
+      question: callTeam(call.participant)
+        ? `Does this close play from ${callTeam(call.participant)} end in a goal?`
+        : "Does this close play end in a goal?",
       resolved: call.resolved,
       seq: call.seq,
       team: callTeam(call.participant),
@@ -717,9 +715,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           ? "Not announced"
           : "Open"
         : `${call.minutes} minutes added`,
-      promptContext: `Added time (half ${call.half})`,
-      promptQuestion: "Over or under 3.5 minutes?",
-      question: `Added time (half ${call.half}): over or under 3.5 minutes?`,
+      question: `How much added time in half ${call.half}?`,
       resolved: call.resolved,
       seq: call.seq,
       voided: call.voided,
@@ -738,11 +734,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         : call.voided
           ? "Not taken"
           : "Open",
-      promptContext: callTeam(call.participant) ? "penalty" : "Penalty!",
-      promptQuestion: "Scored or missed?",
-      question: `Penalty${
-        callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
-      }! Scored or missed?`,
+      question: callTeam(call.participant)
+        ? `Does ${callTeam(call.participant)} convert the penalty?`
+        : "Is the penalty converted?",
       resolved: call.resolved,
       seq: call.seq,
       team: callTeam(call.participant),
@@ -760,13 +754,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           ? "Overturned"
           : "Decision stands"
         : "Open",
-      promptContext: `VAR check${
-        call.type ? ` (${formatFeedLabel(call.type).toLowerCase()})` : ""
-      }`,
-      promptQuestion: "Overturned or stands?",
-      question: `VAR check${
-        call.type ? ` (${formatFeedLabel(call.type).toLowerCase()})` : ""
-      } - overturned or stands?`,
+      question: call.type
+        ? `What's the VAR verdict on the ${formatFeedLabel(call.type).toLowerCase()}?`
+        : "What's the VAR verdict?",
       resolved: call.resolved,
       seq: call.seq,
     })),
@@ -1874,13 +1864,10 @@ export type LiveUiCall = {
   minute: string;
   options: [string, string];
   outcome: string;
-  // Structured prompt copy: a context line (with the team as a flag pill)
-  // above the actual question. The flat `question` stays for list rows.
-  promptContext?: string;
-  promptQuestion?: string;
   question: string;
   resolved: boolean;
   seq: number;
+  // When the question names a team, the prompt swaps it for a flag pill.
   team?: string;
   voided?: boolean;
 };
@@ -1994,9 +1981,11 @@ function CallPromptDialog({
           </DialogTitle>
           <span className="lc-prompt-minute">{call.minute}</span>
         </div>
-        {call.promptContext ? (
-          <div className="lc-prompt-context">
-            {call.team ? (
+        <DialogDescription className="lc-prompt-question">
+          {/* The team renders as an inline flag pill inside the question. */}
+          {call.team && call.question.includes(call.team) ? (
+            <>
+              {call.question.slice(0, call.question.indexOf(call.team))}
               <span className="lc-prompt-team">
                 {teamFlag(call.team) ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -2007,14 +1996,13 @@ function CallPromptDialog({
                 ) : null}
                 <span>{call.team}</span>
               </span>
-            ) : null}
-            {call.promptContext}
-          </div>
-        ) : null}
-        <DialogDescription className="lc-prompt-question">
-          {call.promptContext
-            ? call.promptQuestion ?? call.question
-            : call.question}
+              {call.question.slice(
+                call.question.indexOf(call.team) + call.team.length,
+              )}
+            </>
+          ) : (
+            call.question
+          )}
         </DialogDescription>
         <div aria-hidden className="lc-prompt-timer">
           <div

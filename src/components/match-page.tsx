@@ -466,11 +466,12 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
       minute: formatMinute(call.clockSeconds) || "—",
       options: ["Goal", "No goal"] as [string, string],
       outcome: call.resolved ? (call.stood ? "⚽ Goal" : "No goal") : "Open",
-      question: `Close play${
-        callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
-      } - does it end in a goal?`,
+      question: callTeam(call.participant)
+        ? `Does this close play from ${callTeam(call.participant)} end in a goal?`
+        : "Does this close play end in a goal?",
       resolved: call.resolved,
       seq: call.seq,
+      team: callTeam(call.participant),
     })),
     ...extractCornerCalls(combinedUpdates).map((call) => ({
       correctIndex:
@@ -500,7 +501,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
           ? "Not announced"
           : "Open"
         : `${call.minutes} minutes added`,
-      question: `Added time (half ${call.half}): over or under 3.5 minutes?`,
+      question: `How much added time in half ${call.half}?`,
       resolved: call.resolved,
       seq: call.seq,
       voided: call.voided,
@@ -519,11 +520,12 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         : call.voided
           ? "Not taken"
           : "Open",
-      question: `Penalty${
-        callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
-      }! Scored or missed?`,
+      question: callTeam(call.participant)
+        ? `Does ${callTeam(call.participant)} convert the penalty?`
+        : "Is the penalty converted?",
       resolved: call.resolved,
       seq: call.seq,
+      team: callTeam(call.participant),
       voided: call.voided,
     })),
   ].sort((left, right) => left.seq - right.seq);
@@ -886,6 +888,8 @@ export type LiveUiCall = {
   question: string;
   resolved: boolean;
   seq: number;
+  // When the question names a team, the prompt swaps it for a flag pill.
+  team?: string;
   voided?: boolean;
 };
 
