@@ -5788,7 +5788,7 @@ dt {
   text-align: center;
 }
 .lcx-filter.is-active .lcx-filter-count {
-  background: rgba(16, 16, 26, 0.1);
+  background: rgba(16, 16, 26, 0.22);
   color: #10101a;
 }
 /* Call log in the player-board language: one rounded bg-black/25 container,
