@@ -2083,37 +2083,14 @@ export function LiveCallsPanel({
         )
     : undefined;
 
-  // One pass builds the scoreboard (points, hit rate), the form strip and the
-  // per-type counts that drive the filter chips.
-  let answered = 0;
-  let correctCalls = 0;
-  const form: Array<"lost" | "won"> = [];
+  // Per-type counts drive the filter chips.
   const kindCounts = new Map<CallKind, number>();
 
   for (const call of calls) {
     const kind = callKindOf(call.question);
 
     kindCounts.set(kind, (kindCounts.get(kind) ?? 0) + 1);
-
-    const record = mounted ? answers[call.key] : undefined;
-
-    if (!call.resolved || call.voided || !record || call.correctIndex === undefined) {
-      continue;
-    }
-
-    answered += 1;
-
-    const hit = answerIndex(record.answer) === call.correctIndex;
-
-    if (hit) correctCalls += 1;
-
-    form.push(hit ? "won" : "lost");
   }
-
-  const points = correctCalls * GOAL_CALL_POINTS;
-  const hitRate = answered
-    ? `${Math.round((correctCalls / answered) * 100)}%`
-    : "\u2014";
 
   const kinds = CALL_KIND_ORDER.filter((kind) => kindCounts.has(kind));
   const visible = [...calls]
@@ -2211,35 +2188,6 @@ export function LiveCallsPanel({
           />
         </span>
       </header>
-
-      {mounted && answered > 0 ? (
-        <div className="lcx-board">
-          <div className="lcx-metric lcx-metric-points">
-            <PointsBadge muted={points === 0} points={points} />
-            <span className="lcx-metric-label">Points</span>
-          </div>
-          <div className="lcx-metric">
-            <span className="lcx-metric-value">
-              {correctCalls}/{answered}
-            </span>
-            <span className="lcx-metric-label">Correct</span>
-          </div>
-          <div className="lcx-metric">
-            <span className="lcx-metric-value">{hitRate}</span>
-            <span className="lcx-metric-label">Hit rate</span>
-          </div>
-          {form.length ? (
-            <div className="lcx-metric">
-              <span className="lcx-form">
-                {form.slice(-9).map((tone, index) => (
-                  <span className={`lcx-pip lcx-pip-${tone}`} key={index} />
-                ))}
-              </span>
-              <span className="lcx-metric-label">Form</span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
 
       {calls.length === 0 ? (
         <div className="lcx-empty">

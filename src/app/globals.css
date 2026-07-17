@@ -5703,67 +5703,6 @@ dt {
     transform: scale(0.78);
   }
 }
-/* Scoreboard: a slim inline stat line, no container - each metric is its
-   value beside a muted caption. Rendered once a call has settled. */
-.lcx-board {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
-  padding: 0;
-}
-.lcx-metric {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-}
-.lcx-metric-value {
-  color: #fff;
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  line-height: 1;
-}
-.lcx-metric-label {
-  color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.lcx-form {
-  align-items: center;
-  display: flex;
-  gap: 4px;
-}
-/* Points metric shows the shared hexagon badge instead of plain text. */
-.lcx-metric-points .pc-points-badge {
-  height: 20px;
-  justify-content: center;
-  left: auto;
-  position: relative;
-  top: auto;
-  transform: none;
-  width: 18px;
-}
-.lcx-metric-points .pc-points-badge svg {
-  height: 20px;
-  width: 18px;
-}
-.lcx-metric-points .pc-points-num {
-  font-size: 10.5px;
-}
-.lcx-pip {
-  border-radius: 50%;
-  height: 7px;
-  width: 7px;
-}
-.lcx-pip-won {
-  background: var(--won);
-}
-.lcx-pip-lost {
-  background: var(--lost);
-}
 .lcx-filters {
   display: flex;
   flex-wrap: wrap;
@@ -5816,17 +5755,16 @@ dt {
   border-radius: 18px;
   overflow: hidden;
 }
+/* Same treatment as the market cards' sub-headings ("Exact score"). */
 .lcx-board-head {
   align-items: center;
   background: rgba(255, 255, 255, 0.045);
-  color: var(--muted-foreground);
+  color: #fff;
   display: flex;
-  font-size: 10.5px;
-  font-weight: 600;
-  gap: 7px;
-  letter-spacing: 0.02em;
-  padding: 8px 14px;
-  text-transform: uppercase;
+  font-size: 13.5px;
+  font-weight: 700;
+  gap: 8px;
+  padding: 10px 14px;
 }
 .lcx-board-body {
   padding: 14px;
@@ -6006,15 +5944,6 @@ dt {
   margin: 0;
   max-width: 68ch;
   text-wrap: balance;
-}
-@media (max-width: 560px) {
-  .lcx-board {
-    width: 100%;
-  }
-  .lcx-metric {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .lcx-live-dot,
