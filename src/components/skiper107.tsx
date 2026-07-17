@@ -111,7 +111,7 @@ export const ROUNDS: Round[] = [
     name: "Semi-finals",
     matches: [
       match("sf-1", "Wed, 15 Jul, 4:00 am", side("France", "fr", null), side("Spain", "es", null), undefined, false, 18237038),
-      match("sf-2", "Thu, 16 Jul, 3:00 am", tbd(), tbd()),
+      match("sf-2", "Thu, 16 Jul, 3:00 am", side("England", "gb-eng", null), side("Argentina", "ar", null), undefined, false, 18241006),
     ],
   },
   {
@@ -293,8 +293,13 @@ export function buildLiveRounds(
     }
   }
 
+  // A verified final result must not be clobbered back to "live" by the
+  // current page's score fold (stream-reconstructed scores carry no
+  // StatusId, which otherwise reads as in-play).
+  const resultIds = new Set(worldCupResults.map((result) => result.fixtureId));
+
   for (const game of rounds.flatMap((round) => round.matches)) {
-    if (!game.fixtureId) continue;
+    if (!game.fixtureId || resultIds.has(game.fixtureId)) continue;
 
     const fixture = fixtureById.get(game.fixtureId);
 

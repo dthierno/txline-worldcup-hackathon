@@ -91,4 +91,8 @@ export const worldCupResults: WorldCupResult[] = [
   // After extra time (goals in the 114th and 120th minutes) - verified
   // against the TxLINE snapshot (statusId 100) on 14 Jul 2026.
   { fixtureId: 18222446, home: "Argentina", away: "Switzerland", kickoffUtc: "2026-07-12T01:00:00.000Z", score: [3, 1] },
+  // Semi-finals - verified against the committed TxLINE replay packs
+  // (game_finalised stat banks) on 17 Jul 2026.
+  { fixtureId: 18237038, home: "France", away: "Spain", kickoffUtc: "2026-07-14T19:00:00.000Z", score: [0, 2] },
+  { fixtureId: 18241006, home: "England", away: "Argentina", kickoffUtc: "2026-07-15T19:00:00.000Z", score: [1, 2] },
 ];
