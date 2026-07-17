@@ -2158,7 +2158,9 @@ export function LiveCallsPanel({
           <span className="lcx-row-q">{call.question}</span>
           <div className="lcx-row-meta">
             <span className="lcx-min">{call.minute}</span>
-            {call.resolved && !call.voided ? (
+            {/* Voided calls carry a reason ("No more goals", "Not taken") -
+                show it like a settled outcome. */}
+            {call.resolved || call.voided ? (
               <span className="lcx-outcome">{call.outcome}</span>
             ) : null}
             {picked ? <span className="lcx-you">You: {picked}</span> : null}
