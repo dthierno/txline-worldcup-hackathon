@@ -5990,20 +5990,20 @@ dt {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
   display: inline-flex;
-  gap: 7px;
+  gap: 6px;
   margin: 0 2px;
-  padding: 3px 12px 3px 5px;
-  vertical-align: -6px;
+  padding: 3px 11px 3px 5px;
+  vertical-align: -5px;
 }
 .lc-prompt-team img {
   border-radius: 50%;
-  height: 20px;
+  height: 18px;
   object-fit: cover;
-  width: 20px;
+  width: 18px;
 }
 .lc-prompt-team span {
   color: #fff;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
 }
 /* The countdown IS the border: a World Cup gradient ring swept by a conic
