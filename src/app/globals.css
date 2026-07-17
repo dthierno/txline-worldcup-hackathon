@@ -5968,7 +5968,7 @@ dt {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 22px 0 10px;
+  padding: 22px 0 26px;
   text-align: center;
 }
 .lcx-empty-ghosts {
