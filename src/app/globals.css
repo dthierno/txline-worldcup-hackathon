@@ -5854,9 +5854,18 @@ dt {
   border-radius: 50%;
   color: rgba(255, 255, 255, 0.9);
   display: flex;
-  height: 28px;
+  height: 44px;
   justify-content: center;
-  width: 28px;
+  width: 44px;
+}
+/* The type glyphs are fixed-size SVGs sized for the smaller circle - scale
+   them with it. */
+.lcx-row-icon svg {
+  height: 19px;
+  width: 19px;
+}
+.lcx-row-icon .lc-var {
+  font-size: 10.5px;
 }
 .lcx-row-body {
   display: flex;
