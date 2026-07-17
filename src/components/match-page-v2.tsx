@@ -177,7 +177,6 @@ import {
 import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 
 type MatchTab =
-  | "calls"
   | "knockout"
   | "lineups"
   | "overview"
@@ -189,7 +188,6 @@ const MATCH_TABS: Array<{ label: string; value: MatchTab }> = [
   { label: "Lineups", value: "lineups" },
   { label: "Stats", value: "stats" },
   { label: "Timeline", value: "timeline" },
-  { label: "Live calls", value: "calls" },
   { label: "Knockout", value: "knockout" },
 ];
 
@@ -1625,6 +1623,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 <MatchMediaSection fixtureId={fixture.fixtureId} />
               ) : null}
 
+              <LiveCallsPanel
+                key={`calls-${fixture.fixtureId}`}
+                calls={liveCalls}
+                fixtureId={fixture.fixtureId}
+                live={liveStreamEligible}
+              />
+
               <section className="card mp2-overview-card" aria-labelledby="glance-heading">
                 <div className="mp2-card-heading">
                   <h2 id="glance-heading">Match at a glance</h2>
@@ -1832,15 +1837,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           </div>
         ) : null}
 
-        {matchTab === "calls" ? (
-          <LiveCallsPanel
-            key={`calls-${fixture.fixtureId}`}
-            calls={liveCalls}
-            fixtureId={fixture.fixtureId}
-            live={liveStreamEligible}
-          />
-        ) : null}
-
         {matchTab === "knockout" ? (
           <section className="card mp2-bracket-tab" aria-labelledby="bracket-heading">
             <h2 id="bracket-heading">Tournament bracket</h2>
@@ -2010,6 +2006,9 @@ const CALL_KIND_LABELS: Record<CallKind, string> = {
 // Filter order: the two goal-family calls lead, specials trail.
 const CALL_KIND_ORDER: CallKind[] = ["goal", "next", "corner", "var", "added"];
 
+// How many settled calls the panel shows before the "Show all" expander.
+const SETTLED_CALLS_PREVIEW = 6;
+
 function callKindOf(question: string): CallKind {
   if (/corner/i.test(question)) return "corner";
   if (/added time/i.test(question)) return "added";
@@ -2049,6 +2048,7 @@ export function LiveCallsPanel({
   );
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<"all" | CallKind>("all");
+  const [expanded, setExpanded] = useState(false);
   const handleDismiss = useCallback((key: string) => {
     setDismissed((previous) => {
       const next = new Set(previous);
@@ -2120,6 +2120,12 @@ export function LiveCallsPanel({
     .filter((call) => filter === "all" || callKindOf(call.question) === filter);
   const openRows = visible.filter((call) => !call.resolved && !call.voided);
   const settledRows = visible.filter((call) => call.resolved || call.voided);
+  // Riding on the Overview, the settled log is capped to a preview so it never
+  // buries the cards below it; the rest is one tap away.
+  const settledPreview =
+    expanded || settledRows.length <= SETTLED_CALLS_PREVIEW
+      ? settledRows
+      : settledRows.slice(0, SETTLED_CALLS_PREVIEW);
 
   function renderCall(call: LiveUiCall) {
     const kind = callKindOf(call.question);
@@ -2275,8 +2281,19 @@ export function LiveCallsPanel({
             <div className="lcx-group">
               <span className="lcx-group-label">Settled</span>
               <ul className="lcx-list">
-                {settledRows.map((call) => renderCall(call))}
+                {settledPreview.map((call) => renderCall(call))}
               </ul>
+              {settledRows.length > SETTLED_CALLS_PREVIEW ? (
+                <button
+                  className="lcx-more"
+                  onClick={() => setExpanded((value) => !value)}
+                  type="button"
+                >
+                  {expanded
+                    ? "Show fewer"
+                    : `Show all ${settledRows.length} calls`}
+                </button>
+              ) : null}
             </div>
           ) : null}
 
