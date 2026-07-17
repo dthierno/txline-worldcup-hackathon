@@ -60,6 +60,12 @@ import {
   type NormalizedTxlineScore,
 } from "@/lib/txline-normalize";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   isPredictionLocked,
   cacheFixtures,
   LEAGUES_CHANGED_EVENT,
@@ -69,6 +75,7 @@ import {
   loadPrediction,
   loadSelectedBoard,
   loadStoredResults,
+  saveLeague,
   saveSelectedBoard,
   saveStoredResult,
   loadPredictions,
@@ -1508,6 +1515,32 @@ const RIVAL_POOL = [
   "Kofi",
 ];
 
+function hashText(text: string): number {
+  let hash = 0;
+
+  for (const char of text) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 997;
+  }
+
+  return hash;
+}
+
+// The default rival cast for a league, drawn deterministically from its
+// invite code so every visit (and every friend's device) shows the same
+// names. The owner's roster edits (stored members) take precedence.
+function leagueRoster(league: StoredLeague): string[] {
+  if (league.members) {
+    return league.members;
+  }
+
+  const seed = hashText(league.code);
+
+  return Array.from(
+    { length: 3 },
+    (_, index) => RIVAL_POOL[(seed + index * 3) % RIVAL_POOL.length],
+  );
+}
+
 function buildLeaderboard(
   settledPoints: number,
   league: StoredLeague | null,
@@ -1521,16 +1554,12 @@ function buildLeaderboard(
     ].sort((left, right) => right.points - left.points);
   }
 
-  let seed = 0;
-
-  for (const char of league.code) {
-    seed = (seed * 31 + char.charCodeAt(0)) % 997;
-  }
-
-  const rivals = Array.from({ length: 3 }, (_, index) => {
-    const name = RIVAL_POOL[(seed + index * 3) % RIVAL_POOL.length];
-    // Factors spread 0.2-0.95 so the fan usually leads but not always.
-    const factor = 0.2 + (((seed >> (index * 2)) % 16) / 16) * 0.75;
+  const seed = hashText(league.code);
+  const rivals = leagueRoster(league).map((name) => {
+    // Factor from the name itself (not list position) so a rival's points
+    // survive the owner removing someone else. Spread 0.2-0.95: the fan
+    // usually leads but not always.
+    const factor = 0.2 + (((seed + hashText(name)) % 16) / 16) * 0.75;
 
     return {
       name,
@@ -1716,6 +1745,21 @@ function PredictionsFeed({
   const selectedLeague =
     leagues.find((league) => league.code === board) ?? null;
   const leaderboard = buildLeaderboard(settledPoints, selectedLeague);
+  // Roster management: owners only, tucked behind one ghost affordance.
+  const [manageOpen, setManageOpen] = useState(false);
+
+  function removeMember(name: string) {
+    if (!selectedLeague) {
+      return;
+    }
+
+    saveLeague({
+      ...selectedLeague,
+      members: leagueRoster(selectedLeague).filter(
+        (member) => member !== name,
+      ),
+    });
+  }
 
   return (
     <div className="pred-layout">
@@ -1770,7 +1814,69 @@ function PredictionsFeed({
                 {league.name}
               </button>
             ))}
+            {selectedLeague?.role === "owner" ? (
+              <button
+                className="pred-manage"
+                onClick={() => setManageOpen(true)}
+                type="button"
+              >
+                Manage
+              </button>
+            ) : null}
           </div>
+        ) : null}
+        {selectedLeague ? (
+          <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+            <DialogContent className="lc-prompt league-modal">
+              <DialogTitle className="league-modal-title">
+                Manage {selectedLeague.name}
+              </DialogTitle>
+              <DialogDescription className="league-modal-desc">
+                You run this league - remove anyone who shouldn&apos;t be on
+                the board. Friends join with code{" "}
+                <strong className="pred-code">{selectedLeague.code}</strong>.
+              </DialogDescription>
+              {leagueRoster(selectedLeague).length > 0 ? (
+                <ul className="league-roster">
+                  {leagueRoster(selectedLeague).map((member) => (
+                    <li className="league-roster-row" key={member}>
+                      <span>{member}</span>
+                      <button
+                        aria-label={`Remove ${member} from ${selectedLeague.name}`}
+                        className="league-roster-remove"
+                        onClick={() => removeMember(member)}
+                        type="button"
+                      >
+                        <svg
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeWidth={2.2}
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="league-roster-empty">
+                  Just you in here now. Share the code to fill the board back
+                  up.
+                </p>
+              )}
+              <div className="lc-prompt-actions lc-prompt-actions-single">
+                <button
+                  className="lc-prompt-btn lc-prompt-btn-main"
+                  onClick={() => setManageOpen(false)}
+                  type="button"
+                >
+                  <span>Done</span>
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
         ) : null}
         <ol className="pred-board">
           {leaderboard.map((player, index) => (

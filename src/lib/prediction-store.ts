@@ -138,6 +138,9 @@ export function saveGoalCall(
 export type StoredLeague = {
   code: string;
   joinedAt: string;
+  // Rival names on this league's board. Absent until the owner first edits
+  // the roster - boards derive the default cast from the code.
+  members?: string[];
   name: string;
   role: "member" | "owner";
 };
