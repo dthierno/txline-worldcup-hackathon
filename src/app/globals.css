@@ -5854,9 +5854,9 @@ dt {
   border-radius: 50%;
   color: rgba(255, 255, 255, 0.9);
   display: flex;
-  height: 44px;
+  height: 36px;
   justify-content: center;
-  width: 44px;
+  width: 36px;
 }
 /* The type glyphs are fixed-size SVGs sized for the smaller circle - scale
    them with it. */
