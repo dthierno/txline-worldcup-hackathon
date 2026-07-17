@@ -66,7 +66,7 @@ const DEMO_CALLS: LiveUiCall[] = [
     minute: "76'",
     options: ["Goal", "No goal"],
     outcome: "Open",
-    promptContext: "Close play for",
+    promptContext: "close play",
     promptQuestion: "Does it end in a goal?",
     question: "Close play for Morocco - does it end in a goal?",
     resolved: false,

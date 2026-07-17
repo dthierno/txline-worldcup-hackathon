@@ -680,7 +680,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
       minute: formatMinute(call.clockSeconds) || "—",
       options: ["Goal", "No goal"] as [string, string],
       outcome: call.resolved ? (call.stood ? "⚽ Goal" : "No goal") : "Open",
-      promptContext: callTeam(call.participant) ? "Close play for" : "Close play",
+      promptContext: callTeam(call.participant) ? "close play" : "Close play",
       promptQuestion: "Does it end in a goal?",
       question: `Close play${
         callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
@@ -738,7 +738,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         : call.voided
           ? "Not taken"
           : "Open",
-      promptContext: callTeam(call.participant) ? "Penalty for" : "Penalty!",
+      promptContext: callTeam(call.participant) ? "penalty" : "Penalty!",
       promptQuestion: "Scored or missed?",
       question: `Penalty${
         callTeam(call.participant) ? ` for ${callTeam(call.participant)}` : ""
@@ -1996,7 +1996,6 @@ function CallPromptDialog({
         </div>
         {call.promptContext ? (
           <div className="lc-prompt-context">
-            {call.promptContext}
             {call.team ? (
               <span className="lc-prompt-team">
                 {teamFlag(call.team) ? (
@@ -2009,6 +2008,7 @@ function CallPromptDialog({
                 <span>{call.team}</span>
               </span>
             ) : null}
+            {call.promptContext}
           </div>
         ) : null}
         <DialogDescription className="lc-prompt-question">
