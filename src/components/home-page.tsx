@@ -1119,22 +1119,46 @@ function ScoreStepper({
 }
 
 // Rounded-hexagon points badge: green for a settled prediction, grey when
-// the fan never made one (points left on the table). Shared with the match
+// the fan never made one (points left on the table), and a World Cup
+// gradient "stake" variant for points still on offer. Shared with the match
 // page's live-calls rows so points read the same everywhere.
-export function PointsBadge({ muted, points }: { muted?: boolean; points: number }) {
-  const gradientId = muted ? "pc-badge-fill-muted" : "pc-badge-fill";
+export function PointsBadge({
+  muted,
+  points,
+  stake,
+}: {
+  muted?: boolean;
+  points: number;
+  stake?: boolean;
+}) {
+  const gradientId = stake
+    ? "pc-badge-fill-stake"
+    : muted
+      ? "pc-badge-fill-muted"
+      : "pc-badge-fill";
 
   return (
     <span
       aria-label={
-        muted ? "No prediction made - 0 points" : `${points} points earned`
+        stake
+          ? `${points} points on offer`
+          : muted
+            ? "No prediction made - 0 points"
+            : `${points} points earned`
       }
       className="pc-points-badge"
       role="img"
     >
       <svg aria-hidden="true" fill="none" viewBox="0 0 12 12">
         <defs>
-          {muted ? (
+          {stake ? (
+            <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
+              <stop offset="0" stopColor="#fa3d3d" />
+              <stop offset="0.38" stopColor="#8b5cf6" />
+              <stop offset="0.72" stopColor="#0044ff" />
+              <stop offset="1" stopColor="#4ade80" />
+            </linearGradient>
+          ) : muted ? (
             <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
               <stop offset="0" stopColor="#3a3a42" />
               <stop offset="1" stopColor="#71717c" />
