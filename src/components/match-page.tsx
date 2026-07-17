@@ -2,18 +2,10 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
+import { LiveCallsPanel } from "@/components/match-page-v2";
 
 import {
   buildOutcome,
@@ -61,7 +53,6 @@ import {
   type WinnerPick,
 } from "@/lib/prediction-engine";
 import {
-  GOAL_CALL_POINTS,
   isPredictionLocked,
   settleGoalCallPoints,
   cacheFixtures,
@@ -70,10 +61,8 @@ import {
   loadPrediction,
   loadSettlements,
   removeSettlement,
-  saveGoalCall,
   savePrediction,
   saveSettlement,
-  type GoalCallAnswer,
 } from "@/lib/prediction-store";
 import {
   applyScoutCorrections,
@@ -826,7 +815,7 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
         outcome={outcome}
       />
 
-      <GoalCallsSection
+      <LiveCallsPanel
         key={`calls-${fixture.fixtureId}`}
         calls={liveCalls}
         fixtureId={fixture.fixtureId}
@@ -888,11 +877,6 @@ export function MatchPage({ fixtureId }: { fixtureId: number }) {
   );
 }
 
-// Our answer window: TxLINE gives no duration for a live-call moment (it
-// ends whenever the resolving record arrives), so we impose a fixed window -
-// which also prevents answering after the outcome is known.
-const CALL_WINDOW_MS = 8000;
-
 export type LiveUiCall = {
   correctIndex?: 0 | 1;
   key: string;
@@ -905,238 +889,6 @@ export type LiveUiCall = {
   voided?: boolean;
 };
 
-function answerIndex(answer: string): number {
-  if (answer === "goal") return 0;
-  if (answer === "no_goal") return 1;
-
-  return Number(answer);
-}
-
-// Short synthesized two-tone chime announcing a new live call (no audio
-// asset; Web Audio only). Browsers block audio before the first user gesture
-// on the page - fail silently then, the popup itself is the signal.
-let chimeContext: AudioContext | null = null;
-let lastChimeKey: string | null = null;
-
-function playCallChime(key: string) {
-  // One ring per call, even if the dialog remounts (StrictMode, re-renders).
-  if (lastChimeKey === key) {
-    return;
-  }
-
-  lastChimeKey = key;
-
-  try {
-    chimeContext ??= new AudioContext();
-
-    if (chimeContext.state === "suspended") {
-      void chimeContext.resume();
-    }
-
-    const now = chimeContext.currentTime;
-    const tones: Array<[frequency: number, startOffset: number]> = [
-      [880, 0],
-      [1318.5, 0.12],
-    ];
-
-    for (const [frequency, startOffset] of tones) {
-      const oscillator = chimeContext.createOscillator();
-      const gain = chimeContext.createGain();
-
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0, now + startOffset);
-      gain.gain.linearRampToValueAtTime(0.1, now + startOffset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + 0.4);
-      oscillator.connect(gain).connect(chimeContext.destination);
-      oscillator.start(now + startOffset);
-      oscillator.stop(now + startOffset + 0.45);
-    }
-  } catch {
-    // Audio unavailable or blocked - stay silent.
-  }
-}
-
-function CallPromptDialog({
-  call,
-  onAnswer,
-  onDismiss,
-}: {
-  call: LiveUiCall;
-  onAnswer: (index: 0 | 1) => void;
-  onDismiss: (key: string) => void;
-}) {
-  const [remaining, setRemaining] = useState(CALL_WINDOW_MS);
-  const callKey = call.key;
-
-  // Ring once per call prompt.
-  useEffect(() => {
-    playCallChime(callKey);
-  }, [callKey]);
-
-  useEffect(() => {
-    const start = Date.now();
-    const timer = setInterval(() => {
-      const left = Math.max(0, CALL_WINDOW_MS - (Date.now() - start));
-
-      setRemaining(left);
-
-      if (left <= 0) {
-        onDismiss(callKey);
-      }
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [callKey, onDismiss]);
-
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) {
-          onDismiss(callKey);
-        }
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Live call</DialogTitle>
-          <DialogDescription>{call.question}</DialogDescription>
-        </DialogHeader>
-        <Progress value={(remaining / CALL_WINDOW_MS) * 100} />
-        <p className="muted">
-          {Math.ceil(remaining / 1000)}s to answer - resolves early if the
-          play settles first.
-        </p>
-        <DialogFooter className="gap-3 sm:justify-center">
-          <Button
-            className="h-12 flex-1 text-base font-semibold"
-            onClick={() => onAnswer(0)}
-          >
-            {call.options[0]}
-          </Button>
-          <Button
-            className="h-12 flex-1 text-base font-semibold"
-            onClick={() => onAnswer(1)}
-            variant="outline"
-          >
-            {call.options[1]}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function GoalCallsSection({
-  calls,
-  fixtureId,
-  live,
-}: {
-  calls: LiveUiCall[];
-  fixtureId: number;
-  live: boolean;
-}) {
-  const mounted = useIsMounted();
-  const [answers, setAnswers] = useState<Record<string, GoalCallAnswer>>(() =>
-    loadGoalCalls(fixtureId),
-  );
-  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
-  const handleDismiss = useCallback((key: string) => {
-    setDismissed((previous) => {
-      const next = new Set(previous);
-
-      next.add(key);
-
-      return next;
-    });
-  }, []);
-
-  if (calls.length === 0) {
-    return null;
-  }
-
-  const openCall = live
-    ? [...calls]
-        .reverse()
-        .find(
-          (call) =>
-            !call.resolved &&
-            !call.voided &&
-            !answers[call.key] &&
-            !dismissed.has(call.key),
-        )
-    : undefined;
-  const points = calls.reduce((total, call) => {
-    const answer = answers[call.key];
-
-    if (!call.resolved || call.voided || !answer || call.correctIndex === undefined) {
-      return total;
-    }
-
-    return (
-      total + (answerIndex(answer.answer) === call.correctIndex ? GOAL_CALL_POINTS : 0)
-    );
-  }, 0);
-
-  function answer(callKey: string, index: 0 | 1) {
-    const record: GoalCallAnswer = {
-      answer: String(index),
-      answeredAt: new Date().toISOString(),
-    };
-
-    saveGoalCall(fixtureId, callKey, record);
-    setAnswers((previous) => ({ ...previous, [callKey]: record }));
-  }
-
-  return (
-    <section className="card" aria-labelledby="goal-calls-heading">
-      <h2 id="goal-calls-heading">Live calls</h2>
-      {openCall && mounted ? (
-        <CallPromptDialog
-          key={openCall.key}
-          call={openCall}
-          onAnswer={(index) => answer(openCall.key, index)}
-          onDismiss={handleDismiss}
-        />
-      ) : null}
-      <ul className="call-list">
-        {[...calls].reverse().map((call) => {
-          const callAnswer = mounted ? answers[call.key] : undefined;
-          const correct =
-            call.resolved && !call.voided && callAnswer && call.correctIndex !== undefined
-              ? answerIndex(callAnswer.answer) === call.correctIndex
-              : null;
-
-          return (
-            <li key={call.key}>
-              <span>
-                {call.minute} {call.question}
-              </span>
-              <span className="call-outcome">
-                {call.outcome}
-                {callAnswer
-                  ? correct === null
-                    ? ` · you said ${call.options[answerIndex(callAnswer.answer)] ?? callAnswer.answer}`
-                    : correct
-                      ? ` · ✓ +${GOAL_CALL_POINTS}`
-                      : " · ✗ 0"
-                  : call.resolved && !call.voided
-                    ? " · — 0"
-                    : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="muted">
-        Live micro-calls on TxLINE moments (close plays, next corner, added
-        time), settled by the verified feed.{" "}
-        {mounted && points > 0 ? `You earned ${points} point(s) here.` : ""}
-      </p>
-    </section>
-  );
-}
 
 // Attack momentum per 5-minute interval, home pressure rising above the
 // midline and away pressure hanging below it (FotMob-style, original render).
