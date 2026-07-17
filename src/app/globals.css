@@ -5976,12 +5976,11 @@ dt {
 }
 .lc-prompt-question {
   color: #fff;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 650;
-  line-height: 1.55;
+  line-height: 1.5;
   margin: 0;
-  /* Slightly narrower than the dialog, clearing the corner close button. */
-  max-width: 92%;
+  /* Clear the corner close button. */
   padding: 14px 14px 14px 0;
 }
 /* The team rides inside the question as an inline flag pill. */
