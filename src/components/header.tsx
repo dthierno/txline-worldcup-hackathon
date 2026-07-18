@@ -118,12 +118,6 @@ export function Header() {
           </span>
         </Link>
         <div className="app-account">
-          {points !== null ? (
-            <span className="app-user-pts" aria-label={`${points} points`}>
-              <span aria-hidden className="app-user-hex" />
-              <strong>{points}</strong> pts
-            </span>
-          ) : null}
           <Show when="signed-out">
             <SignInButton mode="modal">
               <button className="app-signin" type="button" aria-label="Sign in">
@@ -132,11 +126,22 @@ export function Header() {
             </SignInButton>
           </Show>
           <Show when="signed-in">
-            <UserButton
-              appearance={{
-                elements: { userButtonAvatarBox: "app-clerk-avatar" },
-              }}
-            />
+            {/* Unified chip: points capsule + the real Clerk account menu.
+                Points default to 0 until this device settles a match. */}
+            <div className="app-user">
+              <span
+                className="app-user-pts"
+                aria-label={`${points ?? 0} points`}
+              >
+                <span aria-hidden className="app-user-hex" />
+                <strong>{points ?? 0}</strong> pts
+              </span>
+              <UserButton
+                appearance={{
+                  elements: { userButtonAvatarBox: "app-clerk-avatar" },
+                }}
+              />
+            </div>
           </Show>
         </div>
       </div>

@@ -373,9 +373,19 @@ main {
   display: flex;
   gap: 10px;
 }
+/* Signed-in pill: dark points capsule + the real Clerk avatar in one
+   glass container (the intro widget's chip, with a live account menu). */
+.app-user {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 7px;
+  padding: 3px 4px 3px 3px;
+}
 .app-clerk-avatar {
-  height: 32px;
-  width: 32px;
+  height: 30px;
+  width: 30px;
 }
 .app-user-pts {
   align-items: center;
