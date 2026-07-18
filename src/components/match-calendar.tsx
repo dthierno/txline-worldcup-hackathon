@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { teamFlag } from "@/lib/team-visuals";
 import { worldCupResults } from "@/lib/world-cup-results";
 import type { WorldCupFixture } from "@/lib/world-cup-fixtures";
@@ -151,20 +156,16 @@ export function MatchCalendar({
 
   const rows = useMemo(() => buildMonth(2026, month), [month]);
   const today = now !== null ? isoDate(new Date(now)) : null;
-  // Days the fan expanded to see every game; the row grows to fit.
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const toggleDay = (key: string) =>
-    setExpanded((previous) => {
-      const next = new Set(previous);
-
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-
-      return next;
-    });
+  // The day whose full fixture list is open in the dialog.
+  const [openDay, setOpenDay] = useState<string | null>(null);
+  const openGames = openDay ? (byDay.get(openDay) ?? []) : [];
+  const openTitle = openDay
+    ? new Intl.DateTimeFormat(undefined, {
+        day: "numeric",
+        month: "long",
+        weekday: "long",
+      }).format(new Date(`${openDay}T00:00:00`))
+    : "";
 
   return (
     <div className="wc-cal" aria-label="Tournament calendar">
@@ -186,11 +187,8 @@ export function MatchCalendar({
                 }
 
                 const games = byDay.get(cell.key) ?? [];
-                const showAll = expanded.has(cell.key);
-                const shown = showAll
-                  ? games
-                  : games.slice(0, MAX_CHIPS_PER_DAY);
-                const folded = games.length - MAX_CHIPS_PER_DAY;
+                const shown = games.slice(0, MAX_CHIPS_PER_DAY);
+                const folded = games.length - shown.length;
 
                 return (
                   <div className="wc-cal-day" key={cell.key}>
@@ -219,10 +217,10 @@ export function MatchCalendar({
                     {folded > 0 ? (
                       <button
                         className="wc-cal-more"
-                        onClick={() => toggleDay(cell.key)}
+                        onClick={() => setOpenDay(cell.key)}
                         type="button"
                       >
-                        {showAll ? "Show less" : `+${folded} more`}
+                        +{folded} more
                       </button>
                     ) : null}
                   </div>
@@ -232,6 +230,43 @@ export function MatchCalendar({
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={openDay !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOpenDay(null);
+          }
+        }}
+      >
+        <DialogContent className="lc-prompt wc-day-modal">
+          <DialogTitle className="league-modal-title">{openTitle}</DialogTitle>
+          <ul className="wc-day-list">
+            {openGames.map((game) => (
+              <li key={game.fixtureId}>
+                <Link
+                  className={`wc-day-row${game.live ? " wc-day-live" : ""}`}
+                  href={`/match/${game.fixtureId}`}
+                >
+                  <span className="wc-day-team">
+                    <ChipFlag team={game.home} />
+                    <span>{game.home}</span>
+                  </span>
+                  <b className="wc-day-score">
+                    {game.score
+                      ? `${game.score[0]} - ${game.score[1]}`
+                      : kickoffTime(game.kickoffUtc)}
+                  </b>
+                  <span className="wc-day-team wc-day-team-away">
+                    <span>{game.away}</span>
+                    <ChipFlag team={game.away} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
