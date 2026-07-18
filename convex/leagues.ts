@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
+import { userSettledTotal } from "./model/settlements";
 
 // Unambiguous characters only (no O/0, I/1).
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -27,9 +28,9 @@ async function requireUser(ctx: QueryCtx): Promise<string> {
 }
 
 // Create a league: mint a unique invite code, own it, seed the creator's own
-// board row with the points their device has settled so far.
+// board row with the points they've settled server-side so far.
 export const createLeague = mutation({
-  args: { name: v.string(), displayName: v.string(), points: v.number() },
+  args: { name: v.string(), displayName: v.string() },
   returns: v.object({ leagueId: v.id("leagues"), code: v.string() }),
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -46,6 +47,7 @@ export const createLeague = mutation({
     }
 
     const now = Date.now();
+    const points = await userSettledTotal(ctx, userId);
     const leagueId = await ctx.db.insert("leagues", {
       code,
       createdAt: now,
@@ -57,7 +59,7 @@ export const createLeague = mutation({
       joinedAt: now,
       leagueId,
       name: args.displayName,
-      points: args.points,
+      points,
       userId,
     });
 
@@ -68,7 +70,7 @@ export const createLeague = mutation({
 // Join by invite code. Returns the league id, or null if no such code (the
 // client shows "not found"). Idempotent: re-joining just refreshes your row.
 export const joinLeague = mutation({
-  args: { code: v.string(), displayName: v.string(), points: v.number() },
+  args: { code: v.string(), displayName: v.string() },
   returns: v.union(v.id("leagues"), v.null()),
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -82,6 +84,7 @@ export const joinLeague = mutation({
       return null;
     }
 
+    const points = await userSettledTotal(ctx, userId);
     const existing = await ctx.db
       .query("members")
       .withIndex("by_league_user", (q) =>
@@ -92,14 +95,14 @@ export const joinLeague = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         name: args.displayName,
-        points: args.points,
+        points,
       });
     } else {
       await ctx.db.insert("members", {
         joinedAt: Date.now(),
         leagueId: league._id,
         name: args.displayName,
-        points: args.points,
+        points,
         userId,
       });
     }
@@ -190,10 +193,11 @@ export const leaderboard = query({
   },
 });
 
-// Push the caller's latest device points (and display name) onto every board
-// they're on, so their standing stays current everywhere.
-export const syncMe = mutation({
-  args: { displayName: v.string(), points: v.number() },
+// Refresh the caller's display name on every board they're on. Points are no
+// longer pushed from the device — they're server-derived from settlements — so
+// this only ever touches the name.
+export const syncProfile = mutation({
+  args: { displayName: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -208,13 +212,9 @@ export const syncMe = mutation({
       .collect();
 
     for (const membership of memberships) {
-      if (
-        membership.name !== args.displayName ||
-        membership.points !== args.points
-      ) {
+      if (membership.name !== args.displayName) {
         await ctx.db.patch(membership._id, {
           name: args.displayName,
-          points: args.points,
         });
       }
     }

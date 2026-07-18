@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as gameplay from "../gameplay.js";
 import type * as leagues from "../leagues.js";
+import type * as model_settlements from "../model/settlements.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +19,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  gameplay: typeof gameplay;
   leagues: typeof leagues;
+  "model/settlements": typeof model_settlements;
 }>;
 
 /**

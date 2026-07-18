@@ -88,6 +88,7 @@ import {
 import {
   isPredictionLocked,
   cacheFixtures,
+  GAMESTATE_HYDRATED_EVENT,
   LEAGUES_CHANGED_EVENT,
   loadCachedFixtures,
   loadGoalCalls,
@@ -208,13 +209,26 @@ export function HomePage() {
     useState<ApiResult<unknown> | null>(null);
   const [status, setStatus] = useState<TxlineStatus | null>(null);
   const mounted = useIsMounted();
-  const [predictions] = useState<Record<string, MatchPrediction>>(() =>
-    loadPredictions(),
-  );
+  const [predictions, setPredictions] = useState<
+    Record<string, MatchPrediction>
+  >(() => loadPredictions());
   const [finals, setFinals] = useState<Record<string, StoredSettlement>>(() =>
     loadSettlements(),
   );
   const [calendarMonth, setCalendarMonth] = useState(6);
+
+  // When the sign-in sync pulls the fan's gameplay onto this device, re-read
+  // it so predictions and points show without a reload.
+  useEffect(() => {
+    const rehydrate = () => {
+      setPredictions(loadPredictions());
+      setFinals(loadSettlements());
+    };
+
+    window.addEventListener(GAMESTATE_HYDRATED_EVENT, rehydrate);
+
+    return () => window.removeEventListener(GAMESTATE_HYDRATED_EVENT, rehydrate);
+  }, []);
   // Seeded with the final scores this device already saw, so ended matches
   // render as finished immediately instead of flashing LIVE until the first
   // feed poll returns.
@@ -1622,19 +1636,19 @@ function PredictionsFeed({
     myLeagues.find((league) => league.code === board) ?? null;
 
   // Keep every board this fan sits on current with the points their device has
-  // settled and their latest Clerk name.
+  // latest Clerk name (points are derived server-side from settlements now).
   const displayName =
     user?.fullName ||
     user?.username ||
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
     "You";
-  const syncMe = useMutation(api.leagues.syncMe);
+  const syncProfile = useMutation(api.leagues.syncProfile);
 
   useEffect(() => {
     if (isSignedIn) {
-      void syncMe({ displayName, points: settledPoints });
+      void syncProfile({ displayName });
     }
-  }, [displayName, isSignedIn, settledPoints, syncMe]);
+  }, [displayName, isSignedIn, syncProfile]);
 
   // A selected league shows its live members; the global board is a friendly
   // simulated benchmark so a brand-new fan still sees where they'd sit.

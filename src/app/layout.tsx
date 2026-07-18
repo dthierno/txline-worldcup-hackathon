@@ -7,6 +7,7 @@ import "./globals.css";
 
 import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { Feedback } from "@/components/feedback";
+import { GameplaySync } from "@/components/gameplay-sync";
 import { Header } from "@/components/header";
 
 // Open Runde — a rounded variant of Inter (github.com/lauridskern/open-runde),
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ClerkProvider appearance={{ theme: shadcn }}>
           <ConvexClientProvider>
+            <GameplaySync />
             <Header />
             {children}
             <Feedback />

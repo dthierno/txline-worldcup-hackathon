@@ -20,6 +20,22 @@ export const LEAGUES_CHANGED_EVENT = "pg:leagues-changed";
 // match can re-grade and tick points up without waiting for a reload.
 export const GOAL_CALLS_CHANGED_EVENT = "pg:goalcalls-changed";
 
+// Fired (with the fixtureId as detail) when a prediction or settlement is
+// written, so the Convex sync layer can mirror just that item to the server.
+export const PREDICTIONS_CHANGED_EVENT = "pg:predictions-changed";
+export const SETTLEMENTS_CHANGED_EVENT = "pg:settlements-changed";
+
+// Fired once after the server's gameplay has been merged into this device on
+// sign-in, so views holding gameplay in React state re-read the fresh data
+// without a reload. Carries no push side-effect (unlike the *_CHANGED events).
+export const GAMESTATE_HYDRATED_EVENT = "pg:gamestate-hydrated";
+
+function announceChange(event: string, fixtureId: number): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(event, { detail: fixtureId }));
+  }
+}
+
 export const GOAL_CALL_POINTS = 2;
 
 export type GoalCallAnswer = {
@@ -93,6 +109,7 @@ export function savePrediction(prediction: MatchPrediction): void {
     ...loadPredictions(),
     [String(prediction.fixtureId)]: prediction,
   });
+  announceChange(PREDICTIONS_CHANGED_EVENT, prediction.fixtureId);
 }
 
 export function loadSettlements(): Record<string, StoredSettlement> {
@@ -104,6 +121,7 @@ export function saveSettlement(settlement: StoredSettlement): void {
     ...loadSettlements(),
     [String(settlement.fixtureId)]: settlement,
   });
+  announceChange(SETTLEMENTS_CHANGED_EVENT, settlement.fixtureId);
 }
 
 // Heal bogus settlements (e.g. one saved mid-match by an older build).
@@ -139,9 +157,79 @@ export function saveGoalCall(
     [String(fixtureId)]: { ...(all[String(fixtureId)] ?? {}), [callKey]: answer },
   });
 
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event(GOAL_CALLS_CHANGED_EVENT));
+  announceChange(GOAL_CALLS_CHANGED_EVENT, fixtureId);
+}
+
+// The signed-in fan's gameplay as the server holds it, for hydrating a device.
+export type ServerGameState = {
+  goalCalls: Array<{
+    answers: Record<string, GoalCallAnswer>;
+    fixtureId: number;
+  }>;
+  predictions: Array<{ fixtureId: number; prediction: MatchPrediction }>;
+  settlements: StoredSettlement[];
+};
+
+// Reconcile the server's copy with this device on sign-in: pull down anything
+// the device is missing (written WITHOUT firing change events, so the sync
+// layer doesn't echo it straight back), and hand back whatever is local-only so
+// the caller can push it up. Keeps both sides whole without clobbering edits.
+export function mergeServerGameState(server: ServerGameState): {
+  uploadGoalCalls: Array<{
+    answers: Record<string, GoalCallAnswer>;
+    fixtureId: number;
+  }>;
+  uploadPredictions: MatchPrediction[];
+  uploadSettlements: StoredSettlement[];
+} {
+  const localPredictions = loadPredictions();
+  const serverPredictionIds = new Set(server.predictions.map((p) => p.fixtureId));
+  const mergedPredictions = { ...localPredictions };
+
+  for (const entry of server.predictions) {
+    if (!mergedPredictions[String(entry.fixtureId)]) {
+      mergedPredictions[String(entry.fixtureId)] = entry.prediction;
+    }
   }
+
+  writeJsonRecord(PREDICTIONS_KEY, mergedPredictions);
+
+  const localSettlements = loadSettlements();
+  const serverSettlementIds = new Set(server.settlements.map((s) => s.fixtureId));
+  const mergedSettlements = { ...localSettlements };
+
+  for (const settlement of server.settlements) {
+    if (!mergedSettlements[String(settlement.fixtureId)]) {
+      mergedSettlements[String(settlement.fixtureId)] = settlement;
+    }
+  }
+
+  writeJsonRecord(SETTLEMENTS_KEY, mergedSettlements);
+
+  const localGoalCalls =
+    readJsonRecord<Record<string, GoalCallAnswer>>(GOAL_CALLS_KEY);
+  const serverGoalCallIds = new Set(server.goalCalls.map((g) => g.fixtureId));
+  const mergedGoalCalls = { ...localGoalCalls };
+
+  for (const entry of server.goalCalls) {
+    if (!mergedGoalCalls[String(entry.fixtureId)]) {
+      mergedGoalCalls[String(entry.fixtureId)] = entry.answers;
+    }
+  }
+
+  writeJsonRecord(GOAL_CALLS_KEY, mergedGoalCalls);
+
+  return {
+    uploadGoalCalls: Object.entries(localGoalCalls)
+      .filter(([id]) => !serverGoalCallIds.has(Number(id)))
+      .map(([id, answers]) => ({ answers, fixtureId: Number(id) })),
+    uploadPredictions: Object.values(localPredictions).filter(
+      (prediction) => !serverPredictionIds.has(prediction.fixtureId),
+    ),
+    uploadSettlements: Object.values(localSettlements).filter(
+      (settlement) => !serverSettlementIds.has(settlement.fixtureId),
+    ),
+  };
 }
 
 // Private leagues, device-local like everything else: the code is the id

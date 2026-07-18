@@ -16,23 +16,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loadSettlements, saveSelectedBoard } from "@/lib/prediction-store";
+import { saveSelectedBoard } from "@/lib/prediction-store";
 
-// The signed-in fan's display name and current settled-point total - what a
-// league board row is seeded with.
-function useMemberProfile() {
+// The signed-in fan's display name for a league board row. Points are no longer
+// passed from the device - the server seeds them from the fan's settlements.
+function useDisplayName() {
   const { user } = useUser();
-  const displayName =
+
+  return (
     user?.fullName ||
     user?.username ||
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-    "You";
-  const points = Object.values(loadSettlements()).reduce(
-    (total, entry) => total + (entry.totalPoints ?? 0),
-    0,
+    "You"
   );
-
-  return { displayName, points };
 }
 
 // Shown inside a dialog when the fan isn't signed in - leagues need an account.
@@ -57,7 +53,7 @@ function SignInPrompt({ verb }: { verb: string }) {
 // an invite code. Both persist in Convex and update every member's board live.
 export function LeagueActions() {
   const { isSignedIn } = useUser();
-  const { displayName, points } = useMemberProfile();
+  const displayName = useDisplayName();
   const createLeague = useMutation(api.leagues.createLeague);
   const joinLeague = useMutation(api.leagues.joinLeague);
 
@@ -84,7 +80,7 @@ export function LeagueActions() {
     setBusy(true);
 
     try {
-      const { code } = await createLeague({ displayName, name, points });
+      const { code } = await createLeague({ displayName, name });
 
       saveSelectedBoard(code);
       setCreated({ code, name });
@@ -108,7 +104,7 @@ export function LeagueActions() {
     setJoinError(false);
 
     try {
-      const leagueId = await joinLeague({ code, displayName, points });
+      const leagueId = await joinLeague({ code, displayName });
 
       if (!leagueId) {
         setJoinError(true);
