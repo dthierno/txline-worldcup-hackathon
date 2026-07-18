@@ -1565,13 +1565,15 @@ dt {
   justify-content: flex-start;
   margin: 6px 0 12px;
 }
-/* The month segmented spans the calendar's full width, halves split even. */
+/* The month segmented spans the calendar's full width, twelve even slots. */
 .matches-viewbar .matches-segmented {
   display: flex;
   width: 100%;
 }
 .matches-viewbar .matches-segmented button {
   flex: 1;
+  min-width: 0;
+  padding: 5px 4px;
   text-align: center;
 }
 .matches-heading {

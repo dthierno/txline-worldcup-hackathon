@@ -86,10 +86,21 @@ function ChipFlag({ team }: { team: string }) {
   );
 }
 
-// The 2026 tournament spans June and July.
+// All twelve months of 2026, short-labelled so the full-width segmented
+// stays readable. Only June and July carry the tournament.
 export const CALENDAR_MONTHS: Array<{ label: string; month: number }> = [
-  { label: "June", month: 5 },
-  { label: "July", month: 6 },
+  { label: "Jan", month: 0 },
+  { label: "Feb", month: 1 },
+  { label: "Mar", month: 2 },
+  { label: "Apr", month: 3 },
+  { label: "May", month: 4 },
+  { label: "Jun", month: 5 },
+  { label: "Jul", month: 6 },
+  { label: "Aug", month: 7 },
+  { label: "Sep", month: 8 },
+  { label: "Oct", month: 9 },
+  { label: "Nov", month: 10 },
+  { label: "Dec", month: 11 },
 ];
 
 export function MatchCalendar({
