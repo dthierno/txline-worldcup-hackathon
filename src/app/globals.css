@@ -1600,23 +1600,18 @@ dt {
 /* Tournament calendar (grid structure after Serena's scheduler, reskinned
    for the dark app): month tabs, a 7-column grid, one flag chip per game. */
 .wc-cal {
-  background: #141419;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 20px;
-  padding: 16px;
+  padding: 0;
 }
 .wc-cal-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 10px 16px;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 .wc-cal-title {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
+  display: none;
 }
 .wc-cal-months {
   display: flex;
