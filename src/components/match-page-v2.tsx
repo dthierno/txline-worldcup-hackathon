@@ -166,6 +166,7 @@ import {
   type SubstitutionEvent,
 } from "@/lib/txline-normalize";
 import { FlashMomentum } from "@/components/flash-momentum";
+import { MatchLeaderboard } from "@/components/match-leaderboard";
 import { matchClips } from "@/lib/match-media";
 import { teamFlag, teamGlow } from "@/lib/team-visuals";
 import {
@@ -867,7 +868,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           ? Math.max(0, (now - matchClock.ts) / 1000)
           : 0)
       : null;
-  // Break/ended phases show the phase alone; playing phases show the minute.
+  // Break/ended phases show the phase alone; playing phases show the phase with
+  // the running minute in brackets, e.g. "First half (32')".
   const clockLabel =
     liveClockSeconds !== null && matchClock
       ? [3, 5, 6, 8, 10].includes(matchClock.statusId ?? 0)
@@ -875,11 +877,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           ? "Halftime"
           : formatMatchPhase(matchClock.statusId) ?? null
         : (matchClock.statusId ?? 0) >= 2
-          ? `${formatLiveMinute(liveClockSeconds, matchClock.statusId)}${
-              formatMatchPhase(matchClock.statusId)
-                ? ` · ${formatMatchPhase(matchClock.statusId)}`
-                : ""
-            }`
+          ? formatMatchPhase(matchClock.statusId)
+            ? `${formatMatchPhase(matchClock.statusId)} (${formatLiveMinute(
+                liveClockSeconds,
+                matchClock.statusId,
+              )})`
+            : formatLiveMinute(liveClockSeconds, matchClock.statusId)
           : null
       : null;
   type MatchStatRow = {
@@ -1534,19 +1537,26 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   null
                 ) : (
                   <div className="mp2-hero-status">
-                    {clockRunning ? (
-                      <span aria-hidden className="pc-live-dot" />
-                    ) : null}
-                    <span
-                      className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
-                    >
-                      {displayState}
-                    </span>
                     {clockLabel &&
                     liveStreamEligible &&
                     clockLabel !== displayState ? (
-                      <span className="mp2-clock">{clockLabel}</span>
-                    ) : null}
+                      // Active play: the minute is the live signal, so drop the
+                      // redundant "Live" pill and lead it with a pulsing dot.
+                      <span className="mp2-clock">
+                        {clockRunning ? (
+                          <span aria-hidden className="mp2-live-dot" />
+                        ) : null}
+                        {clockLabel}
+                      </span>
+                    ) : (
+                      // Phases without a ticking minute (Halftime, Extra time)
+                      // still need a label.
+                      <span
+                        className={`mp2-status-pill${liveStreamEligible ? " live" : ""}`}
+                      >
+                        {displayState}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -1809,6 +1819,8 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                   <p className="muted">No match statistics are available yet.</p>
                 )}
               </section>
+
+              <MatchLeaderboard live={liveStreamEligible && !finished} />
 
               <section className="card mp2-overview-card" aria-labelledby="moments-heading">
                 <div className="mp2-card-heading">
