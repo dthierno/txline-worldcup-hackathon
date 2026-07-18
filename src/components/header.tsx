@@ -4,7 +4,11 @@ import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { loadSettlements } from "@/lib/prediction-store";
+import {
+  GAMESTATE_HYDRATED_EVENT,
+  loadSettlements,
+  SETTLEMENTS_CHANGED_EVENT,
+} from "@/lib/prediction-store";
 
 // The PredGame mark: the intro widget's rounded-hexagon style (teal-to-blue
 // gradient with the lighter sheen) but with our own glyph - a bold black
@@ -93,19 +97,29 @@ export function Header() {
   const [points, setPoints] = useState<number | null>(null);
 
   useEffect(() => {
-    const settlements = Object.values(loadSettlements());
+    // Re-read the settled total on every change: a fresh settle, the sign-in
+    // hydration that pulls the server copy onto this device, or another tab.
+    // Deferred once past the first paint so the SSR "0" doesn't mismatch.
+    const refresh = () => {
+      setPoints(
+        Object.values(loadSettlements()).reduce(
+          (sum, entry) => sum + (entry.totalPoints ?? 0),
+          0,
+        ),
+      );
+    };
+    const timer = setTimeout(refresh, 0);
 
-    if (settlements.length === 0) {
-      return;
-    }
+    window.addEventListener(SETTLEMENTS_CHANGED_EVENT, refresh);
+    window.addEventListener(GAMESTATE_HYDRATED_EVENT, refresh);
+    window.addEventListener("storage", refresh);
 
-    const total = settlements.reduce(
-      (sum, entry) => sum + entry.totalPoints,
-      0,
-    );
-    const timer = setTimeout(() => setPoints(total), 0);
-
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener(SETTLEMENTS_CHANGED_EVENT, refresh);
+      window.removeEventListener(GAMESTATE_HYDRATED_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
   }, []);
 
   return (
