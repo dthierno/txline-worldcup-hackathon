@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { teamFlag } from "@/lib/team-visuals";
 import { worldCupResults } from "@/lib/world-cup-results";
@@ -24,11 +24,6 @@ type CalendarCell = { day: number; inMonth: boolean; key: string };
 
 const IN_PLAY_STATUS_IDS = new Set([2, 3, 4, 6, 7, 8, 9]);
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-// The 2026 tournament spans June and July.
-const MONTHS: Array<{ label: string; month: number }> = [
-  { label: "June", month: 5 },
-  { label: "July", month: 6 },
-];
 const MAX_CHIPS_PER_DAY = 3;
 
 function isoDate(date: Date): string {
@@ -86,20 +81,26 @@ function ChipFlag({ team }: { team: string }) {
   );
 }
 
+// The 2026 tournament spans June and July.
+export const CALENDAR_MONTHS: Array<{ label: string; month: number }> = [
+  { label: "June", month: 5 },
+  { label: "July", month: 6 },
+];
+
 export function MatchCalendar({
   fixtures,
+  month,
   now,
   scores,
 }: {
   fixtures: WorldCupFixture[];
+  month: number;
   now: number | null;
   scores?: Record<
     number,
     { awayGoals: number; homeGoals: number; statusId?: number }
   >;
 }) {
-  const [month, setMonth] = useState(6);
-
   // Verified results carry the finished half of the tournament; the live
   // fixture list layers today's and upcoming matches (with in-play scores)
   // on top.
@@ -153,23 +154,6 @@ export function MatchCalendar({
 
   return (
     <div className="wc-cal" aria-label="Tournament calendar">
-      <div className="wc-cal-head">
-        <span className="wc-cal-title">2026 World Cup</span>
-        <div className="wc-cal-months" role="tablist">
-          {MONTHS.map((entry) => (
-            <button
-              aria-selected={month === entry.month}
-              className={`lcx-filter${month === entry.month ? " is-active" : ""}`}
-              key={entry.month}
-              onClick={() => setMonth(entry.month)}
-              role="tab"
-              type="button"
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="wc-cal-scroll">
         <div className="wc-cal-inner">
           <div aria-hidden className="wc-cal-weekdays">

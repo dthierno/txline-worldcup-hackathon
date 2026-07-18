@@ -17,7 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
-import { MatchCalendar } from "@/components/match-calendar";
+import { CALENDAR_MONTHS, MatchCalendar } from "@/components/match-calendar";
 import { Skiper107 } from "@/components/skiper107";
 import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 import {
@@ -198,6 +198,7 @@ export function HomePage() {
     loadSettlements(),
   );
   const [matchesView, setMatchesView] = useState<"list" | "calendar">("list");
+  const [calendarMonth, setCalendarMonth] = useState(6);
   const [odds, setOdds] = useState<Record<number, string[]>>({});
   // Seeded with the final scores this device already saw, so ended matches
   // render as finished immediately instead of flashing LIVE until the first
@@ -596,34 +597,57 @@ export function HomePage() {
         <TabsContent value="matches">
           <div className="matches-viewbar">
             <h2 className="matches-heading">Matches</h2>
-            <div
-              aria-label="Matches view"
-              className="matches-viewtoggle"
-              role="tablist"
-            >
-              <button
-                aria-selected={matchesView === "list"}
-                className={matchesView === "list" ? "is-active" : ""}
-                onClick={() => setMatchesView("list")}
-                role="tab"
-                type="button"
+            <div className="matches-controls">
+              {matchesView === "calendar" ? (
+                <div
+                  aria-label="Month"
+                  className="matches-segmented"
+                  role="tablist"
+                >
+                  {CALENDAR_MONTHS.map((entry) => (
+                    <button
+                      aria-selected={calendarMonth === entry.month}
+                      className={calendarMonth === entry.month ? "is-active" : ""}
+                      key={entry.month}
+                      onClick={() => setCalendarMonth(entry.month)}
+                      role="tab"
+                      type="button"
+                    >
+                      {entry.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div
+                aria-label="Matches view"
+                className="matches-segmented"
+                role="tablist"
               >
-                List
-              </button>
-              <button
-                aria-selected={matchesView === "calendar"}
-                className={matchesView === "calendar" ? "is-active" : ""}
-                onClick={() => setMatchesView("calendar")}
-                role="tab"
-                type="button"
-              >
-                Calendar
-              </button>
+                <button
+                  aria-selected={matchesView === "list"}
+                  className={matchesView === "list" ? "is-active" : ""}
+                  onClick={() => setMatchesView("list")}
+                  role="tab"
+                  type="button"
+                >
+                  List
+                </button>
+                <button
+                  aria-selected={matchesView === "calendar"}
+                  className={matchesView === "calendar" ? "is-active" : ""}
+                  onClick={() => setMatchesView("calendar")}
+                  role="tab"
+                  type="button"
+                >
+                  Calendar
+                </button>
+              </div>
             </div>
           </div>
           {matchesView === "calendar" ? (
             <MatchCalendar
               fixtures={[...pastGames, ...upcomingGames]}
+              month={calendarMonth}
               now={now}
               scores={mounted ? scores : {}}
             />

@@ -1571,14 +1571,19 @@ dt {
   font-weight: 700;
   margin: 0;
 }
-.matches-viewtoggle {
+.matches-controls {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+.matches-segmented {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 999px;
   display: inline-flex;
   gap: 2px;
   padding: 3px;
 }
-.matches-viewtoggle button {
+.matches-segmented button {
   border-radius: 999px;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -1589,34 +1594,17 @@ dt {
     background 0.15s ease,
     color 0.15s ease;
 }
-.matches-viewtoggle button:hover {
+.matches-segmented button:hover {
   color: #fff;
 }
-.matches-viewtoggle button.is-active {
+.matches-segmented button.is-active {
   background: #fff;
   color: #10101a;
 }
 
 /* Tournament calendar (grid structure after Serena's scheduler, reskinned
-   for the dark app): month tabs, a 7-column grid, one flag chip per game. */
-.wc-cal {
-  padding: 0;
-}
-.wc-cal-head {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  justify-content: flex-end;
-  margin-bottom: 12px;
-}
-.wc-cal-title {
-  display: none;
-}
-.wc-cal-months {
-  display: flex;
-  gap: 6px;
-}
+   for the dark app): a bare 7-column grid, one flag chip per game. Its
+   month tabs live in the Matches toolbar alongside the view toggle. */
 .wc-cal-scroll {
   overflow-x: auto;
   scrollbar-color: #2a2a33 transparent;
