@@ -41,23 +41,22 @@ type BoardRow = {
 // League boards show the synced standings (other members' live points aren't on
 // this device). Board choice is the shared preference, in sync with home.
 export function MatchLeaderboard({
-  awayGoals,
   awayTeam,
   calls,
-  finished,
   fixtureId,
-  homeGoals,
   homeTeam,
   live = false,
+  outcome,
 }: {
-  awayGoals: number | null;
   awayTeam: string;
   calls: SettleableCall[];
-  finished: boolean;
   fixtureId: number;
-  homeGoals: number | null;
   homeTeam: string;
   live?: boolean;
+  // The same match outcome the slip settles against, so the board credits you
+  // exactly what your "Points so far" ticket shows - markets included, not just
+  // live calls.
+  outcome: MatchOutcome | null;
 }) {
   const myLeagues = useQuery(api.leagues.myLeagues) ?? [];
   const [board, setBoard] = useState("global");
@@ -134,24 +133,18 @@ export function MatchLeaderboard({
   // land: live-call points always, plus the scoreline once it's full time.
   const provisional = useMemo(() => {
     // Call points are graded only over the calls the fan answered, so bots
-    // never score on calls the fan skipped. The scoreline is only in play once
-    // the fan has actually predicted this match - otherwise it stays a fair
-    // head-to-head: no one is scored on a match the fan sat out.
+    // never score on calls the fan skipped. The scoreline (and any market that
+    // has settled) counts once the fan has predicted this match - settled off
+    // the very same outcome the slip uses, so the board matches the ticket.
+    // Otherwise it stays a fair head-to-head: no one is scored on a match the
+    // fan sat out.
     const botCall = gradeBotCalls(calls, answers);
     const userCall = settleGoalCallPoints(calls, answers);
     const prediction = loadPrediction(fixtureId);
     let botScore: Record<string, number> = {};
     let userScore = 0;
 
-    if (finished && prediction && homeGoals !== null && awayGoals !== null) {
-      const outcome: MatchOutcome = {
-        awayGoals,
-        finished: true,
-        homeGoals,
-        totalCards: 0,
-        totalCorners: 0,
-      };
-
+    if (prediction && outcome) {
       userScore = settlePrediction(prediction, outcome, {
         awayTeam,
         homeTeam,
@@ -160,16 +153,7 @@ export function MatchLeaderboard({
     }
 
     return { botCall, botScore, userCall, userScore };
-  }, [
-    answers,
-    awayGoals,
-    awayTeam,
-    calls,
-    finished,
-    fixtureId,
-    homeGoals,
-    homeTeam,
-  ]);
+  }, [answers, awayTeam, calls, fixtureId, homeTeam, outcome]);
 
   // On a league board only your own live points can be shown - friends' rows
   // move when their devices settle and sync. Overlay yours only while the match

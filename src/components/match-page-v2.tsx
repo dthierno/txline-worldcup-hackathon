@@ -1822,14 +1822,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               </section>
 
               <MatchLeaderboard
-                awayGoals={displayScore?.awayGoals ?? null}
                 awayTeam={fixture.awayTeam}
                 calls={settleableCalls}
-                finished={finished}
                 fixtureId={fixture.fixtureId}
-                homeGoals={displayScore?.homeGoals ?? null}
                 homeTeam={fixture.homeTeam}
                 live={liveStreamEligible && !finished}
+                outcome={outcome}
               />
 
               <section className="card mp2-overview-card" aria-labelledby="moments-heading">
