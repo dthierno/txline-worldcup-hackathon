@@ -197,9 +197,7 @@ export function HomePage() {
   const [finals, setFinals] = useState<Record<string, StoredSettlement>>(() =>
     loadSettlements(),
   );
-  const [matchesView, setMatchesView] = useState<"list" | "calendar">("list");
   const [calendarMonth, setCalendarMonth] = useState(6);
-  const [odds, setOdds] = useState<Record<number, string[]>>({});
   // Seeded with the final scores this device already saw, so ended matches
   // render as finished immediately instead of flashing LIVE until the first
   // feed poll returns.
@@ -352,33 +350,6 @@ export function HomePage() {
       });
     }
   }, [fixtures, scores]);
-
-  // Decimal 1X2 odds chips for upcoming fixtures (from TxLINE win
-  // probabilities; at most four fetches).
-  useEffect(() => {
-    const upcoming = fixtures.filter((f) => !isPastFixture(f)).slice(0, 10);
-
-    upcoming.forEach((fixture) => {
-      fetchJson<{
-        awayWinProbability: number | null;
-        drawProbability: number | null;
-        homeWinProbability: number | null;
-      }>(`/api/txline/odds/${fixture.fixtureId}`).then((result) => {
-        const d = result.data;
-
-        if (d?.homeWinProbability && d.drawProbability && d.awayWinProbability) {
-          setOdds((prev) => ({
-            ...prev,
-            [fixture.fixtureId]: [
-              (100 / d.homeWinProbability!).toFixed(2),
-              (100 / d.drawProbability!).toFixed(2),
-              (100 / d.awayWinProbability!).toFixed(2),
-            ],
-          }));
-        }
-      });
-    });
-  }, [fixtures]);
 
   // Auto-settle finished predictions right here on the home page: fans should
   // not have to revisit each match page to collect their points. Uses the
@@ -597,70 +568,31 @@ export function HomePage() {
         <TabsContent value="matches">
           <div className="matches-viewbar">
             <h2 className="matches-heading">Matches</h2>
-            <div className="matches-controls">
-              {matchesView === "calendar" ? (
-                <div
-                  aria-label="Month"
-                  className="matches-segmented"
-                  role="tablist"
-                >
-                  {CALENDAR_MONTHS.map((entry) => (
-                    <button
-                      aria-selected={calendarMonth === entry.month}
-                      className={calendarMonth === entry.month ? "is-active" : ""}
-                      key={entry.month}
-                      onClick={() => setCalendarMonth(entry.month)}
-                      role="tab"
-                      type="button"
-                    >
-                      {entry.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <div
-                aria-label="Matches view"
-                className="matches-segmented"
-                role="tablist"
-              >
+            <div
+              aria-label="Month"
+              className="matches-segmented"
+              role="tablist"
+            >
+              {CALENDAR_MONTHS.map((entry) => (
                 <button
-                  aria-selected={matchesView === "list"}
-                  className={matchesView === "list" ? "is-active" : ""}
-                  onClick={() => setMatchesView("list")}
+                  aria-selected={calendarMonth === entry.month}
+                  className={calendarMonth === entry.month ? "is-active" : ""}
+                  key={entry.month}
+                  onClick={() => setCalendarMonth(entry.month)}
                   role="tab"
                   type="button"
                 >
-                  List
+                  {entry.label}
                 </button>
-                <button
-                  aria-selected={matchesView === "calendar"}
-                  className={matchesView === "calendar" ? "is-active" : ""}
-                  onClick={() => setMatchesView("calendar")}
-                  role="tab"
-                  type="button"
-                >
-                  Calendar
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-          {matchesView === "calendar" ? (
-            <MatchCalendar
-              fixtures={[...pastGames, ...upcomingGames]}
-              month={calendarMonth}
-              now={now}
-              scores={mounted ? scores : {}}
-            />
-          ) : (
-            <MatchDayList
-              finals={mounted ? finals : {}}
-              fixtures={[...pastGames, ...upcomingGames]}
-              now={now}
-              odds={odds}
-              predictions={mounted ? predictions : {}}
-              scores={mounted ? scores : {}}
-            />
-          )}
+          <MatchCalendar
+            fixtures={[...pastGames, ...upcomingGames]}
+            month={calendarMonth}
+            now={now}
+            scores={mounted ? scores : {}}
+          />
         </TabsContent>
         <TabsContent value="predictions">
           <PredictionsFeed
@@ -831,138 +763,6 @@ function formatKickoffTime(kickoffUtc: string) {
     minute: "2-digit",
   }).format(new Date(kickoffUtc));
 }
-
-function MatchDayList({
-  finals,
-  fixtures,
-  now,
-  odds,
-  predictions,
-  scores,
-}: {
-  finals: Record<string, StoredSettlement>;
-  fixtures: WorldCupFixture[];
-  now: number | null;
-  odds: Record<number, string[]>;
-  predictions: Record<string, MatchPrediction>;
-  scores?: Record<number, LiveScore>;
-}) {
-  const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
-
-  // Sort by kickoff first so every same-day fixture is adjacent and folds
-  // into one group - otherwise a day can appear twice (past + upcoming),
-  // duplicating its heading and its React key.
-  const ordered = [...fixtures].sort((left, right) =>
-    left.kickoffUtc.localeCompare(right.kickoffUtc),
-  );
-
-  for (const fixture of ordered) {
-    const label = dayLabel(fixture.kickoffUtc, now);
-    const group = groups[groups.length - 1];
-
-    if (group?.label === label) {
-      group.matches.push(fixture);
-    } else {
-      groups.push({ label, matches: [fixture] });
-    }
-  }
-
-  return (
-    <section aria-label="Matches">
-      {groups.map((group) => (
-        <div key={group.matches[0].fixtureId}>
-          <h3 className={`day-label${group.label === "Today" ? " day-today" : ""}`}>
-            {group.label}
-          </h3>
-          {group.matches.map((fixture) => {
-            const past = isPastFixture(fixture);
-            const liveScore = scores?.[fixture.fixtureId];
-            const final = finals[String(fixture.fixtureId)];
-            // Folded feed status beats the kickoff-window heuristic; a stored
-            // settlement also means the match is over.
-            const live = statusInPlay(liveScore?.statusId)
-              ? true
-              : statusEnded(liveScore?.statusId) || final
-                ? false
-                : now !== null && isPotentiallyLive(fixture, now);
-            const homeIso = teamFlag(fixture.homeTeam);
-            const awayIso = teamFlag(fixture.awayTeam);
-            const prediction = predictions[String(fixture.fixtureId)];
-            const fixtureOdds = odds[fixture.fixtureId];
-
-            return (
-              <Link
-                aria-label={`${fixture.homeTeam} vs ${fixture.awayTeam}`}
-                className="match-card"
-                href={`/match/${fixture.fixtureId}`}
-                key={fixture.fixtureId}
-                style={{
-                  "--glow-home": (homeIso && teamGlow[homeIso]) || "#3b3b44",
-                  "--glow-away": (awayIso && teamGlow[awayIso]) || "#3b3b44",
-                } as React.CSSProperties}
-              >
-                <span className="mc-top">
-                  <span className="mc-time">
-                    {live ? <i className="mc-live" /> : null}
-                    {live ? "LIVE" : formatKickoffTime(fixture.kickoffUtc)}
-                  </span>
-                  <span className="mc-open" aria-hidden="true">↗</span>
-                </span>
-                <span className="mc-teams">
-                  <span className="mc-team">
-                    {homeIso ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img alt="" src={`https://flagcdn.com/w80/${homeIso}.png`} />
-                    ) : null}
-                    <span>{fixture.homeTeam}</span>
-                  </span>
-                  <span className="mc-center">
-                    {past || live ? (
-                      <>
-                        <small>{live ? "" : "FT"}</small>
-                        <b>{final ? final.finalScore.replace("-", " - ") : "- : -"}</b>
-                      </>
-                    ) : prediction ? (
-                      <>
-                        <small>Your pick</small>
-                        <b>{prediction.homeGoals} - {prediction.awayGoals}</b>
-                      </>
-                    ) : (
-                      <>
-                        <small>Predict</small>
-                        <b className="mc-q">? - ?</b>
-                      </>
-                    )}
-                  </span>
-                  <span className="mc-team">
-                    {awayIso ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img alt="" src={`https://flagcdn.com/w80/${awayIso}.png`} />
-                    ) : null}
-                    <span>{fixture.awayTeam}</span>
-                  </span>
-                </span>
-                {!past && fixtureOdds ? (
-                  <span className="mc-odds">
-                    <span>1 <b>{fixtureOdds[0]}</b></span>
-                    <span>X <b>{fixtureOdds[1]}</b></span>
-                    <span>2 <b>{fixtureOdds[2]}</b></span>
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-      <p className="muted">
-        Odds are TxLINE 1X2 win probabilities shown as decimals. Final scores
-        appear once a match you predicted settles; open any match for the
-        verified result.
-      </p>
-    </section>
-  );
-}
-
 
 
 // Round labels adapted from the fixture `stage` field to friendlier text.
