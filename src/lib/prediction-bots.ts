@@ -268,6 +268,28 @@ function botPrediction(
   };
 }
 
+// Each bot's scoreline points for a single finished match - the live board's
+// provisional overlay uses this at full time, before the match settles.
+export function botScorelinePoints(
+  fixtureId: number,
+  home: string,
+  away: string,
+  outcome: MatchOutcome,
+): Record<string, number> {
+  const points: Record<string, number> = {};
+
+  for (const bot of BOTS) {
+    const prediction = botPrediction(fixtureId, home, away, bot.strategy);
+
+    points[bot.botId] = settlePrediction(prediction, outcome, {
+      awayTeam: away,
+      homeTeam: home,
+    }).totalPoints;
+  }
+
+  return points;
+}
+
 export type BotStanding = { botId: string; name: string; points: number };
 
 // Score every bot over the matches the fan has already settled, using the same

@@ -5,14 +5,26 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/../convex/_generated/api";
-import { botStandings } from "@/lib/prediction-bots";
+import { settlePrediction, type MatchOutcome } from "@/lib/prediction-engine";
 import {
+  botScorelinePoints,
+  botStandings,
+  gradeBotCalls,
+} from "@/lib/prediction-bots";
+import {
+  GOAL_CALLS_CHANGED_EVENT,
   LEAGUES_CHANGED_EVENT,
   loadCachedFixtures,
+  loadGoalCalls,
+  loadPrediction,
   loadSelectedBoard,
   loadSettlements,
   saveSelectedBoard,
+  settleGoalCallPoints,
+  type GoalCallAnswer,
+  type StoredSettlement,
 } from "@/lib/prediction-store";
+import type { SettleableCall } from "@/lib/txline-normalize";
 
 type BoardRow = {
   bot: boolean;
@@ -22,15 +34,37 @@ type BoardRow = {
   points: number;
 };
 
-// The same standings the home board shows - the fan against the prediction bots
-// on the global board, or the real members of a league - dropped into the match
-// overview so you can watch the table while the game plays. Board choice is the
-// shared localStorage preference, so it stays in sync with the home page.
-export function MatchLeaderboard({ live = false }: { live?: boolean }) {
+// The standings, dropped into the match overview so you can watch the table
+// while the game plays. On the global board (you vs the prediction bots) the
+// points tick up live: this match's live-call points are graded as calls
+// resolve, and the scoreline lands at full time - for you and every bot alike.
+// League boards show the synced standings (other members' live points aren't on
+// this device). Board choice is the shared preference, in sync with home.
+export function MatchLeaderboard({
+  awayGoals,
+  awayTeam,
+  calls,
+  finished,
+  fixtureId,
+  homeGoals,
+  homeTeam,
+  live = false,
+}: {
+  awayGoals: number | null;
+  awayTeam: string;
+  calls: SettleableCall[];
+  finished: boolean;
+  fixtureId: number;
+  homeGoals: number | null;
+  homeTeam: string;
+  live?: boolean;
+}) {
   const myLeagues = useQuery(api.leagues.myLeagues) ?? [];
   const [board, setBoard] = useState("global");
   // Bumped whenever settlements might have changed, to re-read the device board.
   const [settleTick, setSettleTick] = useState(0);
+  // This match's live-call answers, re-read the moment one is saved.
+  const [answers, setAnswers] = useState<Record<string, GoalCallAnswer>>({});
 
   useEffect(() => {
     const refresh = () => {
@@ -53,26 +87,89 @@ export function MatchLeaderboard({ live = false }: { live?: boolean }) {
     };
   }, []);
 
-  const selectedLeague = myLeagues.find((league) => league.code === board) ?? null;
+  useEffect(() => {
+    const readAnswers = () => setAnswers(loadGoalCalls(fixtureId));
+    const timer = setTimeout(readAnswers, 0);
 
-  const { botRows, settledPoints } = useMemo(() => {
-    const finals = loadSettlements();
+    window.addEventListener(GOAL_CALLS_CHANGED_EVENT, readAnswers);
+    window.addEventListener("storage", readAnswers);
 
-    return {
-      botRows: botStandings(finals, loadCachedFixtures()),
-      settledPoints: Object.values(finals).reduce(
-        (total, settlement) => total + (settlement.totalPoints ?? 0),
-        0,
-      ),
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener(GOAL_CALLS_CHANGED_EVENT, readAnswers);
+      window.removeEventListener("storage", readAnswers);
     };
-    // settleTick forces a re-read after a match settles or the tab refocuses.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settleTick]);
+  }, [fixtureId]);
+
+  const selectedLeague = myLeagues.find((league) => league.code === board) ?? null;
 
   const leagueBoard = useQuery(
     api.leagues.leaderboard,
     selectedLeague ? { leagueId: selectedLeague.id } : "skip",
   );
+
+  // Baseline: every settled match EXCEPT this one - this match is overlaid live
+  // below, so it must not be double-counted from a stored settlement.
+  const { botBase, youBase } = useMemo(() => {
+    const finals = loadSettlements();
+    const others: Record<string, StoredSettlement> = {};
+
+    for (const [key, settlement] of Object.entries(finals)) {
+      if (settlement.fixtureId !== fixtureId) {
+        others[key] = settlement;
+      }
+    }
+
+    return {
+      botBase: botStandings(others, loadCachedFixtures()),
+      youBase: Object.values(others).reduce(
+        (total, settlement) => total + (settlement.totalPoints ?? 0),
+        0,
+      ),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settleTick, fixtureId]);
+
+  // This match's provisional points, recomputed as calls resolve and answers
+  // land: live-call points always, plus the scoreline once it's full time.
+  const provisional = useMemo(() => {
+    // Call points are graded only over the calls the fan answered, so bots
+    // never score on calls the fan skipped. The scoreline is only in play once
+    // the fan has actually predicted this match - otherwise it stays a fair
+    // head-to-head: no one is scored on a match the fan sat out.
+    const botCall = gradeBotCalls(calls, answers);
+    const userCall = settleGoalCallPoints(calls, answers);
+    const prediction = loadPrediction(fixtureId);
+    let botScore: Record<string, number> = {};
+    let userScore = 0;
+
+    if (finished && prediction && homeGoals !== null && awayGoals !== null) {
+      const outcome: MatchOutcome = {
+        awayGoals,
+        finished: true,
+        homeGoals,
+        totalCards: 0,
+        totalCorners: 0,
+      };
+
+      userScore = settlePrediction(prediction, outcome, {
+        awayTeam,
+        homeTeam,
+      }).totalPoints;
+      botScore = botScorelinePoints(fixtureId, homeTeam, awayTeam, outcome);
+    }
+
+    return { botCall, botScore, userCall, userScore };
+  }, [
+    answers,
+    awayGoals,
+    awayTeam,
+    calls,
+    finished,
+    fixtureId,
+    homeGoals,
+    homeTeam,
+  ]);
 
   const rows: BoardRow[] = selectedLeague
     ? (leagueBoard ?? []).map((member) => ({
@@ -83,13 +180,22 @@ export function MatchLeaderboard({ live = false }: { live?: boolean }) {
         points: member.points,
       }))
     : [
-        { bot: false, key: "you", mine: true, name: "You", points: settledPoints },
-        ...botRows.map((entry) => ({
+        {
+          bot: false,
+          key: "you",
+          mine: true,
+          name: "You",
+          points: youBase + provisional.userCall + provisional.userScore,
+        },
+        ...botBase.map((entry) => ({
           bot: true,
           key: entry.botId,
           mine: false,
           name: entry.name,
-          points: entry.points,
+          points:
+            entry.points +
+            (provisional.botCall[entry.botId] ?? 0) +
+            (provisional.botScore[entry.botId] ?? 0),
         })),
       ].sort((left, right) => right.points - left.points);
 
@@ -152,8 +258,8 @@ export function MatchLeaderboard({ live = false }: { live?: boolean }) {
       <p className="mp2-board-note">
         {selectedLeague
           ? `${selectedLeague.name} · invite code ${selectedLeague.code}`
-          : myLeagues.length > 0
-            ? "Global board - you against the prediction bots. Pick a league to battle friends."
+          : live
+            ? "You against the prediction bots - points tick up as calls settle."
             : "You against the prediction bots. Create a league on the home page to battle friends."}
       </p>
     </section>

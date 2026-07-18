@@ -1157,10 +1157,11 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     winShares.length === 3 && winShares.every((share) => share !== null)
       ? { away: winShares[2]!, draw: winShares[1]!, home: winShares[0]! }
       : null;
+  const settleableCalls = extractSettleableCalls(combinedUpdates);
   const playSection = (
     <PredictionSection
       key={fixture.fixtureId}
-      calls={extractSettleableCalls(combinedUpdates)}
+      calls={settleableCalls}
       fixture={fixture}
       now={now}
       outcome={outcome}
@@ -1820,7 +1821,16 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 )}
               </section>
 
-              <MatchLeaderboard live={liveStreamEligible && !finished} />
+              <MatchLeaderboard
+                awayGoals={displayScore?.awayGoals ?? null}
+                awayTeam={fixture.awayTeam}
+                calls={settleableCalls}
+                finished={finished}
+                fixtureId={fixture.fixtureId}
+                homeGoals={displayScore?.homeGoals ?? null}
+                homeTeam={fixture.homeTeam}
+                live={liveStreamEligible && !finished}
+              />
 
               <section className="card mp2-overview-card" aria-labelledby="moments-heading">
                 <div className="mp2-card-heading">

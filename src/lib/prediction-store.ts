@@ -16,6 +16,10 @@ const LEAGUE_BOARD_KEY = "fan-forecast.league-board.v1";
 // change, so the homepage leaderboard can refresh without a reload.
 export const LEAGUES_CHANGED_EVENT = "pg:leagues-changed";
 
+// Fired whenever a live-call answer is saved, so a leaderboard watching the
+// match can re-grade and tick points up without waiting for a reload.
+export const GOAL_CALLS_CHANGED_EVENT = "pg:goalcalls-changed";
+
 export const GOAL_CALL_POINTS = 2;
 
 export type GoalCallAnswer = {
@@ -134,6 +138,10 @@ export function saveGoalCall(
     ...all,
     [String(fixtureId)]: { ...(all[String(fixtureId)] ?? {}), [callKey]: answer },
   });
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(GOAL_CALLS_CHANGED_EVENT));
+  }
 }
 
 // Private leagues, device-local like everything else: the code is the id
