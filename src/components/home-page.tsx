@@ -7,7 +7,10 @@ import {
   ArrowUp01Icon,
   CalendarAddIcon,
   ChampionIcon,
+  Download04Icon,
   FootballIcon,
+  GoogleIcon,
+  MicrosoftIcon,
   RankingIcon,
   StarIcon,
   TargetIcon,
@@ -25,6 +28,19 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuLinkItem,
+  MenuTrigger,
+} from "@/components/ui/menu";
+import {
+  downloadIcs,
+  googleCalendarUrl,
+  outlookCalendarUrl,
+  type CalendarEvent,
+} from "@/lib/calendar";
 import {
   Tabs,
   TabsContent,
@@ -1197,13 +1213,23 @@ function PredictionCard({
 
   const bothFilled = home !== "" && away !== "";
 
-  // Google Calendar "add event" link for kickoff (a 2h slot).
-  const stamp = (date: Date) =>
-    date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const calendarUrl =
-    "https://calendar.google.com/calendar/render?action=TEMPLATE" +
-    `&text=${encodeURIComponent(`${fixture.homeTeam} vs ${fixture.awayTeam}`)}` +
-    `&dates=${stamp(kickoff)}/${stamp(new Date(kickoff.getTime() + 7_200_000))}`;
+  // Calendar event for kickoff (a 2h slot), offered to Google / Outlook web or
+  // as a downloadable .ics for Apple Calendar and everything else.
+  const calendarEvent: CalendarEvent = {
+    description: "World Cup 2026",
+    end: new Date(kickoff.getTime() + 7_200_000),
+    start: kickoff,
+    title: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
+    uid: `fixture-${fixture.fixtureId}@fan-forecast`,
+    url:
+      typeof window === "undefined"
+        ? undefined
+        : `${window.location.origin}/match/${fixture.fixtureId}`,
+  };
+  const calendarFileName = `${fixture.homeTeam}-vs-${fixture.awayTeam}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 
   return (
     <div
@@ -1221,15 +1247,35 @@ function PredictionCard({
         </span>
         <span className="pc-comp">World Cup 2026</span>
         <span className="pc-head-actions">
-          <a
-            aria-label="Add to calendar"
-            className="pc-head-btn"
-            href={calendarUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
-          </a>
+          <Menu>
+            <MenuTrigger aria-label="Add to calendar" className="pc-head-btn">
+              <HugeiconsIcon icon={CalendarAddIcon} strokeWidth={2} />
+            </MenuTrigger>
+            <MenuContent>
+              <MenuLinkItem
+                href={googleCalendarUrl(calendarEvent)}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <HugeiconsIcon icon={GoogleIcon} strokeWidth={2} />
+                Google Calendar
+              </MenuLinkItem>
+              <MenuLinkItem
+                href={outlookCalendarUrl(calendarEvent)}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <HugeiconsIcon icon={MicrosoftIcon} strokeWidth={2} />
+                Outlook
+              </MenuLinkItem>
+              <MenuItem
+                onClick={() => downloadIcs(calendarEvent, calendarFileName)}
+              >
+                <HugeiconsIcon icon={Download04Icon} strokeWidth={2} />
+                Apple Calendar / .ics
+              </MenuItem>
+            </MenuContent>
+          </Menu>
           <button
             aria-label="Favourite"
             aria-pressed={favourite}
