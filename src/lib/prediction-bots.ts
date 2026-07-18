@@ -11,7 +11,12 @@ import {
   type MatchPrediction,
   type WinnerPick,
 } from "@/lib/prediction-engine";
-import type { StoredSettlement } from "@/lib/prediction-store";
+import {
+  GOAL_CALL_POINTS,
+  type GoalCallAnswer,
+  type StoredSettlement,
+} from "@/lib/prediction-store";
+import type { SettleableCall } from "@/lib/txline-normalize";
 import type { WorldCupFixture } from "@/lib/world-cup-fixtures";
 import { worldCupResults } from "@/lib/world-cup-results";
 
@@ -320,12 +325,117 @@ export function botStandings(
         bot.strategy,
       );
 
-      totals[index].points += settlePrediction(prediction, outcome, {
-        awayTeam: teams.away,
-        homeTeam: teams.home,
-      }).totalPoints;
+      // Scoreline points from the shared engine, plus whatever this bot earned
+      // on the match's live calls (graded and frozen at settle time).
+      totals[index].points +=
+        settlePrediction(prediction, outcome, {
+          awayTeam: teams.away,
+          homeTeam: teams.home,
+        }).totalPoints + (settlement.botCallPoints?.[bot.botId] ?? 0);
     });
   }
 
   return totals;
+}
+
+// ---- Live calls -------------------------------------------------------------
+
+type CallKind = "added" | "corner" | "goal" | "next" | "penalty" | "var";
+
+// The call kind is recoverable from the key prefix the extractors mint; a bare
+// event id (no known prefix) is an in-play goal call.
+function callKind(key: string): CallKind {
+  if (key.startsWith("nextgoal-")) return "next";
+  if (key.startsWith("corner-")) return "corner";
+  if (key.startsWith("addtime-")) return "added";
+  if (key.startsWith("penalty-")) return "penalty";
+  if (key.startsWith("var-")) return "var";
+
+  return "goal";
+}
+
+// Index 0/1 per kind means 0 = goal / home / over / scored / overturned.
+// FAVOURED is the higher-base-rate answer a sharp leans to; ACTION is the
+// crowd-pleasing side a punter chases.
+const FAVOURED_INDEX: Record<CallKind, 0 | 1> = {
+  added: 1, // added time usually lands under 3.5
+  corner: 0, // the home side wins marginally more corners
+  goal: 0, // a flagged goal usually stands
+  next: 0, // slight edge to the home side
+  penalty: 0, // penalties convert about three times in four
+  var: 0, // the only VAR outcome the feed reports is "overturned"
+};
+const ACTION_INDEX: Record<CallKind, 0 | 1> = {
+  added: 0,
+  corner: 0,
+  goal: 0,
+  next: 0,
+  penalty: 0,
+  var: 0,
+};
+
+// How often a bot sticks with its intended answer instead of slipping. Sharp
+// mostly right, punter middling, wildcard a coin toss - that spread is what
+// separates their live-call hauls over a run of calls.
+const CALL_SKILL: Record<Strategy, number> = {
+  punter: 0.6,
+  sharp: 0.82,
+  wildcard: 0.5,
+};
+
+function hashString(text: string): number {
+  let hash = 2166136261;
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+// Deterministic 0/1 answer: the bot's intended pick for the kind, flipped when
+// its per-call skill roll slips. Seeded by the call key, so it never changes.
+function botCallAnswer(strategy: Strategy, kind: CallKind, key: string): 0 | 1 {
+  const intended =
+    strategy === "punter" ? ACTION_INDEX[kind] : FAVOURED_INDEX[kind];
+  const sticks =
+    seededUnit(hashString(`${key}:${strategy}`)) < CALL_SKILL[strategy];
+
+  return (sticks ? intended : 1 - intended) as 0 | 1;
+}
+
+// Grade every bot over the live calls the fan answered - the same set the fan
+// was scored on - so the board stays a fair head-to-head at the call level too.
+// Returns points per botId, to freeze onto the settlement.
+export function gradeBotCalls(
+  calls: SettleableCall[],
+  answers: Record<string, GoalCallAnswer>,
+): Record<string, number> {
+  const points: Record<string, number> = {};
+
+  for (const bot of BOTS) {
+    points[bot.botId] = 0;
+  }
+
+  for (const call of calls) {
+    if (
+      !call.resolved ||
+      call.voided ||
+      call.correctIndex === undefined ||
+      !answers[call.key]
+    ) {
+      continue;
+    }
+
+    const kind = callKind(call.key);
+
+    for (const bot of BOTS) {
+      if (botCallAnswer(bot.strategy, kind, call.key) === call.correctIndex) {
+        points[bot.botId] += GOAL_CALL_POINTS;
+      }
+    }
+  }
+
+  return points;
 }

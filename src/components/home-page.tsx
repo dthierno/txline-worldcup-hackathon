@@ -107,7 +107,7 @@ import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
-import { botStandings } from "@/lib/prediction-bots";
+import { botStandings, gradeBotCalls } from "@/lib/prediction-bots";
 import { worldCupResults } from "@/lib/world-cup-results";
 
 // Confirmed live score folded from the TxLINE updates feed.
@@ -439,12 +439,13 @@ export function HomePage() {
           homeTeam: fixture.homeTeam,
         });
         // Points earned on live calls during the match count too - grade the
-        // stored answers against the same corrected feed.
-        const callPoints = settleGoalCallPoints(
-          extractSettleableCalls(updates),
-          loadGoalCalls(id),
-        );
+        // stored answers against the same corrected feed. The bots answer those
+        // same calls and are graded alongside, frozen onto the settlement.
+        const calls = extractSettleableCalls(updates);
+        const answers = loadGoalCalls(id);
+        const callPoints = settleGoalCallPoints(calls, answers);
         const stored: StoredSettlement = {
+          botCallPoints: gradeBotCalls(calls, answers),
           finalScore: `${outcome.homeGoals}-${outcome.awayGoals}`,
           fixtureId: id,
           settledAt: new Date().toISOString(),

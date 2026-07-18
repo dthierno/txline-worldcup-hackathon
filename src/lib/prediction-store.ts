@@ -66,6 +66,10 @@ export function settleGoalCallPoints(
 }
 
 export type StoredSettlement = {
+  // Points each global-board bot earned on this match's live calls, graded on
+  // the same resolved calls the fan answered (so it stays a fair head-to-head).
+  // Keyed by botId; absent on matches settled before bots played live calls.
+  botCallPoints?: Record<string, number>;
   finalScore: string;
   fixtureId: number;
   settledAt: string;
