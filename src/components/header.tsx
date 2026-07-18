@@ -1,5 +1,6 @@
 "use client";
 
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -116,25 +117,28 @@ export function Header() {
             Pred<span>Game</span>
           </span>
         </Link>
-        {points === null ? (
-          <button className="app-signin" type="button" aria-label="Sign in">
-            <AccountGlyph size={36} />
-          </button>
-        ) : (
-          <button
-            className="app-user"
-            type="button"
-            aria-label={`Signed in - ${points} points`}
-          >
-            <span className="app-user-pts">
+        <div className="app-account">
+          {points !== null ? (
+            <span className="app-user-pts" aria-label={`${points} points`}>
               <span aria-hidden className="app-user-hex" />
               <strong>{points}</strong> pts
             </span>
-            <span className="app-user-avatar">
-              <AccountGlyph size={22} />
-            </span>
-          </button>
-        )}
+          ) : null}
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <button className="app-signin" type="button" aria-label="Sign in">
+                <AccountGlyph size={34} />
+              </button>
+            </SignInButton>
+          </Show>
+          <Show when="signed-in">
+            <UserButton
+              appearance={{
+                elements: { userButtonAvatarBox: "app-clerk-avatar" },
+              }}
+            />
+          </Show>
+        </div>
       </div>
     </header>
   );

@@ -1,3 +1,5 @@
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
@@ -40,9 +42,11 @@ export default function RootLayout({
       className={`${openRunde.variable} ${geistMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Header />
-        {children}
-        <Feedback />
+        <ClerkProvider appearance={{ theme: shadcn }}>
+          <Header />
+          {children}
+          <Feedback />
+        </ClerkProvider>
       </body>
     </html>
   );

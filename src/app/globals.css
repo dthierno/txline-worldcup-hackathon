@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@clerk/ui/themes/shadcn.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -366,18 +367,15 @@ main {
 }
 /* Signed-in chip, matching the intro widget's mock header: outer glass pill,
    inner dark capsule with the teal-green hex token and points, avatar right. */
-.app-user {
+/* Points chip + auth control sit together on the right. */
+.app-account {
   align-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  cursor: pointer;
-  display: inline-flex;
-  gap: 6px;
-  padding: 3px 8px 3px 3px;
-  transition: background 0.2s ease;
+  display: flex;
+  gap: 10px;
 }
-.app-user:hover {
-  background: rgba(255, 255, 255, 0.16);
+.app-clerk-avatar {
+  height: 32px;
+  width: 32px;
 }
 .app-user-pts {
   align-items: center;
@@ -401,11 +399,6 @@ main {
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
   height: 11px;
   width: 11px;
-}
-.app-user-avatar {
-  align-items: center;
-  color: #8f8f98;
-  display: inline-flex;
 }
 
 section {
