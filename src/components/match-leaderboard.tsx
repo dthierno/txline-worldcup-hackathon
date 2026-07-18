@@ -171,14 +171,22 @@ export function MatchLeaderboard({
     homeTeam,
   ]);
 
+  // On a league board only your own live points can be shown - friends' rows
+  // move when their devices settle and sync. Overlay yours only while the match
+  // is live; at full time it settles and syncs like any other, so no
+  // double-count against your synced Convex total.
+  const myLivePoints = live ? provisional.userCall + provisional.userScore : 0;
+
   const rows: BoardRow[] = selectedLeague
-    ? (leagueBoard ?? []).map((member) => ({
-        bot: false,
-        key: member.userId,
-        mine: member.isMe,
-        name: member.name,
-        points: member.points,
-      }))
+    ? (leagueBoard ?? [])
+        .map((member) => ({
+          bot: false,
+          key: member.userId,
+          mine: member.isMe,
+          name: member.name,
+          points: member.points + (member.isMe ? myLivePoints : 0),
+        }))
+        .sort((left, right) => right.points - left.points)
     : [
         {
           bot: false,
@@ -257,7 +265,9 @@ export function MatchLeaderboard({
 
       <p className="mp2-board-note">
         {selectedLeague
-          ? `${selectedLeague.name} · invite code ${selectedLeague.code}`
+          ? live
+            ? `${selectedLeague.name} · your points tick up live; friends' update as their matches settle.`
+            : `${selectedLeague.name} · invite code ${selectedLeague.code}`
           : live
             ? "You against the prediction bots - points tick up as calls settle."
             : "You against the prediction bots. Create a league on the home page to battle friends."}
