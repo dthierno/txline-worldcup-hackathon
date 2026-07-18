@@ -611,10 +611,15 @@ export function extractGoals(updates: GoalSourceUpdate[]): GoalEvent[] {
         continue;
       }
 
-      if (update.action === "goal") {
-        playerId = readNumber(update.data, "PlayerId");
+      // The scorer PlayerId rides a sibling record of the same goal: a `goal`
+      // record for open play, or a `penalty_outcome` record for a converted
+      // penalty (the score advance itself carries no player). Without the
+      // latter, penalty goals fall back to the team name.
+      if (update.action === "goal" || update.action === "penalty_outcome") {
+        const candidate = readNumber(update.data, "PlayerId");
 
-        if (playerId !== undefined) {
+        if (candidate !== undefined) {
+          playerId = candidate;
           break;
         }
       }
