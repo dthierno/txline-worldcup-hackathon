@@ -1,7 +1,10 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
+import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 
+import { api } from "@/../convex/_generated/api";
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
@@ -88,11 +91,9 @@ import {
   LEAGUES_CHANGED_EVENT,
   loadCachedFixtures,
   loadGoalCalls,
-  loadLeagues,
   loadPrediction,
   loadSelectedBoard,
   loadStoredResults,
-  saveLeague,
   saveSelectedBoard,
   saveStoredResult,
   loadPredictions,
@@ -100,7 +101,6 @@ import {
   savePrediction,
   saveSettlement,
   settleGoalCallPoints,
-  type StoredLeague,
   type StoredSettlement,
 } from "@/lib/prediction-store";
 import {
@@ -1412,78 +1412,18 @@ function PredictionCard({
   );
 }
 
-// Rival pools for the leaderboards. The global board keeps its fixed trio;
-// a league's rivals are drawn deterministically from its invite code, so
-// every visit (and every friend's device) shows the same cast.
-const RIVAL_POOL = [
-  "Amina",
-  "Sam",
-  "Noah",
-  "Lina",
-  "Marco",
-  "Yuki",
-  "Zara",
-  "Leo",
-  "Ines",
-  "Kofi",
-];
-
-function hashText(text: string): number {
-  let hash = 0;
-
-  for (const char of text) {
-    hash = (hash * 31 + char.charCodeAt(0)) % 997;
-  }
-
-  return hash;
-}
-
-// The default rival cast for a league, drawn deterministically from its
-// invite code so every visit (and every friend's device) shows the same
-// names. The owner's roster edits (stored members) take precedence.
-function leagueRoster(league: StoredLeague): string[] {
-  if (league.members) {
-    return league.members;
-  }
-
-  const seed = hashText(league.code);
-
-  return Array.from(
-    { length: 3 },
-    (_, index) => RIVAL_POOL[(seed + index * 3) % RIVAL_POOL.length],
-  );
-}
-
-function buildLeaderboard(
+// The global board is a friendly benchmark, not a real cross-device league:
+// the fan plus three simulated rivals scaled off their settled points, so a
+// brand-new player still sees where they'd sit. Real leagues come from Convex.
+function globalLeaderboard(
   settledPoints: number,
-  league: StoredLeague | null,
-): Array<{ name: string; points: number; you: boolean }> {
-  if (!league) {
-    return [
-      { name: "You", points: settledPoints, you: true },
-      { name: "Amina", points: Math.round(settledPoints * 0.75), you: false },
-      { name: "Sam", points: Math.round(settledPoints * 0.5), you: false },
-      { name: "Noah", points: Math.round(settledPoints * 0.25), you: false },
-    ].sort((left, right) => right.points - left.points);
-  }
-
-  const seed = hashText(league.code);
-  const rivals = leagueRoster(league).map((name) => {
-    // Factor from the name itself (not list position) so a rival's points
-    // survive the owner removing someone else. Spread 0.2-0.95: the fan
-    // usually leads but not always.
-    const factor = 0.2 + (((seed + hashText(name)) % 16) / 16) * 0.75;
-
-    return {
-      name,
-      points: Math.round(settledPoints * factor),
-      you: false,
-    };
-  });
-
-  return [{ name: "You", points: settledPoints, you: true }, ...rivals].sort(
-    (left, right) => right.points - left.points,
-  );
+): Array<{ mine: boolean; name: string; points: number }> {
+  return [
+    { mine: true, name: "You", points: settledPoints },
+    { mine: false, name: "Amina", points: Math.round(settledPoints * 0.75) },
+    { mine: false, name: "Sam", points: Math.round(settledPoints * 0.5) },
+    { mine: false, name: "Noah", points: Math.round(settledPoints * 0.25) },
+  ].sort((left, right) => right.points - left.points);
 }
 
 function PredictionsFeed({
@@ -1637,16 +1577,14 @@ function PredictionsFeed({
     0,
   );
 
-  // Device leagues + which board is on show; both live in localStorage and
-  // change from the league dialogs, so listen for their announcement.
-  const [leagues, setLeagues] = useState<StoredLeague[]>([]);
+  // Leagues and their standings are real and cross-device (Convex); only which
+  // board is on show is a local preference, announced by the league dialogs.
+  const { isSignedIn, user } = useUser();
+  const myLeagues = useQuery(api.leagues.myLeagues) ?? [];
   const [board, setBoard] = useState("global");
 
   useEffect(() => {
-    const refresh = () => {
-      setLeagues(loadLeagues());
-      setBoard(loadSelectedBoard());
-    };
+    const refresh = () => setBoard(loadSelectedBoard());
     const timer = setTimeout(refresh, 0);
 
     window.addEventListener(LEAGUES_CHANGED_EVENT, refresh);
@@ -1660,23 +1598,49 @@ function PredictionsFeed({
   }, []);
 
   const selectedLeague =
-    leagues.find((league) => league.code === board) ?? null;
-  const leaderboard = buildLeaderboard(settledPoints, selectedLeague);
+    myLeagues.find((league) => league.code === board) ?? null;
+
+  // Keep every board this fan sits on current with the points their device has
+  // settled and their latest Clerk name.
+  const displayName =
+    user?.fullName ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+    "You";
+  const syncMe = useMutation(api.leagues.syncMe);
+
+  useEffect(() => {
+    if (isSignedIn) {
+      void syncMe({ displayName, points: settledPoints });
+    }
+  }, [displayName, isSignedIn, settledPoints, syncMe]);
+
+  // A selected league shows its live members; the global board is a friendly
+  // simulated benchmark so a brand-new fan still sees where they'd sit.
+  const leagueBoard = useQuery(
+    api.leagues.leaderboard,
+    selectedLeague ? { leagueId: selectedLeague.id } : "skip",
+  );
+  const rows = selectedLeague
+    ? (leagueBoard ?? []).map((member) => ({
+        mine: member.isMe,
+        name: member.name,
+        points: member.points,
+        simulated: false,
+        userId: member.userId as string | null,
+      }))
+    : globalLeaderboard(settledPoints).map((player) => ({
+        mine: player.mine,
+        name: player.name,
+        points: player.points,
+        simulated: !player.mine,
+        userId: null as string | null,
+      }));
+
   // Roster management: owners only, tucked behind one ghost affordance.
   const [manageOpen, setManageOpen] = useState(false);
-
-  function removeMember(name: string) {
-    if (!selectedLeague) {
-      return;
-    }
-
-    saveLeague({
-      ...selectedLeague,
-      members: leagueRoster(selectedLeague).filter(
-        (member) => member !== name,
-      ),
-    });
-  }
+  const removeMember = useMutation(api.leagues.removeMember);
+  const roster = (leagueBoard ?? []).filter((member) => !member.isMe);
 
   return (
     <div className="pred-layout">
@@ -1712,7 +1676,7 @@ function PredictionsFeed({
       </div>
 
       <aside className="pred-col-side">
-        {leagues.length > 0 ? (
+        {myLeagues.length > 0 ? (
           <div aria-label="Choose a leaderboard" className="pred-board-tabs">
             <button
               className={`lcx-filter${board === "global" ? " is-active" : ""}`}
@@ -1721,7 +1685,7 @@ function PredictionsFeed({
             >
               Global
             </button>
-            {leagues.map((league) => (
+            {myLeagues.map((league) => (
               <button
                 className={`lcx-filter${board === league.code ? " is-active" : ""}`}
                 key={league.code}
@@ -1753,15 +1717,20 @@ function PredictionsFeed({
                 the board. Friends join with code{" "}
                 <strong className="pred-code">{selectedLeague.code}</strong>.
               </DialogDescription>
-              {leagueRoster(selectedLeague).length > 0 ? (
+              {roster.length > 0 ? (
                 <ul className="league-roster">
-                  {leagueRoster(selectedLeague).map((member) => (
-                    <li className="league-roster-row" key={member}>
-                      <span>{member}</span>
+                  {roster.map((member) => (
+                    <li className="league-roster-row" key={member.userId}>
+                      <span>{member.name}</span>
                       <button
-                        aria-label={`Remove ${member} from ${selectedLeague.name}`}
+                        aria-label={`Remove ${member.name} from ${selectedLeague.name}`}
                         className="league-roster-remove"
-                        onClick={() => removeMember(member)}
+                        onClick={() =>
+                          void removeMember({
+                            leagueId: selectedLeague.id,
+                            userId: member.userId,
+                          })
+                        }
                         type="button"
                       >
                         <svg
@@ -1796,10 +1765,10 @@ function PredictionsFeed({
           </Dialog>
         ) : null}
         <ol className="pred-board">
-          {leaderboard.map((player, index) => (
+          {rows.map((player, index) => (
             <li
-              className={`pred-row${player.you ? " pred-you" : ""}`}
-              key={player.name}
+              className={`pred-row${player.mine ? " pred-you" : ""}`}
+              key={player.userId ?? player.name}
             >
               <span
                 className={`pred-rank${index === 0 ? " pred-rank-first" : ""}`}
@@ -1811,11 +1780,11 @@ function PredictionsFeed({
               </span>
               <span className="pred-player">
                 {player.name}
-                {player.you ? null : (
+                {player.simulated ? (
                   <em className="pred-sim" title="Simulated rival">
                     sim
                   </em>
-                )}
+                ) : null}
               </span>
               <span className="pred-points">{player.points} pts</span>
             </li>
@@ -1825,13 +1794,14 @@ function PredictionsFeed({
           <p className="muted">
             {selectedLeague.name} · invite code{" "}
             <strong className="pred-code">{selectedLeague.code}</strong> -
-            share it and friends join from the card above. Rival scores are
-            simulated; yours settle from TxLINE.
+            share it and friends join from the card above. Everyone&apos;s
+            points settle live from their own TxLINE picks.
           </p>
         ) : (
           <p className="muted">
-            Prototype league stored on this device. Rival scores are simulated;
-            your points and live scores come from TxLINE. Form strips show each
+            The global board is a friendly benchmark - rival scores are
+            simulated, yours settle from TxLINE. Create or join a league for
+            real leaderboards against friends. Form strips show each
             team&apos;s real last five tournament results.
           </p>
         )}

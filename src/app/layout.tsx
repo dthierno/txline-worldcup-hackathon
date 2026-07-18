@@ -5,6 +5,7 @@ import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
+import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { Feedback } from "@/components/feedback";
 import { Header } from "@/components/header";
 
@@ -43,9 +44,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider appearance={{ theme: shadcn }}>
-          <Header />
-          {children}
-          <Feedback />
+          <ConvexClientProvider>
+            <Header />
+            {children}
+            <Feedback />
+          </ConvexClientProvider>
         </ClerkProvider>
       </body>
     </html>

@@ -1,9 +1,12 @@
 "use client";
 
+import { SignInButton, useUser } from "@clerk/nextjs";
 import { AddTeamIcon, Ticket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation } from "convex/react";
 import { useState } from "react";
 
+import { api } from "@/../convex/_generated/api";
 import {
   Dialog,
   DialogContent,
@@ -13,85 +16,111 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  loadLeagues,
-  saveLeague,
-  saveSelectedBoard,
-} from "@/lib/prediction-store";
+import { loadSettlements, saveSelectedBoard } from "@/lib/prediction-store";
 
-// Invite codes look like PG-4F2K: unambiguous characters only.
-const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+// The signed-in fan's display name and current settled-point total - what a
+// league board row is seeded with.
+function useMemberProfile() {
+  const { user } = useUser();
+  const displayName =
+    user?.fullName ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+    "You";
+  const points = Object.values(loadSettlements()).reduce(
+    (total, entry) => total + (entry.totalPoints ?? 0),
+    0,
+  );
 
-function generateCode(): string {
-  let code = "PG-";
-
-  for (let index = 0; index < 4; index += 1) {
-    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-  }
-
-  return code;
+  return { displayName, points };
 }
 
-// Two entry points shown under the banner: create a private league or join
-// one with an invite code. Leagues persist on this device (same store as
-// picks); creating or joining also switches the homepage leaderboard to it.
+// Shown inside a dialog when the fan isn't signed in - leagues need an account.
+function SignInPrompt({ verb }: { verb: string }) {
+  return (
+    <>
+      <p className="league-modal-desc">
+        Leagues live across every device, so you need an account to {verb} one.
+      </p>
+      <div className="lc-prompt-actions lc-prompt-actions-single">
+        <SignInButton mode="modal">
+          <button className="lc-prompt-btn lc-prompt-btn-main" type="button">
+            <span>Sign in</span>
+          </button>
+        </SignInButton>
+      </div>
+    </>
+  );
+}
+
+// Two entry points under the banner: create a private league or join one with
+// an invite code. Both persist in Convex and update every member's board live.
 export function LeagueActions() {
+  const { isSignedIn } = useUser();
+  const { displayName, points } = useMemberProfile();
+  const createLeague = useMutation(api.leagues.createLeague);
+  const joinLeague = useMutation(api.leagues.joinLeague);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
-  // After a create, the dialog swaps to the share step with the new code.
   const [created, setCreated] = useState<{ code: string; name: string } | null>(
     null,
   );
   const [copied, setCopied] = useState(false);
+  const [joinError, setJoinError] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  function createLeague(event: React.FormEvent<HTMLFormElement>) {
+  async function onCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const name = String(
       new FormData(event.currentTarget).get("league-name") ?? "",
     ).trim();
 
-    if (!name) {
+    if (!name || busy) {
       return;
     }
 
-    const code = generateCode();
+    setBusy(true);
 
-    saveLeague({
-      code,
-      joinedAt: new Date().toISOString(),
-      name,
-      role: "owner",
-    });
-    saveSelectedBoard(code);
-    setCreated({ code, name });
+    try {
+      const { code } = await createLeague({ displayName, name, points });
+
+      saveSelectedBoard(code);
+      setCreated({ code, name });
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function joinLeague(event: React.FormEvent<HTMLFormElement>) {
+  async function onJoin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const code = String(new FormData(event.currentTarget).get("invite-code") ?? "")
       .trim()
       .toUpperCase();
 
-    if (!code) {
+    if (!code || busy) {
       return;
     }
 
-    // Without a backend the code is all we know: joining a code this device
-    // has never seen files it under a name derived from the code.
-    const existing = loadLeagues().find((league) => league.code === code);
+    setBusy(true);
+    setJoinError(false);
 
-    saveLeague(
-      existing ?? {
-        code,
-        joinedAt: new Date().toISOString(),
-        name: `League ${code.replace(/^PG-/, "")}`,
-        role: "member",
-      },
-    );
-    saveSelectedBoard(code);
-    setJoinOpen(false);
+    try {
+      const leagueId = await joinLeague({ code, displayName, points });
+
+      if (!leagueId) {
+        setJoinError(true);
+
+        return;
+      }
+
+      saveSelectedBoard(code);
+      setJoinOpen(false);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function copyCode() {
@@ -148,7 +177,14 @@ export function LeagueActions() {
           </span>
         </DialogTrigger>
         <DialogContent className="lc-prompt league-modal">
-          {created ? (
+          {!isSignedIn ? (
+            <>
+              <DialogTitle className="league-modal-title">
+                Create a league
+              </DialogTitle>
+              <SignInPrompt verb="create" />
+            </>
+          ) : created ? (
             <>
               <DialogTitle className="league-modal-title">
                 {created.name} is live
@@ -183,7 +219,7 @@ export function LeagueActions() {
               <DialogDescription className="league-modal-desc">
                 Name it, get an invite code, rule the leaderboard.
               </DialogDescription>
-              <form className="league-form" onSubmit={createLeague}>
+              <form className="league-form" onSubmit={onCreate}>
                 <div className="league-field">
                   <Label htmlFor="league-name">League name</Label>
                   <Input
@@ -198,9 +234,10 @@ export function LeagueActions() {
                 <div className="lc-prompt-actions">
                   <button
                     className="lc-prompt-btn lc-prompt-btn-main"
+                    disabled={busy}
                     type="submit"
                   >
-                    <span>Create league</span>
+                    <span>{busy ? "Creating…" : "Create league"}</span>
                   </button>
                   <button
                     className="lc-prompt-btn lc-prompt-btn-alt"
@@ -216,7 +253,16 @@ export function LeagueActions() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
+      <Dialog
+        open={joinOpen}
+        onOpenChange={(open) => {
+          setJoinOpen(open);
+
+          if (!open) {
+            setJoinError(false);
+          }
+        }}
+      >
         <DialogTrigger
           render={
             <button className="league-card league-card--join" type="button" />
@@ -247,34 +293,49 @@ export function LeagueActions() {
           <DialogTitle className="league-modal-title">
             Join a league
           </DialogTitle>
-          <DialogDescription className="league-modal-desc">
-            Enter the invite code a friend shared with you.
-          </DialogDescription>
-          <form className="league-form" onSubmit={joinLeague}>
-            <div className="league-field">
-              <Label htmlFor="invite-code">Invite code</Label>
-              <Input
-                autoFocus
-                className="league-input"
-                id="invite-code"
-                name="invite-code"
-                placeholder="e.g. PG-4F2K"
-                required
-              />
-            </div>
-            <div className="lc-prompt-actions">
-              <button className="lc-prompt-btn lc-prompt-btn-main" type="submit">
-                <span>Join league</span>
-              </button>
-              <button
-                className="lc-prompt-btn lc-prompt-btn-alt"
-                onClick={() => setJoinOpen(false)}
-                type="button"
-              >
-                <span>Cancel</span>
-              </button>
-            </div>
-          </form>
+          {!isSignedIn ? (
+            <SignInPrompt verb="join" />
+          ) : (
+            <>
+              <DialogDescription className="league-modal-desc">
+                Enter the invite code a friend shared with you.
+              </DialogDescription>
+              <form className="league-form" onSubmit={onJoin}>
+                <div className="league-field">
+                  <Label htmlFor="invite-code">Invite code</Label>
+                  <Input
+                    autoFocus
+                    className="league-input"
+                    id="invite-code"
+                    name="invite-code"
+                    placeholder="e.g. PG-4F2K"
+                    required
+                  />
+                  {joinError ? (
+                    <span className="league-error">
+                      No league with that code. Check it and try again.
+                    </span>
+                  ) : null}
+                </div>
+                <div className="lc-prompt-actions">
+                  <button
+                    className="lc-prompt-btn lc-prompt-btn-main"
+                    disabled={busy}
+                    type="submit"
+                  >
+                    <span>{busy ? "Joining…" : "Join league"}</span>
+                  </button>
+                  <button
+                    className="lc-prompt-btn lc-prompt-btn-alt"
+                    onClick={() => setJoinOpen(false)}
+                    type="button"
+                  >
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </section>
