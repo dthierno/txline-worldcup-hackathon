@@ -107,6 +107,7 @@ import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
+import { botStandings } from "@/lib/prediction-bots";
 import { worldCupResults } from "@/lib/world-cup-results";
 
 // Confirmed live score folded from the TxLINE updates feed.
@@ -1412,17 +1413,22 @@ function PredictionCard({
   );
 }
 
-// The global board is a friendly benchmark, not a real cross-device league:
-// the fan plus three simulated rivals scaled off their settled points, so a
-// brand-new player still sees where they'd sit. Real leagues come from Convex.
+// The global board pits the fan against three prediction bots (see
+// prediction-bots): each bot makes its own call on every match the fan has
+// played and is scored by the same engine, so it can finish above or below
+// them. Not a real cross-device league - those come from Convex.
 function globalLeaderboard(
   settledPoints: number,
-): Array<{ mine: boolean; name: string; points: number }> {
+  bots: Array<{ name: string; points: number }>,
+): Array<{ bot: boolean; mine: boolean; name: string; points: number }> {
   return [
-    { mine: true, name: "You", points: settledPoints },
-    { mine: false, name: "Amina", points: Math.round(settledPoints * 0.75) },
-    { mine: false, name: "Sam", points: Math.round(settledPoints * 0.5) },
-    { mine: false, name: "Noah", points: Math.round(settledPoints * 0.25) },
+    { bot: false, mine: true, name: "You", points: settledPoints },
+    ...bots.map((entry) => ({
+      bot: true,
+      mine: false,
+      name: entry.name,
+      points: entry.points,
+    })),
   ].sort((left, right) => right.points - left.points);
 }
 
@@ -1577,6 +1583,13 @@ function PredictionsFeed({
     0,
   );
 
+  // The bots play the exact matches the fan has settled, so their board is a
+  // fair head-to-head that fills in as the fan predicts more.
+  const botRows = useMemo(
+    () => botStandings(finals, fixtures),
+    [finals, fixtures],
+  );
+
   // Leagues and their standings are real and cross-device (Convex); only which
   // board is on show is a local preference, announced by the league dialogs.
   const { isSignedIn, user } = useUser();
@@ -1629,11 +1642,11 @@ function PredictionsFeed({
         simulated: false,
         userId: member.userId as string | null,
       }))
-    : globalLeaderboard(settledPoints).map((player) => ({
+    : globalLeaderboard(settledPoints, botRows).map((player) => ({
         mine: player.mine,
         name: player.name,
         points: player.points,
-        simulated: !player.mine,
+        simulated: player.bot,
         userId: null as string | null,
       }));
 
@@ -1781,8 +1794,8 @@ function PredictionsFeed({
               <span className="pred-player">
                 {player.name}
                 {player.simulated ? (
-                  <em className="pred-sim" title="Simulated rival">
-                    sim
+                  <em className="pred-sim" title="Prediction bot">
+                    bot
                   </em>
                 ) : null}
               </span>
@@ -1799,10 +1812,10 @@ function PredictionsFeed({
           </p>
         ) : (
           <p className="muted">
-            The global board is a friendly benchmark - rival scores are
-            simulated, yours settle from TxLINE. Create or join a league for
-            real leaderboards against friends. Form strips show each
-            team&apos;s real last five tournament results.
+            The global board pits you against three prediction bots - each makes
+            its own call on every match you&apos;ve played, scored on the same
+            rules from TxLINE results. Create or join a league for real
+            leaderboards against friends.
           </p>
         )}
       </aside>
