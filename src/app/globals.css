@@ -1562,8 +1562,8 @@ dt {
 .matches-viewbar {
   align-items: center;
   display: flex;
-  justify-content: space-between;
-  margin: 22px 0 12px;
+  justify-content: flex-start;
+  margin: 6px 0 12px;
 }
 .matches-heading {
   color: #fff;

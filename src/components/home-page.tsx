@@ -567,7 +567,7 @@ export function HomePage() {
         </TabsList>
         <TabsContent value="matches">
           <div className="matches-viewbar">
-            <h2 className="matches-heading">Matches</h2>
+            <h2 className="sr-only">Matches</h2>
             <div
               aria-label="Month"
               className="matches-segmented"
