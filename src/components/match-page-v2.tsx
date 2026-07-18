@@ -2337,16 +2337,40 @@ export function LiveCallsPanel({
     const picked = record
       ? call.options[answerIndex(record.answer)] ?? record.answer
       : null;
-    // Settled calls score with the homepage hexagon badge (green when the
-    // fan played, grey when they let it pass); everything still in flight
-    // keeps a pill.
-    const chip = call.voided
-      ? { label: "Void", tone: "muted" }
-      : !call.resolved
-        ? picked
-          ? { label: picked, tone: "picked" }
-          : { label: "Open", tone: "open" }
-        : null;
+    // Trailing control: a settled call scores with the homepage hexagon badge
+    // (green when the fan played, grey when they let it pass); a voided or
+    // already-picked call keeps a pill; an open, unplayed call offers its two
+    // options inline, so the fan can answer straight from the list instead of
+    // only catching the timed prompt.
+    let trailing: ReactNode;
+
+    if (call.voided) {
+      trailing = <span className="lcx-chip lcx-chip-muted">Void</span>;
+    } else if (call.resolved) {
+      trailing = (
+        <PointsBadge
+          muted={correct === null}
+          points={correct ? GOAL_CALL_POINTS : 0}
+        />
+      );
+    } else if (picked) {
+      trailing = <span className="lcx-chip lcx-chip-picked">{picked}</span>;
+    } else {
+      trailing = (
+        <div className="lcx-choose">
+          {call.options.map((option, index) => (
+            <button
+              className="lcx-choose-btn"
+              key={option}
+              onClick={() => answer(call.key, index as 0 | 1)}
+              type="button"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      );
+    }
 
     return (
       <li className="lcx-row" key={call.key}>
@@ -2365,14 +2389,7 @@ export function LiveCallsPanel({
             {picked ? <span className="lcx-you">You: {picked}</span> : null}
           </div>
         </div>
-        {chip ? (
-          <span className={`lcx-chip lcx-chip-${chip.tone}`}>{chip.label}</span>
-        ) : (
-          <PointsBadge
-            muted={correct === null}
-            points={correct ? GOAL_CALL_POINTS : 0}
-          />
-        )}
+        {trailing}
       </li>
     );
   }
