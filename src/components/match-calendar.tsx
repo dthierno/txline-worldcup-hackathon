@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { teamFlag } from "@/lib/team-visuals";
 import { worldCupResults } from "@/lib/world-cup-results";
@@ -151,6 +151,20 @@ export function MatchCalendar({
 
   const rows = useMemo(() => buildMonth(2026, month), [month]);
   const today = now !== null ? isoDate(new Date(now)) : null;
+  // Days the fan expanded to see every game; the row grows to fit.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggleDay = (key: string) =>
+    setExpanded((previous) => {
+      const next = new Set(previous);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
 
   return (
     <div className="wc-cal" aria-label="Tournament calendar">
@@ -172,8 +186,11 @@ export function MatchCalendar({
                 }
 
                 const games = byDay.get(cell.key) ?? [];
-                const shown = games.slice(0, MAX_CHIPS_PER_DAY);
-                const folded = games.length - shown.length;
+                const showAll = expanded.has(cell.key);
+                const shown = showAll
+                  ? games
+                  : games.slice(0, MAX_CHIPS_PER_DAY);
+                const folded = games.length - MAX_CHIPS_PER_DAY;
 
                 return (
                   <div className="wc-cal-day" key={cell.key}>
@@ -200,7 +217,13 @@ export function MatchCalendar({
                       </Link>
                     ))}
                     {folded > 0 ? (
-                      <span className="wc-cal-more">+{folded} more</span>
+                      <button
+                        className="wc-cal-more"
+                        onClick={() => toggleDay(cell.key)}
+                        type="button"
+                      >
+                        {showAll ? "Show less" : `+${folded} more`}
+                      </button>
                     ) : null}
                   </div>
                 );

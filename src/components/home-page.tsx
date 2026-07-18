@@ -849,7 +849,14 @@ function MatchDayList({
 }) {
   const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
 
-  for (const fixture of fixtures) {
+  // Sort by kickoff first so every same-day fixture is adjacent and folds
+  // into one group - otherwise a day can appear twice (past + upcoming),
+  // duplicating its heading and its React key.
+  const ordered = [...fixtures].sort((left, right) =>
+    left.kickoffUtc.localeCompare(right.kickoffUtc),
+  );
+
+  for (const fixture of ordered) {
     const label = dayLabel(fixture.kickoffUtc, now);
     const group = groups[groups.length - 1];
 
@@ -863,7 +870,7 @@ function MatchDayList({
   return (
     <section aria-label="Matches">
       {groups.map((group) => (
-        <div key={group.label}>
+        <div key={group.matches[0].fixtureId}>
           <h3 className={`day-label${group.label === "Today" ? " day-today" : ""}`}>
             {group.label}
           </h3>
@@ -1700,8 +1707,12 @@ function PredictionsFeed({
 
   const toGroups = (list: WorldCupFixture[]) => {
     const groups: Array<{ label: string; matches: WorldCupFixture[] }> = [];
+    // Same-day fixtures must be adjacent to fold into one dated group.
+    const ordered = [...list].sort((left, right) =>
+      left.kickoffUtc.localeCompare(right.kickoffUtc),
+    );
 
-    for (const fixture of list) {
+    for (const fixture of ordered) {
       const label = dayLabel(fixture.kickoffUtc, now);
       const group = groups[groups.length - 1];
 
@@ -1757,7 +1768,7 @@ function PredictionsFeed({
     );
 
     return (
-      <div className="pred-day-block" key={group.label}>
+      <div className="pred-day-block" key={group.matches[0].fixtureId}>
         {collapsible ? (
           <Collapsible defaultOpen>
             <CollapsibleTrigger className="pred-day pred-day-toggle">
