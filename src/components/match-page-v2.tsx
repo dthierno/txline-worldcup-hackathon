@@ -5116,7 +5116,7 @@ function settledRowVisual(
   return { isos: [sideIso(pick)], kind: "circles" };
 }
 
-function PredictionSection({
+export function PredictionSection({
   calls,
   fixture,
   now,
@@ -5250,15 +5250,18 @@ function PredictionSection({
     ? settlement.totalPoints + settledCallPoints
     : 0;
 
-  // Full time with a saved slip: the ticket comes back stamped - every row
-  // settled, the counterfoil totalling what the fan actually won.
-  if (finalTicket && settlement) {
+  // Once the slip is locked it always reads as the stamped ticket - the same
+  // object the fan built before kickoff. In play each row shows its live
+  // status (mostly "open"); at full time the rows settle to won/lost and the
+  // counterfoil totals what the fan actually won. This keeps "Your picks"
+  // looking like one ticket from kickoff through to the final whistle.
+  if (settlement) {
     const rowCount =
       settlement.markets.length + (settledCallPoints > 0 ? 1 : 0);
 
     return (
       <section
-        aria-label={`Your result: ${fixture.homeTeam} vs ${fixture.awayTeam}`}
+        aria-label={`${finalTicket ? "Your result" : "Your picks"}: ${fixture.homeTeam} vs ${fixture.awayTeam}`}
         className="card mp2-ticket-card"
       >
         <div aria-hidden className="mp2-ticket-art">
@@ -5344,76 +5347,30 @@ function PredictionSection({
           ) : null}
         </ul>
         <div aria-hidden className="mp2-ticket-tear" />
-        <PotentialPoints label="Points won" points={totalPoints} />
+        <PotentialPoints
+          label={finalTicket ? "Points won" : "Points so far"}
+          points={totalPoints}
+        />
       </section>
     );
   }
 
+  // Locked, but TxLINE has not returned enough score data to settle a single
+  // market yet (a brief window right after kickoff). The ticket returns the
+  // moment the first outcome arrives above.
   return (
     <section className="card mp2-play" aria-labelledby="prediction-heading">
       <div className="mp2-play-head">
-        <h2 id="prediction-heading">
-          {settlement?.final ? "Your result" : "Your picks"}
-        </h2>
-        {settlement ? (
-          <span
-            className={`mp2-play-pill${settlement.final ? " mp2-play-total" : ""}`}
-          >
-            {settlement.final
-              ? `+${totalPoints} pts`
-              : `${totalPoints} pts so far`}
-          </span>
-        ) : (
-          <span className="mp2-play-pill">Locked</span>
-        )}
+        <h2 id="prediction-heading">Your picks</h2>
+        <span className="mp2-play-pill">Locked</span>
       </div>
       <p className="muted">
         Locked at kickoff ({formatDate(fixture.kickoffUtc)}). Saved{" "}
         {saved.savedAt ? formatDate(saved.savedAt) : "before kickoff"}.
       </p>
-      {settlement ? (
-        <>
-          <ul className="mp2-slip">
-            {settlement.markets.map((market) => (
-              <li className="mp2-slip-row" key={`${market.market}-${market.pick}`}>
-                <span className="mp2-slip-copy">
-                  <span className="mp2-slip-market">{market.market}</span>
-                  <span className="mp2-slip-pick">{market.pick}</span>
-                </span>
-                <span className={`mp2-slip-status ${market.status}`}>
-                  {market.status}
-                </span>
-                <span className="mp2-slip-pts">
-                  {market.status === "won"
-                    ? `+${market.points}`
-                    : market.status === "open"
-                      ? "–"
-                      : "0"}
-                </span>
-              </li>
-            ))}
-            {settledCallPoints > 0 ? (
-              <li className="mp2-slip-row" key="live-calls">
-                <span className="mp2-slip-copy">
-                  <span className="mp2-slip-market">Live calls</span>
-                  <span className="mp2-slip-pick">
-                    Answered during the match
-                  </span>
-                </span>
-                <span className="mp2-slip-status won">won</span>
-                <span className="mp2-slip-pts">+{settledCallPoints}</span>
-              </li>
-            ) : null}
-          </ul>
-          <p className="muted">
-            Provisional - markets settle as the verified feed confirms them.
-          </p>
-        </>
-      ) : (
-        <p className="muted">
-          Waiting for TxLINE score data to settle these picks.
-        </p>
-      )}
+      <p className="muted">
+        Waiting for TxLINE score data to settle these picks.
+      </p>
     </section>
   );
 }
