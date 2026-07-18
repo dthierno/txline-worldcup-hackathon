@@ -2863,10 +2863,18 @@ function LineupsSection({
   // heuristics (goal windows, card records) cover the match while it runs.
   const statLine = (playerId?: number) =>
     playerId !== undefined ? playerStats?.[String(playerId)] : undefined;
-  const playerGoalCount = (playerId?: number) =>
-      statLine(playerId)?.goals ??
-      (playerId !== undefined ? goalCounts.get(playerId) : undefined) ??
-      0;
+  const playerGoalCount = (playerId?: number) => {
+    const line = statLine(playerId);
+
+    // TxLINE splits open-play goals and penaltyGoals into separate fields, so a
+    // scorer's total is the sum - otherwise a converted penalty goes uncounted
+    // and a hat-trick reads as two.
+    if (line && (line.goals !== undefined || line.penaltyGoals !== undefined)) {
+      return (line.goals ?? 0) + (line.penaltyGoals ?? 0);
+    }
+
+    return (playerId !== undefined ? goalCounts.get(playerId) : undefined) ?? 0;
+  };
   const playerYellowCount = (playerId?: number) =>
       statLine(playerId)?.yellowCards ??
       (playerId !== undefined ? yellowCards.get(playerId) : undefined) ??
