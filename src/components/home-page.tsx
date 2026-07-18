@@ -1015,23 +1015,30 @@ function ScoreStepper({
   );
 }
 
-// Rounded-hexagon points badge: green for a settled prediction, grey when
-// the fan never made one (points left on the table). Shared with the match
-// page's live-calls rows so points read the same everywhere.
+// Rounded-hexagon points badge: green only for points actually earned, grey
+// for any zero - whether the fan skipped the pick (muted) or made it and
+// scored nothing. Shared with the match page's live-calls rows so points read
+// the same everywhere.
 export function PointsBadge({ muted, points }: { muted?: boolean; points: number }) {
-  const gradientId = muted ? "pc-badge-fill-muted" : "pc-badge-fill";
+  // Zero is always grey; green is reserved for a positive score.
+  const grey = muted || points === 0;
+  const gradientId = grey ? "pc-badge-fill-muted" : "pc-badge-fill";
 
   return (
     <span
       aria-label={
-        muted ? "No prediction made - 0 points" : `${points} points earned`
+        muted
+          ? "No prediction made - 0 points"
+          : points === 0
+            ? "0 points earned"
+            : `${points} points earned`
       }
       className="pc-points-badge"
       role="img"
     >
       <svg aria-hidden="true" fill="none" viewBox="0 0 12 12">
         <defs>
-          {muted ? (
+          {grey ? (
             <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
               <stop offset="0" stopColor="#3a3a42" />
               <stop offset="1" stopColor="#71717c" />
@@ -1638,7 +1645,9 @@ function PredictionsFeed({
   const rows = selectedLeague
     ? (leagueBoard ?? []).map((member) => ({
         mine: member.isMe,
-        name: member.name,
+        // Your own row reads "You" so you can spot it even when a friend shares
+        // your display name.
+        name: member.isMe ? "You" : member.name,
         points: member.points,
         simulated: false,
         userId: member.userId as string | null,

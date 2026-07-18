@@ -183,7 +183,9 @@ export function MatchLeaderboard({
           bot: false,
           key: member.userId,
           mine: member.isMe,
-          name: member.name,
+          // Your own row reads "You" (like the global board) so you can spot it
+          // even when a friend shares your display name.
+          name: member.isMe ? "You" : member.name,
           points: member.points + (member.isMe ? myLivePoints : 0),
         }))
         .sort((left, right) => right.points - left.points)
