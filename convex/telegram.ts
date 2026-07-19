@@ -155,9 +155,39 @@ export const redeemLinkToken = internalMutation({
   },
 });
 
-// Fire a Telegram DM. Actions can reach the network, so this is where the bot
-// token is used; callers (the webhook, later the live-call scheduler) invoke it
-// via ctx.runAction. replyMarkup carries inline keyboards when present.
+// Low-level Telegram Bot API call. Actions and the http webhook both run in a
+// runtime with fetch + process.env, so this plain helper is shared by both
+// rather than hopping through an extra action. Throws on any non-2xx so callers
+// surface the Telegram error message.
+export async function telegramFetch(
+  method: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    throw new Error("TELEGRAM_BOT_TOKEN is not set on this deployment.");
+  }
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/${method}`,
+    {
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Telegram ${method} failed: ${response.status} ${text}`);
+  }
+
+  return response.json();
+}
+
+// Fire a plain Telegram DM. Exposed as an action so the future live-call
+// scheduler (a mutation scheduling work) can reach the network through it.
 export const sendMessage = internalAction({
   args: {
     chatId: v.number(),
@@ -166,31 +196,97 @@ export const sendMessage = internalAction({
   },
   returns: v.null(),
   handler: async (_ctx, args) => {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-
-    if (!botToken) {
-      throw new Error("TELEGRAM_BOT_TOKEN is not set on this deployment.");
-    }
-
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/sendMessage`,
-      {
-        body: JSON.stringify({
-          chat_id: args.chatId,
-          parse_mode: "HTML",
-          reply_markup: args.replyMarkup,
-          text: args.text,
-        }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      },
-    );
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Telegram sendMessage failed: ${response.status} ${body}`);
-    }
+    await telegramFetch("sendMessage", {
+      chat_id: args.chatId,
+      parse_mode: "HTML",
+      reply_markup: args.replyMarkup,
+      text: args.text,
+    });
 
     return null;
+  },
+});
+
+// Send a live-call prompt with Yes / No inline buttons. The callback_data
+// encodes everything the webhook needs to record the tap:
+// call:<fixtureId>:<callId>:<y|n> (kept short for Telegram's 64-byte limit).
+export const sendCallPrompt = internalAction({
+  args: {
+    callId: v.string(),
+    chatId: v.number(),
+    fixtureId: v.number(),
+    question: v.string(),
+  },
+  returns: v.null(),
+  handler: async (_ctx, args) => {
+    await telegramFetch("sendMessage", {
+      chat_id: args.chatId,
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              callback_data: `call:${args.fixtureId}:${args.callId}:y`,
+              text: "✅ Yes",
+            },
+            {
+              callback_data: `call:${args.fixtureId}:${args.callId}:n`,
+              text: "❌ No",
+            },
+          ],
+        ],
+      },
+      text: args.question,
+    });
+
+    return null;
+  },
+});
+
+// Record a live-call answer that came in as a Telegram button tap. Writes into
+// the same goalCalls table the web app uses (keyed by userId + fixtureId, with
+// answers keyed by callId), so a tap in Telegram and a tap in the app are one
+// and the same. Returns null if this chat isn't linked to an account.
+export const recordTelegramAnswer = internalMutation({
+  args: {
+    answer: v.string(),
+    callId: v.string(),
+    chatId: v.number(),
+    fixtureId: v.number(),
+  },
+  returns: v.union(v.null(), v.object({ userId: v.string() })),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("telegramLinks")
+      .withIndex("by_chat", (q) => q.eq("chatId", args.chatId))
+      .first();
+
+    if (!link) {
+      return null;
+    }
+
+    const userId = link.userId;
+    const entry = { answer: args.answer, answeredAt: new Date().toISOString() };
+
+    const existing = await ctx.db
+      .query("goalCalls")
+      .withIndex("by_user_fixture", (q) =>
+        q.eq("userId", userId).eq("fixtureId", args.fixtureId),
+      )
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        answers: { ...existing.answers, [args.callId]: entry },
+      });
+    } else {
+      await ctx.db.insert("goalCalls", {
+        answers: { [args.callId]: entry },
+        fixtureId: args.fixtureId,
+        userId,
+      });
+    }
+
+    return { userId };
   },
 });
