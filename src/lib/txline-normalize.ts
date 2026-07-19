@@ -637,6 +637,57 @@ export function findFirstGoal(updates: GoalSourceUpdate[]): FirstGoal | null {
     : null;
 }
 
+// Per-player cards from the live event stream. Like goals, a card is emitted as
+// several records sharing one eventId, with the PlayerId on a sibling record;
+// so we dedupe by eventId and read the PlayerId wherever it lands. This lets
+// player-card markets ("booked", "sent off") settle the moment a player is
+// carded, instead of waiting for the authoritative PlayerStats on
+// game_finalised. A second yellow settles as a red (sending-off).
+export function extractCards(
+  updates: Array<{
+    action?: string;
+    data?: Record<string, unknown>;
+    eventId?: number;
+    seq?: number;
+  }>,
+): Record<string, { red: number; yellow: number }> {
+  const sorted = [...updates].sort(
+    (left, right) => (left.seq ?? 0) - (right.seq ?? 0),
+  );
+  const cards: Record<string, { red: number; yellow: number }> = {};
+  const seen = new Set<number>();
+
+  for (const update of sorted) {
+    const isYellow = update.action === "yellow_card";
+    const isRed =
+      update.action === "red_card" || update.action === "second_yellow";
+
+    if (!isYellow && !isRed) {
+      continue;
+    }
+
+    const eventId = update.eventId;
+    const playerId = readNumber(update.data, "PlayerId");
+
+    // Wait for the sibling record carrying the player; count each event once.
+    if (eventId === undefined || playerId === undefined || seen.has(eventId)) {
+      continue;
+    }
+
+    seen.add(eventId);
+
+    const line = (cards[String(playerId)] ??= { red: 0, yellow: 0 });
+
+    if (isRed) {
+      line.red += 1;
+    } else {
+      line.yellow += 1;
+    }
+  }
+
+  return cards;
+}
+
 // Substitutions: TxLINE emits several records per sub (the unconfirmed one is
 // empty; player IDs and clock arrive on confirmed siblings), and the records
 // carry no Participant — merge per event Id and let callers resolve the team

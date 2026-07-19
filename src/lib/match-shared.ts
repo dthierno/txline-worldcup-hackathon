@@ -464,6 +464,9 @@ export function buildOutcome(
   finished: boolean,
   firstGoal: MatchOutcome["firstGoal"],
   goals: MatchOutcome["goals"] = null,
+  // Per-player cards from the live event stream, used to settle card markets
+  // before the authoritative PlayerStats arrive at full time.
+  liveCards: Record<string, { red: number; yellow: number }> | null = null,
 ): MatchOutcome | null {
   if (!score) {
     return null;
@@ -496,7 +499,9 @@ export function buildOutcome(
             { red: line.redCards, yellow: line.yellowCards },
           ]),
         )
-      : null,
+      : liveCards && Object.keys(liveCards).length > 0
+        ? liveCards
+        : null,
     totalCards:
       score.homeYellowCards +
       score.awayYellowCards +

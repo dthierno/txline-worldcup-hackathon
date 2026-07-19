@@ -146,6 +146,7 @@ import {
   computePossessionSplit,
   deriveMatchClock,
   extractAddedTimeCalls,
+  extractCards,
   extractCornerCalls,
   extractGoalCalls,
   extractNextGoalCalls,
@@ -611,6 +612,12 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     [feedUpdates],
   );
   const goals = useMemo(() => extractGoals(combinedUpdates), [combinedUpdates]);
+  // Per-player cards from the live stream, so "booked" / "sent off" markets
+  // settle the moment a player is carded rather than at full time.
+  const liveCards = useMemo(
+    () => extractCards(combinedUpdates),
+    [combinedUpdates],
+  );
   const playerDirectory: PlayerDirectory = useMemo(
     () =>
       new Map(
@@ -848,6 +855,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
         (player) => player.playerId === goal.playerId,
       )?.name,
     })),
+    liveCards,
   );
   const possessionSplit = computePossessionSplit(combinedUpdates);
   const participant1IsHome = displayScore?.participant1IsHome !== false;
