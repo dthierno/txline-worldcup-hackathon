@@ -387,6 +387,18 @@ main {
   height: 26px;
   width: 26px;
 }
+/* Vertically center Clerk's sign-in / sign-up modal — it ships top-aligned
+   (align-items: flex-start on the backdrop + a 64px top margin on the card).
+   Auto block margins center the card when there's room but collapse to top-
+   aligned and scroll when it's taller than the viewport, so nothing clips. */
+.cl-modalBackdrop {
+  align-items: flex-start;
+  overflow-y: auto;
+}
+.cl-modalContent {
+  margin-top: auto;
+  margin-bottom: auto;
+}
 .app-user-pts {
   align-items: center;
   background: rgba(47, 47, 47, 0.8);
