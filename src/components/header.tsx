@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import { api } from "@/../convex/_generated/api";
 import {
   GAMESTATE_HYDRATED_EVENT,
+  LIVE_STANDING_CHANGED_EVENT,
   loadSettlements,
+  readLiveStanding,
   SETTLEMENTS_CHANGED_EVENT,
 } from "@/lib/prediction-store";
 
@@ -113,6 +115,10 @@ function TelegramGlyph() {
 export function Header() {
   // null = signed-out presentation (also the SSR state).
   const [points, setPoints] = useState<number | null>(null);
+  // The match leaderboard publishes your live standing (settled + this match's
+  // in-play points) while you're watching a game; the pill mirrors it so it
+  // agrees with the leaderboard instead of showing only settled points.
+  const [liveStanding, setLiveStanding] = useState<number | null>(null);
   // The fan's Telegram link (null until connected) toggles the menu label.
   const telegramLink = useQuery(api.telegram.myTelegramLink);
   const createLinkToken = useMutation(api.telegram.createLinkToken);
@@ -169,6 +175,20 @@ export function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    const refresh = () => setLiveStanding(readLiveStanding());
+
+    refresh();
+    window.addEventListener(LIVE_STANDING_CHANGED_EVENT, refresh);
+
+    return () =>
+      window.removeEventListener(LIVE_STANDING_CHANGED_EVENT, refresh);
+  }, []);
+
+  // While watching a live match the pill shows the leaderboard-matching live
+  // total; elsewhere it falls back to the settled sum.
+  const displayPoints = liveStanding ?? points;
+
   return (
     <header className="app-header">
       <div className="app-header-inner">
@@ -192,10 +212,10 @@ export function Header() {
             <div className="app-user">
               <span
                 className="app-user-pts"
-                aria-label={`${points ?? 0} points`}
+                aria-label={`${displayPoints ?? 0} points`}
               >
                 <span aria-hidden className="app-user-hex" />
-                <strong>{points ?? 0}</strong> pts
+                <strong>{displayPoints ?? 0}</strong> pts
               </span>
               <UserButton
                 appearance={{

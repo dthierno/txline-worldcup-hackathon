@@ -15,6 +15,7 @@ import {
   loadPrediction,
   loadSelectedBoard,
   loadSettlements,
+  publishLiveStanding,
   saveSelectedBoard,
   settleGoalCallPoints,
   type GoalCallAnswer,
@@ -142,6 +143,18 @@ export function MatchLeaderboard({
   const globalBots = useMemo(() => globalBotStandings(), []);
   const { isAuthenticated } = useConvexAuth();
   const meInGlobal = globalUsers.some((entry) => entry.isMe);
+
+  // Your standing exactly as this board shows it: server total (settled +
+  // resolved bot calls) plus this match's live overlay. Published so the app-
+  // wide header pill mirrors the leaderboard instead of only settled points.
+  const myServerPoints =
+    globalUsers.find((entry) => entry.isMe)?.points ?? settledPoints;
+  const youTotal = myServerPoints + myLivePoints;
+
+  useEffect(() => {
+    publishLiveStanding(youTotal);
+  }, [youTotal]);
+  useEffect(() => () => publishLiveStanding(null), []);
 
   const rows: BoardRow[] = selectedLeague
     ? (leagueBoard ?? [])

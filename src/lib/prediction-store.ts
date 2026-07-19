@@ -37,6 +37,30 @@ function announceChange(event: string, fixtureId: number): void {
   }
 }
 
+// The fan's live standing — their total points including the match they're
+// watching (settled + resolved bot calls + in-play scout calls). The match
+// leaderboard computes this; it publishes here so the app-wide header can show
+// the exact same number instead of only the settled localStorage total. null
+// means no live match is in view, so the header falls back to the settled sum.
+export const LIVE_STANDING_CHANGED_EVENT = "pg:live-standing-changed";
+let liveStanding: number | null = null;
+
+export function publishLiveStanding(value: number | null): void {
+  if (liveStanding === value) {
+    return;
+  }
+
+  liveStanding = value;
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(LIVE_STANDING_CHANGED_EVENT));
+  }
+}
+
+export function readLiveStanding(): number | null {
+  return liveStanding;
+}
+
 export const GOAL_CALL_POINTS = 2;
 
 export type GoalCallAnswer = {
