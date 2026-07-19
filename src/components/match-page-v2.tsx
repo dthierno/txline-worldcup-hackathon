@@ -2305,6 +2305,7 @@ function CallKindIcon({ kind }: { kind: CallKind }) {
 export type BotCallView = {
   callId: string;
   correctAnswer: string | null;
+  minute: string | null;
   myAnswer: string | null;
   question: string;
   status: string;
@@ -2470,13 +2471,12 @@ export function LiveCallsPanel({
         <div className="lcx-row-body">
           <span className="lcx-row-q">{bot.question}</span>
           <div className="lcx-row-meta">
+            {bot.minute ? <span className="lcx-min">{bot.minute}</span> : null}
             {resolved ? (
               <span className="lcx-outcome">
                 {bot.correctAnswer === "yes" ? "⚽ Goal" : "No goal"}
               </span>
-            ) : (
-              <span className="lcx-min">Telegram-synced</span>
-            )}
+            ) : null}
             {pickedLabel ? (
               <span className="lcx-you">You: {pickedLabel}</span>
             ) : null}

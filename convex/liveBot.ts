@@ -177,6 +177,7 @@ export const insertCall = internalMutation({
     callId: v.string(),
     createdAt: v.number(),
     fixtureId: v.number(),
+    minute: v.optional(v.string()),
     question: v.string(),
     windowEndMs: v.number(),
   },
@@ -187,6 +188,7 @@ export const insertCall = internalMutation({
       callId: args.callId,
       createdAt: args.createdAt,
       fixtureId: args.fixtureId,
+      minute: args.minute,
       question: args.question,
       status: "open",
       windowEndMs: args.windowEndMs,
@@ -303,13 +305,18 @@ async function openAndSend(
 ): Promise<void> {
   const callId = `gw-${fixture.fixtureId}-${nowMs}`;
   const windowMin = Math.max(1, Math.round((windowEndMs - nowMs) / 60_000));
-  const question = `⚽️ ${minuteLabel(score.clockSeconds)} — ${scoreLine(fixture, score)}\n\nWill there be a goal in the next ${windowMin} minute${windowMin === 1 ? "" : "s"}?`;
+  const minute = minuteLabel(score.clockSeconds);
+  // Short question for the web row (the page already shows the score); the DM
+  // gets the score + minute prepended since it has no match header.
+  const question = `Will there be a goal in the next ${windowMin} minute${windowMin === 1 ? "" : "s"}?`;
+  const telegramText = `⚽️ ${minute ? `${minute} — ` : ""}${scoreLine(fixture, score)}\n\n${question}`;
 
   await ctx.runMutation(internal.liveBot.insertCall, {
     baselineTotalGoals,
     callId,
     createdAt: nowMs,
     fixtureId: fixture.fixtureId,
+    minute,
     question,
     windowEndMs,
   });
@@ -321,7 +328,7 @@ async function openAndSend(
       callId,
       chatId: link.chatId,
       fixtureId: fixture.fixtureId,
-      question,
+      question: telegramText,
     });
   }
 }
@@ -457,6 +464,7 @@ export const callsForFixture = query({
     v.object({
       callId: v.string(),
       correctAnswer: v.union(v.null(), v.string()),
+      minute: v.union(v.null(), v.string()),
       myAnswer: v.union(v.null(), v.string()),
       question: v.string(),
       status: v.string(),
@@ -493,6 +501,7 @@ export const callsForFixture = query({
       rows.push({
         callId: call.callId,
         correctAnswer: call.correctAnswer ?? null,
+        minute: call.minute ?? null,
         myAnswer,
         question: call.question,
         status: call.status,

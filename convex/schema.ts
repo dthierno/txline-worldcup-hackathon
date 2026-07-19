@@ -117,7 +117,11 @@ export default defineSchema({
   liveCalls: defineTable({
     fixtureId: v.number(),
     callId: v.string(),
+    // Short web-row question ("Will there be a goal in the next 8 minutes?");
+    // the richer scored + timed context is built for the Telegram DM only.
     question: v.string(),
+    // Match minute when the call opened, e.g. "34'" (empty pre-kickoff).
+    minute: v.optional(v.string()),
     baselineTotalGoals: v.number(),
     windowEndMs: v.number(),
     createdAt: v.number(),
