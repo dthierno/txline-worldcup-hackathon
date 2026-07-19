@@ -843,11 +843,13 @@ function settleCardMarket(
   if (pick.provisional) {
     status = unreconciledStatus(outcome);
   } else if (count > 0) {
-    // Positive attribution is safe even from a thin record: TxLINE put this
-    // card on this player.
-    status = outcome.finished ? "won" : "open";
+    // Positive attribution is safe even mid-match: TxLINE put this card on this
+    // player (from a live yellow_card/red_card event), and a card can't be
+    // un-shown — so settle it now, exactly like a scored goal.
+    status = "won";
   } else if (!outcome.finished) {
-    // The per-player record only arrives with game_finalised.
+    // Not carded yet — but a card could still come, so stay open until the per
+    // -player record is complete at full time.
     status = "open";
   } else if (!cardsFullyAttributed(outcome, red)) {
     status = "void";
