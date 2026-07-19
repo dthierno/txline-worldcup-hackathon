@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 
 import { api } from "@/../convex/_generated/api";
@@ -1582,7 +1582,10 @@ function PredictionsFeed({
 
   // Leagues and their standings are real and cross-device (Convex); only which
   // board is on show is a local preference, announced by the league dialogs.
-  const { isSignedIn, user } = useUser();
+  const { user } = useUser();
+  // Convex auth (not Clerk's isSignedIn) so syncProfile only fires once Convex
+  // has validated the token - firing earlier would throw "not signed in".
+  const { isAuthenticated } = useConvexAuth();
   const myLeagues = useQuery(api.leagues.myLeagues) ?? [];
   const [board, setBoard] = useState("global");
 
@@ -1615,10 +1618,10 @@ function PredictionsFeed({
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isSignedIn) {
+    if (isAuthenticated) {
       void syncProfile({ displayName });
     }
-  }, [displayName, isSignedIn, syncProfile]);
+  }, [displayName, isAuthenticated, syncProfile]);
 
   // A selected league shows its live members; the global board is a friendly
   // simulated benchmark so a brand-new fan still sees where they'd sit.

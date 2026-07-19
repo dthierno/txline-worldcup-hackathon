@@ -1,7 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
 
 import { api } from "@/../convex/_generated/api";
@@ -25,11 +24,15 @@ import {
 // that each local save is echoed to the server via the store's change events.
 // Renders nothing. Signed out, it does nothing and the app stays device-local.
 export function GameplaySync() {
-  const { isSignedIn } = useUser();
+  // Convex auth, NOT Clerk's useUser: isAuthenticated only flips true once the
+  // browser has fetched the Clerk token AND Convex has validated it. Gating on
+  // Clerk's isSignedIn races - myGameState would run before Convex trusts the
+  // token, return empty, and the one-shot hydration would lock that in.
+  const { isAuthenticated } = useConvexAuth();
   const savePrediction = useMutation(api.gameplay.savePrediction);
   const saveSettlement = useMutation(api.gameplay.saveSettlement);
   const saveGoalCalls = useMutation(api.gameplay.saveGoalCalls);
-  const gameState = useQuery(api.gameplay.myGameState, isSignedIn ? {} : "skip");
+  const gameState = useQuery(api.gameplay.myGameState, isAuthenticated ? {} : "skip");
   const hydrated = useRef(false);
 
   // One place to normalise a stored settlement into the mutation's args.
@@ -45,7 +48,7 @@ export function GameplaySync() {
   // Hydrate once per signed-in session: pull the server's copy into this
   // device, push whatever was only here, then let views re-read.
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!isAuthenticated) {
       hydrated.current = false;
 
       return;
@@ -83,11 +86,11 @@ export function GameplaySync() {
     window.dispatchEvent(new Event(GAMESTATE_HYDRATED_EVENT));
     // pushSettlement is stable enough for this once-per-session effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState, isSignedIn, savePrediction, saveSettlement, saveGoalCalls]);
+  }, [gameState, isAuthenticated, savePrediction, saveSettlement, saveGoalCalls]);
 
   // Mirror each subsequent local save up to the server.
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!isAuthenticated) {
       return;
     }
 
@@ -125,7 +128,7 @@ export function GameplaySync() {
       window.removeEventListener(GOAL_CALLS_CHANGED_EVENT, onGoalCalls);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn, savePrediction, saveSettlement, saveGoalCalls]);
+  }, [isAuthenticated, savePrediction, saveSettlement, saveGoalCalls]);
 
   return null;
 }

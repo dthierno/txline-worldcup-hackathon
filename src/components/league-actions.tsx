@@ -3,7 +3,7 @@
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { AddTeamIcon, Ticket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { useState } from "react";
 
 import { api } from "@/../convex/_generated/api";
@@ -52,7 +52,7 @@ function SignInPrompt({ verb }: { verb: string }) {
 // Two entry points under the banner: create a private league or join one with
 // an invite code. Both persist in Convex and update every member's board live.
 export function LeagueActions() {
-  const { isSignedIn } = useUser();
+  const { isAuthenticated } = useConvexAuth();
   const displayName = useDisplayName();
   const createLeague = useMutation(api.leagues.createLeague);
   const joinLeague = useMutation(api.leagues.joinLeague);
@@ -173,7 +173,7 @@ export function LeagueActions() {
           </span>
         </DialogTrigger>
         <DialogContent className="lc-prompt league-modal">
-          {!isSignedIn ? (
+          {!isAuthenticated ? (
             <>
               <DialogTitle className="league-modal-title">
                 Create a league
@@ -289,7 +289,7 @@ export function LeagueActions() {
           <DialogTitle className="league-modal-title">
             Join a league
           </DialogTitle>
-          {!isSignedIn ? (
+          {!isAuthenticated ? (
             <SignInPrompt verb="join" />
           ) : (
             <>
