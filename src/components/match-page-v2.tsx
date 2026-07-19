@@ -11,12 +11,7 @@ import {
   InformationCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  animate,
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from "motion/react";
+import { animate, useReducedMotion } from "motion/react";
 import {
   useCallback,
   useEffect,
@@ -92,7 +87,6 @@ import {
   useIsMounted,
   useNow,
   type ApiResult,
-  type DisplayUpdate,
   type GameDetails,
   type PlayerDirectory,
   type StreamStatus,
@@ -1967,7 +1961,6 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           <div className="mp2-tab-stack">
             <UpdatesSection
               fixture={fixture}
-              lineups={details.lineups?.data ?? null}
               players={playerDirectory}
               updates={
                 snapshotUpdates?.data?.length
@@ -5524,35 +5517,6 @@ function buildSideOffers(
 }
 
 
-// Commentary feed replicated from Google's match timeline (inspected on the
-// real Argentina v Switzerland page): bordered #202124 cards with an
-// uppercase tracked header and minute, a blue celebration card for goals
-// with the updated scoreline band and the scorer's headshot, card and
-// substitution blocks with player rows, and stopwatch dividers for kickoff,
-// halftime and full time. Everything else is a plain COMMENTARY card.
-type CommentaryPlayer = {
-  imageUrl?: string;
-  name: string;
-  number?: string;
-  position?: string;
-  teamName: string;
-};
-
-const POSITION_LABELS: Record<string, string> = {
-  DEF: "Defender",
-  FWD: "Striker",
-  GK: "Goalkeeper",
-  MID: "Midfielder",
-};
-
-function HeadsetIcon() {
-  return (
-    <svg aria-hidden="true" className="cf-headset" fill="currentColor" height="15" viewBox="0 0 24 24" width="15">
-      <path d="M12 3a8 8 0 0 0-8 8v6a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H6v-2a6 6 0 1 1 12 0v2h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-6a8 8 0 0 0-8-8Z" />
-    </svg>
-  );
-}
-
 function StopwatchIcon() {
   return (
     <svg aria-hidden="true" fill="currentColor" height="16" viewBox="0 0 24 24" width="16">
@@ -5561,258 +5525,12 @@ function StopwatchIcon() {
   );
 }
 
-function CommentaryPlayerRow({
-  player,
-  ringColor,
-}: {
-  player: CommentaryPlayer;
-  ringColor: string;
-}) {
-  const iso = teamFlag(player.teamName);
-  const position = player.position ? POSITION_LABELS[player.position] : null;
-
-  return (
-    <div className="cf-player">
-      <div className="cf-player-info">
-        <span className="cf-player-name">
-          {formatPlayerDisplayName(player.name)}
-        </span>
-        <span className="cf-player-sub">
-          {iso ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={`https://flagcdn.com/w40/${iso}.png`} />
-          ) : null}
-          {player.teamName}
-          {position ? ` · ${position}` : ""}
-          {player.number ? ` #${player.number}` : ""}
-        </span>
-      </div>
-      <span className="cf-player-photo" style={{ borderColor: ringColor }}>
-        {player.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt="" src={player.imageUrl} />
-        ) : (
-          <span>{player.name[0]}</span>
-        )}
-      </span>
-    </div>
-  );
-}
-
-function CommentaryFeed({
-  entries,
-  fixture,
-  lineups,
-}: {
-  entries: DisplayUpdate[];
-  fixture: WorldCupFixture;
-  lineups: NormalizedLineups | null;
-}) {
-  const findPlayer = (playerId?: number): CommentaryPlayer | null => {
-    if (playerId === undefined) {
-      return null;
-    }
-
-    for (const team of lineups?.teams ?? []) {
-      const player = team.players.find(
-        (candidate) => candidate.playerId === playerId,
-      );
-
-      if (player) {
-        return {
-          imageUrl: player.imageUrl,
-          name: player.name,
-          number: player.number,
-          position: player.position,
-          teamName: team.teamName,
-        };
-      }
-    }
-
-    return null;
-  };
-  const ringFor = (teamName?: string) => {
-    const iso = teamName ? teamFlag(teamName) : undefined;
-
-    return (iso && teamGlow[iso]) || "#5f6368";
-  };
-  return (
-    <ol className="cf-list" reversed>
-      <AnimatePresence initial={false}>
-        {[...entries].reverse().map((entry) => {
-          const body =
-            entry.minute && entry.text.startsWith(`${entry.minute} `)
-              ? entry.text.slice(entry.minute.length + 1)
-              : entry.text;
-          const [homeGoals, awayGoals] = entry.score.split("-");
-          let block: ReactNode = null;
-
-          if (
-            entry.action === "kickoff" ||
-            entry.action === "halftime_finalised" ||
-            entry.action === "game_finalised"
-          ) {
-            const label =
-              entry.action === "kickoff"
-                ? "Kick-off"
-                : entry.action === "halftime_finalised"
-                  ? "Half time"
-                  : "End of match";
-
-            block = (
-              <div className="cf-divider">
-                <span className="cf-divider-line" />
-                <span className="cf-divider-copy">
-                  <StopwatchIcon />
-                  <span className="cf-divider-label">{label}</span>
-                  <span className="cf-divider-min">
-                    {entry.action === "kickoff"
-                      ? entry.minute
-                      : `${homeGoals} - ${awayGoals}`}
-                  </span>
-                </span>
-                <span className="cf-divider-line" />
-              </div>
-            );
-          } else if (entry.action === "goal") {
-            const scorer = findPlayer(entry.playerId);
-            const goalBody = body.replace(/\s*Score \d+-\d+\.$/, "");
-            const scoringSide =
-              scorer && scorer.teamName === fixture.awayTeam ? "away" : "home";
-            const teamColor = ringFor(
-              scoringSide === "home" ? fixture.homeTeam : fixture.awayTeam,
-            );
-
-            block = (
-              <div
-                className="cf-card cf-goal"
-                style={{ "--cf-team": teamColor } as CSSProperties}
-              >
-                <div className="cf-goal-head">
-                  <span className="cf-goal-ball">
-                    <LineupGoalIcon />
-                  </span>
-                  <span className="cf-goal-title">GOOOAAALLL!!!</span>
-                  <span className="cf-goal-min">{entry.minute}</span>
-                </div>
-                <div className="cf-goal-score">
-                  <span>{fixture.homeTeam}</span>
-                  <strong>{homeGoals}</strong>
-                  <span>-</span>
-                  <strong>{awayGoals}</strong>
-                  <span>{fixture.awayTeam}</span>
-                </div>
-                {scorer ? (
-                  <CommentaryPlayerRow
-                    player={scorer}
-                    ringColor={ringFor(
-                      scoringSide === "home"
-                        ? fixture.homeTeam
-                        : fixture.awayTeam,
-                    )}
-                  />
-                ) : null}
-                <div className="cf-card-body">{goalBody}</div>
-              </div>
-            );
-          } else if (
-            entry.action === "yellow_card" ||
-            entry.action === "red_card"
-          ) {
-            const booked = findPlayer(entry.playerId);
-            const isRed = entry.action === "red_card";
-
-            block = (
-              <div className="cf-card">
-                <div className="cf-card-head">
-                  <LineupCardIcon color={isRed ? "red" : "yellow"} />
-                  <span className="cf-head-title">
-                    {isRed ? "Red card" : "Yellow card"}
-                  </span>
-                  <span className="cf-head-min">{entry.minute}</span>
-                </div>
-                {booked ? (
-                  <CommentaryPlayerRow
-                    player={booked}
-                    ringColor={ringFor(booked.teamName)}
-                  />
-                ) : null}
-                <div className="cf-card-body">{body}</div>
-              </div>
-            );
-          } else if (entry.action === "substitution") {
-            const playerIn = findPlayer(entry.playerInId);
-            const playerOut = findPlayer(entry.playerOutId);
-
-            block = (
-              <div className="cf-card">
-                <div className="cf-card-head">
-                  <span className="cf-icon-subs">
-                    <LineupSubstitutionIcon direction="in" />
-                    <LineupSubstitutionIcon direction="out" />
-                  </span>
-                  <span className="cf-head-title">Substitution</span>
-                  <span className="cf-head-min">{entry.minute}</span>
-                </div>
-                {playerIn ? (
-                  <>
-                    <span className="cf-sub-tag cf-sub-in">In</span>
-                    <CommentaryPlayerRow
-                      player={playerIn}
-                      ringColor={ringFor(playerIn.teamName)}
-                    />
-                  </>
-                ) : null}
-                {playerOut ? (
-                  <>
-                    <span className="cf-sub-tag cf-sub-out">Out</span>
-                    <CommentaryPlayerRow
-                      player={playerOut}
-                      ringColor={ringFor(playerOut.teamName)}
-                    />
-                  </>
-                ) : null}
-                <div className="cf-card-body">{body}</div>
-              </div>
-            );
-          } else {
-            block = (
-              <div className="cf-card">
-                <div className="cf-card-head">
-                  <HeadsetIcon />
-                  <span className="cf-head-title">Commentary</span>
-                  <span className="cf-head-min">{entry.minute}</span>
-                </div>
-                <div className="cf-card-body">{body}</div>
-              </div>
-            );
-          }
-
-          return (
-            <motion.li
-              animate={{ opacity: 1, y: 0 }}
-              className="cf-item"
-              initial={{ opacity: 0, y: -14 }}
-              key={entry.id}
-              transition={{ duration: 0.35 }}
-            >
-              {block}
-            </motion.li>
-          );
-        })}
-      </AnimatePresence>
-    </ol>
-  );
-}
-
 function UpdatesSection({
   fixture,
-  lineups,
   players,
   updates,
 }: {
   fixture: WorldCupFixture;
-  lineups: NormalizedLineups | null;
   players?: PlayerDirectory;
   updates: ApiResult<TxlineUpdateData[]> | null;
 }) {
@@ -5822,13 +5540,13 @@ function UpdatesSection({
     <section className="card" aria-labelledby="updates-heading">
       <h2 id="updates-heading">Commentary</h2>
       {displayUpdates.length ? (
-        <div className="feed-scroll">
-          <CommentaryFeed
-            entries={displayUpdates}
-            fixture={fixture}
-            lineups={lineups}
-          />
-        </div>
+        // The full timeline, in the same clean event-line design as the
+        // overview's Key moments: newest first, hairline-separated.
+        <ol className="mp2-overview-events">
+          {[...displayUpdates].reverse().map((entry) => (
+            <li key={entry.id}>{entry.text}</li>
+          ))}
+        </ol>
       ) : (
         <p className="muted">No readable match events yet.</p>
       )}
