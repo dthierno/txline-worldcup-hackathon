@@ -32,6 +32,8 @@ type BoardRow = {
   mine: boolean;
   name: string;
   points: number;
+  // Real league member's Clerk id (links to their profile); null for bots/You.
+  userId: string | null;
 };
 
 // The standings, dropped into the match overview so you can watch the table
@@ -171,6 +173,7 @@ export function MatchLeaderboard({
           // even when a friend shares your display name.
           name: member.isMe ? "You" : member.name,
           points: member.points + (member.isMe ? myLivePoints : 0),
+          userId: member.userId,
         }))
         .sort((left, right) => right.points - left.points)
     : [
@@ -180,6 +183,7 @@ export function MatchLeaderboard({
           mine: true,
           name: "You",
           points: youBase + provisional.userCall + provisional.userScore,
+          userId: null,
         },
         ...botBase.map((entry) => ({
           bot: true,
@@ -190,6 +194,7 @@ export function MatchLeaderboard({
             entry.points +
             (provisional.botCall[entry.botId] ?? 0) +
             (provisional.botScore[entry.botId] ?? 0),
+          userId: null,
         })),
       ].sort((left, right) => right.points - left.points);
 
@@ -228,25 +233,44 @@ export function MatchLeaderboard({
       ) : null}
 
       <ol className="pred-board">
-        {rows.map((row, index) => (
-          <li className={`pred-row${row.mine ? " pred-you" : ""}`} key={row.key}>
-            <span className={`pred-rank${index === 0 ? " pred-rank-first" : ""}`}>
-              {index + 1}
-            </span>
-            <span aria-hidden className="pred-avatar">
-              {row.name[0]}
-            </span>
-            <span className="pred-player">
-              {row.name}
-              {row.bot ? (
-                <em className="pred-sim" title="Prediction bot">
-                  bot
-                </em>
-              ) : null}
-            </span>
-            <span className="pred-points">{row.points} pts</span>
-          </li>
-        ))}
+        {rows.map((row, index) => {
+          const content = (
+            <>
+              <span
+                className={`pred-rank${index === 0 ? " pred-rank-first" : ""}`}
+              >
+                {index + 1}
+              </span>
+              <span aria-hidden className="pred-avatar">
+                {row.name[0]}
+              </span>
+              <span className="pred-player">
+                {row.name}
+                {row.bot ? (
+                  <em className="pred-sim" title="Prediction bot">
+                    bot
+                  </em>
+                ) : null}
+              </span>
+              <span className="pred-points">{row.points} pts</span>
+            </>
+          );
+
+          return (
+            <li
+              className={`pred-row${row.mine ? " pred-you" : ""}`}
+              key={row.key}
+            >
+              {row.userId ? (
+                <Link className="pred-row-link" href={`/u/${row.userId}`}>
+                  {content}
+                </Link>
+              ) : (
+                content
+              )}
+            </li>
+          );
+        })}
       </ol>
 
       <p className="mp2-board-note">

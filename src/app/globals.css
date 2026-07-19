@@ -2846,6 +2846,19 @@ dt {
 .pred-you .pred-avatar {
   background: color-mix(in srgb, var(--won) 22%, #3f3f46);
 }
+/* A real member's row links to their profile; the anchor is display:contents so
+   the row keeps its exact flex layout. */
+.pred-row-link {
+  color: inherit;
+  display: contents;
+  text-decoration: none;
+}
+.pred-row:has(> .pred-row-link) {
+  cursor: pointer;
+}
+.pred-row:has(> .pred-row-link):hover {
+  background: rgba(255, 255, 255, 0.05);
+}
 
 /* Collapsible "Past results" section in the Predictions tab. */
 .pred-past-toggle {
@@ -6748,4 +6761,141 @@ dt {
   .lcx-open-dot {
     animation: none;
   }
+}
+
+/* User profile page: a league-mate's standing + the picks they made. */
+.prof {
+  margin: 0 auto;
+  max-width: 640px;
+  padding: 24px 16px 60px;
+}
+.prof-back {
+  color: var(--muted-foreground);
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  text-decoration: none;
+}
+.prof-back:hover {
+  color: #fff;
+}
+.prof-locked {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.prof-head {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.prof-avatar {
+  align-items: center;
+  background: color-mix(in srgb, var(--brand) 30%, #2a2a32);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 22px;
+  font-weight: 700;
+  height: 54px;
+  justify-content: center;
+  width: 54px;
+}
+.prof-name {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+.prof-meta {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+.prof-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.prof-row {
+  align-items: center;
+  background: #15151b;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 0;
+  padding: 12px 14px;
+}
+.prof-match {
+  align-items: center;
+  color: #fff;
+  display: flex;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  min-width: 0;
+  text-decoration: none;
+}
+.prof-team {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.prof-flag {
+  border-radius: 3px;
+  flex: 0 0 auto;
+  height: 13px;
+  object-fit: cover;
+  width: 18px;
+}
+.prof-flag-tbd {
+  background: rgba(255, 255, 255, 0.1);
+}
+.prof-vs {
+  color: var(--muted-foreground);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 500;
+}
+.prof-pick {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.prof-pick-chip {
+  background: color-mix(in srgb, var(--brand) 20%, transparent);
+  border-radius: 999px;
+  color: #bcd3ff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.prof-pts {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.prof-pts-won {
+  color: var(--won);
+}
+.prof-hidden {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-style: italic;
 }

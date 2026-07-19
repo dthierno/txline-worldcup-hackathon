@@ -148,6 +148,94 @@ export const saveGoalCalls = mutation({
   },
 });
 
+// Another player's picks, for their profile page. Visible only to the player
+// themselves or to someone who shares a league with them; returns null when the
+// viewer isn't allowed (or isn't signed in). The client keeps unplayed matches
+// hidden until kickoff.
+export const userPredictions = query({
+  args: { userId: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      name: v.string(),
+      points: v.number(),
+      predictions: v.array(
+        v.object({
+          fixtureId: v.number(),
+          prediction: v.any(),
+          savedAt: v.string(),
+        }),
+      ),
+      settlements: v.array(
+        v.object({
+          fixtureId: v.number(),
+          finalScore: v.string(),
+          settledAt: v.string(),
+          totalPoints: v.number(),
+        }),
+      ),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      return null;
+    }
+
+    const me = identity.subject;
+    const target = args.userId;
+
+    const targetMembers = await ctx.db
+      .query("members")
+      .withIndex("by_user", (q) => q.eq("userId", target))
+      .collect();
+
+    if (me !== target) {
+      const myLeagueIds = new Set(
+        (
+          await ctx.db
+            .query("members")
+            .withIndex("by_user", (q) => q.eq("userId", me))
+            .collect()
+        ).map((membership) => String(membership.leagueId)),
+      );
+      const sharesLeague = targetMembers.some((membership) =>
+        myLeagueIds.has(String(membership.leagueId)),
+      );
+
+      if (!sharesLeague) {
+        return null;
+      }
+    }
+
+    const predictions = await ctx.db
+      .query("predictions")
+      .withIndex("by_user", (q) => q.eq("userId", target))
+      .collect();
+    const settlements = await ctx.db
+      .query("settlements")
+      .withIndex("by_user", (q) => q.eq("userId", target))
+      .collect();
+
+    return {
+      name: targetMembers[0]?.name ?? "Player",
+      points: settlements.reduce((sum, row) => sum + row.totalPoints, 0),
+      predictions: predictions.map((row) => ({
+        fixtureId: row.fixtureId,
+        prediction: row.prediction,
+        savedAt: row.savedAt,
+      })),
+      settlements: settlements.map((row) => ({
+        fixtureId: row.fixtureId,
+        finalScore: row.finalScore,
+        settledAt: row.settledAt,
+        totalPoints: row.totalPoints,
+      })),
+    };
+  },
+});
+
 // Everything the signed-in player has across the three gameplay tables, used to
 // hydrate a fresh device on sign-in. Not signed in -> empty arrays, never throws.
 export const myGameState = query({

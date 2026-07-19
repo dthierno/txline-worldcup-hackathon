@@ -1802,30 +1802,45 @@ function PredictionsFeed({
           </Dialog>
         ) : null}
         <ol className="pred-board">
-          {rows.map((player, index) => (
-            <li
-              className={`pred-row${player.mine ? " pred-you" : ""}`}
-              key={player.userId ?? player.name}
-            >
-              <span
-                className={`pred-rank${index === 0 ? " pred-rank-first" : ""}`}
+          {rows.map((player, index) => {
+            const content = (
+              <>
+                <span
+                  className={`pred-rank${index === 0 ? " pred-rank-first" : ""}`}
+                >
+                  {index + 1}
+                </span>
+                <span aria-hidden className="pred-avatar">
+                  {player.name[0]}
+                </span>
+                <span className="pred-player">
+                  {player.name}
+                  {player.simulated ? (
+                    <em className="pred-sim" title="Prediction bot">
+                      bot
+                    </em>
+                  ) : null}
+                </span>
+                <span className="pred-points">{player.points} pts</span>
+              </>
+            );
+
+            return (
+              <li
+                className={`pred-row${player.mine ? " pred-you" : ""}`}
+                key={player.userId ?? player.name}
               >
-                {index + 1}
-              </span>
-              <span aria-hidden className="pred-avatar">
-                {player.name[0]}
-              </span>
-              <span className="pred-player">
-                {player.name}
-                {player.simulated ? (
-                  <em className="pred-sim" title="Prediction bot">
-                    bot
-                  </em>
-                ) : null}
-              </span>
-              <span className="pred-points">{player.points} pts</span>
-            </li>
-          ))}
+                {player.userId ? (
+                  // Real league members link to their profile; bots don't.
+                  <Link className="pred-row-link" href={`/u/${player.userId}`}>
+                    {content}
+                  </Link>
+                ) : (
+                  content
+                )}
+              </li>
+            );
+          })}
         </ol>
         {selectedLeague ? (
           <p className="muted">
