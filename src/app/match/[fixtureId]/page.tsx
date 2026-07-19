@@ -1,4 +1,4 @@
-import { MatchPage } from "@/components/match-page";
+import { MatchPageV2 } from "@/components/match-page-v2";
 
 export default async function Match({
   params,
@@ -7,5 +7,5 @@ export default async function Match({
 }) {
   const { fixtureId } = await params;
 
-  return <MatchPage fixtureId={Number.parseInt(fixtureId, 10)} />;
+  return <MatchPageV2 fixtureId={Number.parseInt(fixtureId, 10)} />;
 }

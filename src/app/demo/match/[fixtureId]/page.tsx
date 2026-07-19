@@ -1,7 +1,7 @@
-import { MatchPageV2 } from "@/components/match-page-v2";
+import { redirect } from "next/navigation";
 
-// Design sandbox: the match page rebuilt with the homepage design language
-// (see DESIGN.md), for side-by-side comparison with /match/[fixtureId].
+// This design is now the default match page at /match/[fixtureId]; keep the old
+// demo URL working by redirecting to the canonical route.
 export default async function MatchV2({
   params,
 }: {
@@ -9,5 +9,5 @@ export default async function MatchV2({
 }) {
   const { fixtureId } = await params;
 
-  return <MatchPageV2 fixtureId={Number.parseInt(fixtureId, 10)} />;
+  redirect(`/match/${fixtureId}`);
 }
