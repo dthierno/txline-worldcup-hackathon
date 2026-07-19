@@ -68,6 +68,15 @@ for the endpoint ideas each gap produced.
   data means fuzzy name-matching into a second id space, then reconciling
   picks back onto TxLINE ids before settlement. A published external-id
   crosswalk would erase the whole problem class. (2026-07-16)
+- **Red cards arrive without a player, yellow cards don't.** In SPA–ARG a
+  `yellow_card` event carries the `PlayerId` on a sibling record (same revision
+  `Id`), exactly like a goal — so we settle "booked" and name the player live.
+  But the `red_card` event (`Data.Type: "StraightRed"`) came through with **no
+  `PlayerId` on any record of that event id**, so we can neither settle a
+  player "sent off" market nor name who was dismissed — the UI can only show
+  the team. Card events being player-attributed as consistently as goals (or a
+  documented note on when they aren't) would close the last gap in live event
+  settlement. (2026-07-19)
 - **`/scores/snapshot/{id}` 503s with no `Retry-After`.** Building a
   server-side poller (a Telegram bot that DMs live calls), we hit repeated
   `503`s on the snapshot endpoint with no body and no `Retry-After` header.

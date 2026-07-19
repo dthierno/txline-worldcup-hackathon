@@ -1296,6 +1296,24 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     side: "away" | "home";
   }> = [];
 
+  // The sent-off player's id can ride a sibling record of the same red-card
+  // event (like goals + yellow cards), so gather it across every red_card
+  // record first. NB: straight reds sometimes arrive with no PlayerId on any
+  // record at all — then there's nothing to name and we fall back to the team.
+  const redCardPlayerByEvent = new Map<number, number>();
+  for (const update of combinedUpdates) {
+    if (update.action !== "red_card" || update.eventId === undefined) {
+      continue;
+    }
+    const pid =
+      typeof update.data?.PlayerId === "number"
+        ? update.data.PlayerId
+        : undefined;
+    if (pid !== undefined && !redCardPlayerByEvent.has(update.eventId)) {
+      redCardPlayerByEvent.set(update.eventId, pid);
+    }
+  }
+
   for (const update of combinedUpdates) {
     if (update.action !== "red_card") {
       continue;
@@ -1326,9 +1344,11 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
           ? "away"
           : "home";
     const playerId =
-      typeof update.data?.PlayerId === "number"
-        ? update.data.PlayerId
-        : undefined;
+      update.eventId !== undefined
+        ? redCardPlayerByEvent.get(update.eventId)
+        : typeof update.data?.PlayerId === "number"
+          ? update.data.PlayerId
+          : undefined;
 
     redCardEvents.push({
       key: update.eventId ?? `red-card-${update.seq}`,
