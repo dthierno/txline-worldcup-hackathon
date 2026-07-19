@@ -79,10 +79,19 @@ http.route({
       return new Response(null, { status: 200 });
     }
 
-    // --- /start connect handshake -------------------------------------------
     const message = update.message;
     const text: unknown = message?.text;
 
+    // --- /demo scripted replay ----------------------------------------------
+    if (typeof text === "string" && text.startsWith("/demo")) {
+      await ctx.runMutation(internal.telegram.startDemo, {
+        chatId: message.chat.id,
+      });
+
+      return new Response(null, { status: 200 });
+    }
+
+    // --- /start connect handshake -------------------------------------------
     if (typeof text === "string" && text.startsWith("/start")) {
       const chatId: number = message.chat.id;
       const username: string | undefined = message.from?.username;

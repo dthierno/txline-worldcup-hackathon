@@ -1,9 +1,11 @@
 import { v } from "convex/values";
 
 import type { QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
 import {
   internalAction,
   internalMutation,
+  internalQuery,
   mutation,
   query,
 } from "./_generated/server";
@@ -288,5 +290,211 @@ export const recordTelegramAnswer = internalMutation({
     }
 
     return { userId };
+  },
+});
+
+// --- /demo replay ----------------------------------------------------------
+// A scripted mini-match played out over DM so anyone can feel the live-call
+// loop on demand, no real match required. Taps land in goalCalls under an
+// isolated fake fixture id, so a demo never mixes with real gameplay.
+const DEMO_FIXTURE_ID = 990000001;
+const DEMO_END_MS = 37_000;
+
+type DemoCall = {
+  callId: string;
+  correct: "no" | "yes";
+  points: number;
+  promptAtMs: number;
+  question: string;
+  resolveAtMs: number;
+  result: string;
+};
+
+const DEMO_CALLS: DemoCall[] = [
+  {
+    callId: "d1",
+    correct: "yes",
+    points: 10,
+    promptAtMs: 1_500,
+    question: "⚽️ 22' — Brazil 0–0 France\n\nWill Brazil score in the next 10 minutes?",
+    resolveAtMs: 8_000,
+    result: "🟢 <b>GOAL — Vinícius Jr, 27'!</b> Brazil 1–0 — yes, they scored.",
+  },
+  {
+    callId: "d2",
+    correct: "no",
+    points: 8,
+    promptAtMs: 11_000,
+    question: "🚩 38' — Corner to France.\n\nWill it lead to a shot on target?",
+    resolveAtMs: 17_000,
+    result: "⚪️ Cleared at the near post — no shot on target.",
+  },
+  {
+    callId: "d3",
+    correct: "yes",
+    points: 12,
+    promptAtMs: 20_000,
+    question: "🔴 63' — France camped in Brazil's half.\n\nA goal before the 75th minute?",
+    resolveAtMs: 26_000,
+    result: "🟢 <b>GOAL — Mbappé, 71'!</b> France level it 1–1 — yes, before 75'.",
+  },
+  {
+    callId: "d4",
+    correct: "no",
+    points: 15,
+    promptAtMs: 29_000,
+    question: "🏁 88' — 1–1, nerves jangling.\n\nWill the match end level (a draw)?",
+    resolveAtMs: 35_000,
+    result: "🏁 <b>Rodrygo, 90+2' — Brazil win 2–1!</b> No, it did <b>not</b> end level.",
+  },
+];
+
+// Kick off the scripted demo for one chat: an intro, then each call's prompt
+// and (later) its resolution, then a summary — all fired by the scheduler so
+// the match plays out in real time (~37s).
+export const startDemo = internalMutation({
+  args: { chatId: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("telegramLinks")
+      .withIndex("by_chat", (q) => q.eq("chatId", args.chatId))
+      .first();
+
+    if (!link) {
+      await ctx.scheduler.runAfter(0, internal.telegram.sendMessage, {
+        chatId: args.chatId,
+        text: "Connect your account first: open PredGame and tap <b>Connect Telegram</b>.",
+      });
+
+      return null;
+    }
+
+    const userId = link.userId;
+
+    // Fresh start: wipe any answers from a previous demo run.
+    const prior = await ctx.db
+      .query("goalCalls")
+      .withIndex("by_user_fixture", (q) =>
+        q.eq("userId", userId).eq("fixtureId", DEMO_FIXTURE_ID),
+      )
+      .first();
+
+    if (prior) {
+      await ctx.db.delete(prior._id);
+    }
+
+    await ctx.scheduler.runAfter(0, internal.telegram.sendMessage, {
+      chatId: args.chatId,
+      text: "🎬 <b>Demo match — Brazil vs France</b>\nI'll fire a few live calls. Tap ✅/❌ fast, each one scores. Here we go…",
+    });
+
+    for (const call of DEMO_CALLS) {
+      await ctx.scheduler.runAfter(call.promptAtMs, internal.telegram.sendCallPrompt, {
+        callId: call.callId,
+        chatId: args.chatId,
+        fixtureId: DEMO_FIXTURE_ID,
+        question: call.question,
+      });
+      await ctx.scheduler.runAfter(call.resolveAtMs, internal.telegram.resolveDemoCall, {
+        callId: call.callId,
+        chatId: args.chatId,
+        userId,
+      });
+    }
+
+    await ctx.scheduler.runAfter(DEMO_END_MS, internal.telegram.demoSummary, {
+      chatId: args.chatId,
+      userId,
+    });
+
+    return null;
+  },
+});
+
+// Read a player's demo answers (the goalCalls row for the fake fixture), so the
+// resolve/summary actions can grade taps.
+export const readDemoAnswers = internalQuery({
+  args: { userId: v.string() },
+  returns: v.union(
+    v.null(),
+    v.record(
+      v.string(),
+      v.object({ answer: v.string(), answeredAt: v.string() }),
+    ),
+  ),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("goalCalls")
+      .withIndex("by_user_fixture", (q) =>
+        q.eq("userId", args.userId).eq("fixtureId", DEMO_FIXTURE_ID),
+      )
+      .first();
+
+    return row ? row.answers : null;
+  },
+});
+
+// Reveal what happened on one demo call and score the player's tap.
+export const resolveDemoCall = internalAction({
+  args: { callId: v.string(), chatId: v.number(), userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const call = DEMO_CALLS.find((entry) => entry.callId === args.callId);
+
+    if (!call) {
+      return null;
+    }
+
+    const answers = await ctx.runQuery(internal.telegram.readDemoAnswers, {
+      userId: args.userId,
+    });
+    const given = answers?.[args.callId]?.answer ?? null;
+    const saidLabel = given === "yes" ? "Yes" : "No";
+    const correctLabel = call.correct === "yes" ? "Yes" : "No";
+
+    const verdict =
+      given == null
+        ? `Answer: <b>${correctLabel}</b>. ⏳ You didn't answer in time — 0 pts.`
+        : given === call.correct
+          ? `Answer: <b>${correctLabel}</b> — you said ${saidLabel}. ✅ <b>+${call.points} pts</b>`
+          : `Answer: <b>${correctLabel}</b> — you said ${saidLabel}. ❌ 0 pts.`;
+
+    await telegramFetch("sendMessage", {
+      chat_id: args.chatId,
+      parse_mode: "HTML",
+      text: `${call.result}\n\n${verdict}`,
+    });
+
+    return null;
+  },
+});
+
+// Tally the whole demo and send the full-time summary.
+export const demoSummary = internalAction({
+  args: { chatId: v.number(), userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const answers = await ctx.runQuery(internal.telegram.readDemoAnswers, {
+      userId: args.userId,
+    });
+
+    let total = 0;
+    let correct = 0;
+
+    for (const call of DEMO_CALLS) {
+      if ((answers?.[call.callId]?.answer ?? null) === call.correct) {
+        total += call.points;
+        correct += 1;
+      }
+    }
+
+    await telegramFetch("sendMessage", {
+      chat_id: args.chatId,
+      parse_mode: "HTML",
+      text: `🏁 <b>Full time.</b> You called <b>${correct}/${DEMO_CALLS.length}</b> right for <b>${total} pts</b>.\n\nThat's exactly how live calls work during real World Cup matches — you'll get them here as they happen. Send /demo to replay.`,
+    });
+
+    return null;
   },
 });
