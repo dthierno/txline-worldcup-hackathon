@@ -11,6 +11,7 @@ const FIXTURES_KEY = "fan-forecast.fixtures.v1";
 const RESULTS_KEY = "fan-forecast.results.v1";
 const LEAGUES_KEY = "fan-forecast.leagues.v1";
 const LEAGUE_BOARD_KEY = "fan-forecast.league-board.v1";
+const SAVED_MATCHES_KEY = "fan-forecast.saved-matches.v1";
 
 // Fired on window whenever the stored leagues (or the selected board)
 // change, so the homepage leaderboard can refresh without a reload.
@@ -289,6 +290,69 @@ export function saveSelectedBoard(board: string): void {
   }
 
   announceLeaguesChanged();
+}
+
+// Matches the fan has bookmarked from the match page. Device-local, like the
+// rest of this store. Fired on write so a useSyncExternalStore-backed button
+// re-reads without an effect.
+export const SAVED_MATCHES_CHANGED_EVENT = "pg:saved-matches-changed";
+
+export function loadSavedMatches(): number[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SAVED_MATCHES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is number => typeof id === "number")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function isMatchSaved(fixtureId: number): boolean {
+  return loadSavedMatches().includes(fixtureId);
+}
+
+export function setMatchSaved(fixtureId: number, saved: boolean): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const others = loadSavedMatches().filter((id) => id !== fixtureId);
+  const next = saved ? [...others, fixtureId] : others;
+
+  try {
+    window.localStorage.setItem(SAVED_MATCHES_KEY, JSON.stringify(next));
+  } catch {
+    // best effort
+  }
+
+  window.dispatchEvent(new Event(SAVED_MATCHES_CHANGED_EVENT));
+}
+
+// Subscribe seam for useSyncExternalStore: fires on our own writes and on
+// cross-tab storage changes.
+export function subscribeSavedMatches(onChange: () => void): () => void {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === SAVED_MATCHES_KEY) onChange();
+  };
+
+  window.addEventListener(SAVED_MATCHES_CHANGED_EVENT, onChange);
+  window.addEventListener("storage", onStorage);
+
+  return () => {
+    window.removeEventListener(SAVED_MATCHES_CHANGED_EVENT, onChange);
+    window.removeEventListener("storage", onStorage);
+  };
 }
 
 export type StoredResult = {

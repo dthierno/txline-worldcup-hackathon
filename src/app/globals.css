@@ -4098,7 +4098,7 @@ dt {
   position: relative;
 }
 .mp2-hero-top::after {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
   bottom: 0;
   content: "";
   height: 1px;
@@ -4130,6 +4130,15 @@ dt {
 }
 .mp2-hero-action:active {
   transform: scale(0.96);
+}
+/* Saved: reuse the live-badge green so a bookmarked match reads as an active
+   toggle instead of the solid-white call to action. */
+.mp2-hero-action.is-saved {
+  background: #10321d;
+  color: var(--won);
+}
+.mp2-hero-action.is-saved:hover {
+  background: #143d24;
 }
 .mp2-hero-action svg {
   height: 14px;
@@ -4463,7 +4472,8 @@ dt {
 .mp2-layout {
   align-items: start;
   display: grid;
-  gap: 0 28px;
+  /* Column gap matches the 14px hero-to-content gap (.mp2-tab-panel). */
+  gap: 0 14px;
   grid-template-columns: minmax(0, 620px) minmax(0, 1fr);
   margin-top: 14px;
 }

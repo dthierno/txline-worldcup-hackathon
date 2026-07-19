@@ -4,10 +4,11 @@ import Link from "next/link";
 import {
   ArrowDown01Icon,
   ArrowUp01Icon,
+  BookmarkAdd01Icon,
+  BookmarkCheck01Icon,
   EqualSignIcon,
   FootballIcon,
   InformationCircleIcon,
-  Share08Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -22,6 +23,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
@@ -125,7 +127,10 @@ import {
 } from "@/lib/prediction-engine";
 import {
   GOAL_CALL_POINTS,
+  isMatchSaved,
   isPredictionLocked,
+  setMatchSaved,
+  subscribeSavedMatches,
   settleGoalCallPoints,
   cacheFixtures,
   loadCachedFixtures,
@@ -249,7 +254,13 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const loadedFixtureRef = useRef<number | null>(null);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
   const [streamUpdates, setStreamUpdates] = useState<TxlineUpdateData[]>([]);
-  const [shareLabel, setShareLabel] = useState("Share");
+  // Bookmark state for this fixture, read hydration-safely from localStorage
+  // (false on the server, the stored value on the client).
+  const saved = useSyncExternalStore(
+    subscribeSavedMatches,
+    () => isMatchSaved(fixtureId),
+    () => false,
+  );
   const [matchTab, setMatchTab] = useState<MatchTab>("overview");
   const now = useNow();
   const playCard = usePlayCard(fixtureId);
@@ -1315,31 +1326,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
     .replace("Semi-finals", "Semi-final")
     .replace("Quarter-finals", "Quarter-final")
     .replace("8th Finals", "Round of 16");
-  const shareMatch = async () => {
-    const url = window.location.href;
-    const title = `${fixture.homeTeam} vs ${fixture.awayTeam}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
-        return;
-      }
-
-      if (!navigator.clipboard?.writeText) {
-        setShareLabel("Unavailable");
-        return;
-      }
-
-      await navigator.clipboard.writeText(url);
-      setShareLabel("Copied");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-      }
-
-      setShareLabel("Try again");
-    }
-  };
+  const toggleSaved = () => setMatchSaved(fixture.fixtureId, !saved);
   return (
     <main className="mp2">
       <header className={`mp2-hero${notStarted ? " upcoming" : ""}`}>
@@ -1475,14 +1462,20 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
               {competitionLabel}
             </span>
             <Button
-              className="mp2-hero-action"
-              onClick={shareMatch}
+              aria-label={saved ? "Saved" : "Save match"}
+              aria-pressed={saved}
+              className={`mp2-hero-action${saved ? " is-saved" : ""}`}
+              onClick={toggleSaved}
               size="default"
               type="button"
               variant="default"
             >
-              <HugeiconsIcon aria-hidden icon={Share08Icon} strokeWidth={2} />
-              {shareLabel}
+              <HugeiconsIcon
+                aria-hidden
+                icon={saved ? BookmarkCheck01Icon : BookmarkAdd01Icon}
+                strokeWidth={2}
+              />
+              {saved ? "Saved" : "Save"}
             </Button>
           </div>
           <div className="mp2-hero-match">
