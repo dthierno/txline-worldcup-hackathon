@@ -2312,6 +2312,33 @@ export type BotCallView = {
   windowEndMs: number;
 };
 
+type MergedCall = { bot?: BotCallView; scout?: LiveUiCall; sortMin: number };
+
+// Turn a display minute ("47'", "45+2'", "—") into a sortable number; unknown
+// minutes sink to the bottom.
+function parseMinute(minute?: string | null): number {
+  if (!minute) {
+    return -1;
+  }
+
+  const match = minute.match(/(\d+)(?:\+(\d+))?/);
+
+  return match ? Number(match[1]) + (match[2] ? Number(match[2]) / 100 : 0) : -1;
+}
+
+// Interleave the bot's calls and the feed's scout calls into one list, latest
+// match-minute first, so a subsection reads top-down from the most recent
+// moment instead of bot-block-then-scout-block.
+function mergeCallsByMinute(
+  bots: BotCallView[],
+  scouts: LiveUiCall[],
+): MergedCall[] {
+  return [
+    ...bots.map((bot) => ({ bot, sortMin: parseMinute(bot.minute) })),
+    ...scouts.map((scout) => ({ scout, sortMin: parseMinute(scout.minute) })),
+  ].sort((left, right) => right.sortMin - left.sortMin);
+}
+
 export function LiveCallsPanel({
   botCalls,
   calls,
@@ -2396,12 +2423,6 @@ export function LiveCallsPanel({
     .filter((call) => filter === "all" || callKindOf(call.question) === filter);
   const openRows = visible.filter((call) => !call.resolved && !call.voided);
   const settledRows = visible.filter((call) => call.resolved || call.voided);
-  // Riding on the Overview, the settled log is capped to a preview so it never
-  // buries the cards below it; the rest is one tap away.
-  const settledPreview =
-    expanded || settledRows.length <= SETTLED_CALLS_PREVIEW
-      ? settledRows
-      : settledRows.slice(0, SETTLED_CALLS_PREVIEW);
 
   // The bot's live calls come straight from Convex (answered by a Telegram tap
   // or the inline buttons here), split so they slot into the same Open / Settled
@@ -2419,6 +2440,14 @@ export function LiveCallsPanel({
   );
   const hasOpenCalls = openRows.length > 0 || openBotRows.length > 0;
   const hasSettledCalls = settledRows.length > 0 || settledBotRows.length > 0;
+  // Merge bot + scout calls per subsection, latest match-minute first. The
+  // settled log is capped to a preview so it never buries the cards below it.
+  const openMerged = mergeCallsByMinute(openBotRows, openRows);
+  const settledMerged = mergeCallsByMinute(settledBotRows, settledRows);
+  const settledMergedPreview =
+    expanded || settledMerged.length <= SETTLED_CALLS_PREVIEW
+      ? settledMerged
+      : settledMerged.slice(0, SETTLED_CALLS_PREVIEW);
 
   function renderBotCall(bot: BotCallView) {
     const resolved = bot.status === "resolved";
@@ -2636,8 +2665,13 @@ export function LiveCallsPanel({
                   </div>
                   <div className="lcx-board-body">
                     <ul className="lcx-list">
-                      {openBotRows.map((bot) => renderBotCall(bot))}
-                      {openRows.map((call) => renderCall(call))}
+                      {openMerged.map((item) =>
+                        item.bot
+                          ? renderBotCall(item.bot)
+                          : item.scout
+                            ? renderCall(item.scout)
+                            : null,
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -2655,10 +2689,15 @@ export function LiveCallsPanel({
                   </div>
                   <div className="lcx-board-body">
                     <ul className="lcx-list">
-                      {settledBotRows.map((bot) => renderBotCall(bot))}
-                      {settledPreview.map((call) => renderCall(call))}
+                      {settledMergedPreview.map((item) =>
+                        item.bot
+                          ? renderBotCall(item.bot)
+                          : item.scout
+                            ? renderCall(item.scout)
+                            : null,
+                      )}
                     </ul>
-                    {settledRows.length > SETTLED_CALLS_PREVIEW ? (
+                    {settledMerged.length > SETTLED_CALLS_PREVIEW ? (
                       <button
                         aria-label={
                           expanded ? "Show fewer calls" : "Show more calls"
@@ -2670,7 +2709,7 @@ export function LiveCallsPanel({
                         <span className="text-xs leading-4 font-medium">
                           {expanded
                             ? "Fewer calls"
-                            : `More calls (${settledRows.length - SETTLED_CALLS_PREVIEW})`}
+                            : `More calls (${settledMerged.length - SETTLED_CALLS_PREVIEW})`}
                         </span>
                         <HugeiconsIcon
                           icon={expanded ? ArrowUp01Icon : ArrowDown01Icon}
