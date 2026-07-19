@@ -68,3 +68,11 @@ for the endpoint ideas each gap produced.
   data means fuzzy name-matching into a second id space, then reconciling
   picks back onto TxLINE ids before settlement. A published external-id
   crosswalk would erase the whole problem class. (2026-07-16)
+- **`/scores/snapshot/{id}` 503s with no `Retry-After`.** Building a
+  server-side poller (a Telegram bot that DMs live calls), we hit repeated
+  `503`s on the snapshot endpoint with no body and no `Retry-After` header.
+  From a fixed-cadence cron that's fine — we catch per-fixture and retry next
+  tick — but it's the same problem as the `403`-HTML throttling: a transient
+  5xx is indistinguishable from a sustained outage, so we can't back off
+  intelligently. A `Retry-After` on 429/503 would let pollers self-pace.
+  (2026-07-19)

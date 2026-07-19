@@ -93,10 +93,41 @@ export default defineSchema({
     chatId: v.number(),
     // Telegram @username at link time, just for display ("Connected as @x").
     username: v.optional(v.string()),
+    // /mute stops live-call DMs without unlinking; absent/false = receiving.
+    muted: v.optional(v.boolean()),
     linkedAt: v.string(),
   })
     .index("by_user", ["userId"])
     .index("by_chat", ["chatId"]),
+
+  // Matches the live-call poller watches. Seeded per match (admin) so the bot
+  // only pings for games we've opted it into, not the whole schedule. Team
+  // names live here because the feed only carries participant ids.
+  watchedFixtures: defineTable({
+    fixtureId: v.number(),
+    homeTeam: v.string(),
+    awayTeam: v.string(),
+    addedAt: v.number(),
+  }).index("by_fixture", ["fixtureId"]),
+
+  // Server-generated "goal in the next N minutes?" calls. One open at a time per
+  // fixture; the poller resolves it by comparing the live goal total against the
+  // baseline captured when it opened. answers land in goalCalls (keyed by this
+  // callId) via the shared button-tap path.
+  liveCalls: defineTable({
+    fixtureId: v.number(),
+    callId: v.string(),
+    question: v.string(),
+    baselineTotalGoals: v.number(),
+    windowEndMs: v.number(),
+    createdAt: v.number(),
+    // "open" until its window elapses, then "resolved".
+    status: v.string(),
+    correctAnswer: v.optional(v.string()),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_fixture", ["fixtureId"])
+    .index("by_callId", ["callId"]),
 
   // Short-lived, single-use tokens for the connect flow: the app mints one tied
   // to the signed-in user, hands it to Telegram via the t.me/<bot>?start=<token>

@@ -82,6 +82,31 @@ http.route({
     const message = update.message;
     const text: unknown = message?.text;
 
+    // --- /mute + /unmute live-call DMs --------------------------------------
+    if (
+      typeof text === "string" &&
+      (text.startsWith("/mute") || text.startsWith("/unmute"))
+    ) {
+      const chatId: number = message.chat.id;
+      const muted = !text.startsWith("/unmute");
+      const linked = await ctx.runMutation(internal.liveBot.setMuted, {
+        chatId,
+        muted,
+      });
+
+      await telegramFetch("sendMessage", {
+        chat_id: chatId,
+        parse_mode: "HTML",
+        text: linked
+          ? muted
+            ? "🔕 Muted. No more live-call DMs — send /unmute to turn them back on."
+            : "🔔 Unmuted. You'll get live calls during matches again."
+          : "You're not linked yet — open PredGame and tap <b>Connect Telegram</b>.",
+      });
+
+      return new Response(null, { status: 200 });
+    }
+
     // --- /demo scripted replay ----------------------------------------------
     if (typeof text === "string" && text.startsWith("/demo")) {
       await ctx.runMutation(internal.telegram.startDemo, {
