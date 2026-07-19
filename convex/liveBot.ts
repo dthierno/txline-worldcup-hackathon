@@ -293,6 +293,43 @@ export const setMuted = internalMutation({
   },
 });
 
+// Admin: wipe a fixture's live calls + their answers (e.g. clearing test calls
+// before kickoff), then refresh the points of anyone who had answered them.
+export const clearFixtureCalls = internalMutation({
+  args: { fixtureId: v.number() },
+  returns: v.object({ answers: v.number(), calls: v.number() }),
+  handler: async (ctx, args) => {
+    const calls = await ctx.db
+      .query("liveCalls")
+      .withIndex("by_fixture", (q) => q.eq("fixtureId", args.fixtureId))
+      .collect();
+
+    const affectedUsers = new Set<string>();
+    let answerCount = 0;
+
+    for (const call of calls) {
+      const answers = await ctx.db
+        .query("liveCallAnswers")
+        .withIndex("by_call", (q) => q.eq("callId", call.callId))
+        .collect();
+
+      for (const answer of answers) {
+        affectedUsers.add(answer.userId);
+        await ctx.db.delete(answer._id);
+        answerCount += 1;
+      }
+
+      await ctx.db.delete(call._id);
+    }
+
+    for (const userId of affectedUsers) {
+      await refreshUserPoints(ctx, userId);
+    }
+
+    return { answers: answerCount, calls: calls.length };
+  },
+});
+
 // --- orchestration (actions) ----------------------------------------------
 
 async function openAndSend(
