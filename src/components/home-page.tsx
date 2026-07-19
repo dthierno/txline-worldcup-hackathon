@@ -1070,9 +1070,6 @@ function LockedScores({ away, home }: { away: string; home: string }) {
         title="Sign in or sign up to predict"
         type="button"
       >
-        <span className="pc-lock-badge">
-          <LockGlyph />
-        </span>
         <span aria-hidden="true" className="pc-locked-row">
           <span className="pc-stepper pc-stepper-locked">
             <span className="pc-step pc-step-up">
@@ -1092,6 +1089,9 @@ function LockedScores({ away, home }: { away: string; home: string }) {
               <StepMinusIcon />
             </span>
           </span>
+        </span>
+        <span className="pc-lock-badge">
+          <LockGlyph />
         </span>
       </button>
     </SignInButton>
