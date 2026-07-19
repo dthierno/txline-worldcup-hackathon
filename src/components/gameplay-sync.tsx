@@ -1,11 +1,11 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
 
 import { api } from "@/../convex/_generated/api";
 import type { MatchPrediction } from "@/lib/prediction-engine";
+import { useDisplayName } from "@/lib/use-display-name";
 import {
   GAMESTATE_HYDRATED_EVENT,
   GOAL_CALLS_CHANGED_EVENT,
@@ -30,9 +30,9 @@ export function GameplaySync() {
   // Clerk's isSignedIn races - myGameState would run before Convex trusts the
   // token, return empty, and the one-shot hydration would lock that in.
   const { isAuthenticated } = useConvexAuth();
-  // Clerk user is only used for the display name recorded below - the auth
-  // gate is useConvexAuth above.
-  const { user } = useUser();
+  // The username recorded below comes from Clerk (via useDisplayName); the auth
+  // gate is useConvexAuth above, not Clerk's useUser.
+  const displayName = useDisplayName();
   const savePrediction = useMutation(api.gameplay.savePrediction);
   const saveSettlement = useMutation(api.gameplay.saveSettlement);
   const saveGoalCalls = useMutation(api.gameplay.saveGoalCalls);
@@ -135,19 +135,13 @@ export function GameplaySync() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, savePrediction, saveSettlement, saveGoalCalls]);
 
-  // Record the user (best-effort name) once authenticated, so the unique-user
-  // count is visible in the Convex dashboard's users table.
+  // Record the user (username) once authenticated, so the unique-user count is
+  // visible in the Convex dashboard and the global board shows their handle.
   useEffect(() => {
     if (isAuthenticated) {
-      void recordUser({
-        name:
-          user?.fullName ||
-          user?.username ||
-          user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-          "Player",
-      });
+      void recordUser({ name: displayName });
     }
-  }, [isAuthenticated, recordUser, user]);
+  }, [isAuthenticated, recordUser, displayName]);
 
   return null;
 }

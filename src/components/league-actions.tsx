@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, useUser } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import { AddTeamIcon, Ticket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useConvexAuth, useMutation } from "convex/react";
@@ -17,19 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveSelectedBoard } from "@/lib/prediction-store";
-
-// The signed-in fan's display name for a league board row. Points are no longer
-// passed from the device - the server seeds them from the fan's settlements.
-function useDisplayName() {
-  const { user } = useUser();
-
-  return (
-    user?.fullName ||
-    user?.username ||
-    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-    "You"
-  );
-}
+import { useDisplayName } from "@/lib/use-display-name";
 
 // Shown inside a dialog when the fan isn't signed in - leagues need an account.
 function SignInPrompt({ verb }: { verb: string }) {

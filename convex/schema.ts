@@ -11,6 +11,7 @@ export default defineSchema({
   // so the global board is a real cross-user leaderboard; by_points serves it.
   users: defineTable({
     userId: v.string(),
+    // The user's Clerk username (mandatory), refreshed on each sign-in.
     name: v.string(),
     // Server-derived settled total; optional only to keep pre-existing rows
     // (written before this field) valid until their next sign-in refreshes it.
@@ -33,7 +34,8 @@ export default defineSchema({
   members: defineTable({
     leagueId: v.id("leagues"),
     userId: v.string(),
-    // Display name from Clerk, kept fresh on each sync.
+    // The member's Clerk username (mandatory now), kept fresh on each sync.
+    // Never their real name — boards show handles so identities stay distinct.
     name: v.string(),
     // The member's total earned points. No longer pushed from the device —
     // now re-derived server-side from `settlements` (see model/settlements.ts)

@@ -1,6 +1,5 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 
@@ -27,6 +26,7 @@ import { CALENDAR_MONTHS, MatchCalendar } from "@/components/match-calendar";
 import { PointsBadge } from "@/components/points-badge";
 import { Skiper107 } from "@/components/skiper107";
 import { UserProfileDialog } from "@/components/user-profile";
+import { useDisplayName } from "@/lib/use-display-name";
 
 // PointsBadge moved to its own module to avoid an import cycle with the profile
 // popup; re-export it so existing importers (match page, tests) keep working.
@@ -1558,9 +1558,6 @@ function PredictionsFeed({
   // viewer, so they sit in the shared board alongside real users.
   const globalBots = useMemo(() => globalBotStandings(), []);
 
-  // Leagues and their standings are real and cross-device (Convex); only which
-  // board is on show is a local preference, announced by the league dialogs.
-  const { user } = useUser();
   // Convex auth (not Clerk's isSignedIn) so syncProfile only fires once Convex
   // has validated the token - firing earlier would throw "not signed in".
   const { isAuthenticated } = useConvexAuth();
@@ -1584,13 +1581,9 @@ function PredictionsFeed({
   const selectedLeague =
     myLeagues.find((league) => league.code === board) ?? null;
 
-  // Keep every board this fan sits on current with the points their device has
-  // latest Clerk name (points are derived server-side from settlements now).
-  const displayName =
-    user?.fullName ||
-    user?.username ||
-    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-    "You";
+  // Keep every board this fan sits on current with their latest Clerk username
+  // (points are derived server-side from settlements now).
+  const displayName = useDisplayName();
   const syncProfile = useMutation(api.leagues.syncProfile);
   // The league member whose picks popup is open, if any.
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
