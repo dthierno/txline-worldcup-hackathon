@@ -6763,11 +6763,13 @@ dt {
   }
 }
 
-/* User profile page: a league-mate's standing + the picks they made. */
+/* User profile page: a league-mate's standing + the picks they made. Matches
+   the nav bar / main content column (1088px box, 24px gutters). */
 .prof {
   margin: 0 auto;
-  max-width: 640px;
-  padding: 24px 16px 60px;
+  max-width: 1088px;
+  padding: 24px 24px 60px;
+  width: 100%;
 }
 .prof-back {
   color: var(--muted-foreground);
