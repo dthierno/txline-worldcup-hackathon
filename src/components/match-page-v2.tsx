@@ -289,6 +289,18 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   // so a Telegram tap and a web tap stay in lockstep.
   const botLiveCalls = useQuery(api.liveBot.callsForFixture, { fixtureId }) ?? [];
   const answerLiveCall = useMutation(api.liveBot.answerLiveCall);
+  // This match's bot-call points, so the ticket total matches the Live Calls
+  // Settled strip (which already counts scout + bot).
+  const botCallPoints = botLiveCalls.reduce(
+    (total, call) =>
+      call.status === "resolved" &&
+      call.myAnswer &&
+      call.correctAnswer &&
+      call.myAnswer === call.correctAnswer
+        ? total + GOAL_CALL_POINTS
+        : total,
+    0,
+  );
   const playCard = usePlayCard(fixtureId);
   const scorerPool = details.scorerPool?.data ?? null;
   const reconcileScorerPicks = playCard.reconcile;
@@ -1198,6 +1210,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   const playSection = (
     <PredictionSection
       key={fixture.fixtureId}
+      botCallPoints={botCallPoints}
       calls={settleableCalls}
       fixture={fixture}
       now={now}
@@ -5378,12 +5391,14 @@ function settledRowVisual(
 }
 
 export function PredictionSection({
+  botCallPoints = 0,
   calls,
   fixture,
   now,
   outcome,
   scorerPool,
 }: {
+  botCallPoints?: number;
   calls: SettleableCall[];
   fixture: WorldCupFixture;
   now: number | null;
@@ -5399,8 +5414,12 @@ export function PredictionSection({
     saved && outcome
       ? settlePrediction(saved, outcome, fixture)
       : null;
+  // Scout calls (localStorage) + the bot's Convex calls, so the ticket total
+  // matches the Live Calls Settled strip. Only the scout half is persisted into
+  // the settlement below — the bot half already lives on the server, so folding
+  // it into the stored total would double-count it on the leaderboard.
   const settledCallPoints = mounted
-    ? settleGoalCallPoints(calls, loadGoalCalls(fixture.fixtureId))
+    ? settleGoalCallPoints(calls, loadGoalCalls(fixture.fixtureId)) + botCallPoints
     : 0;
 
   // Persist the settled result so the home screen leaderboard can show points
