@@ -24,7 +24,13 @@ import { GroupTables } from "@/components/group-tables";
 import { Hero } from "@/components/hero";
 import { LeagueActions } from "@/components/league-actions";
 import { CALENDAR_MONTHS, MatchCalendar } from "@/components/match-calendar";
+import { PointsBadge } from "@/components/points-badge";
 import { Skiper107 } from "@/components/skiper107";
+import { UserProfileDialog } from "@/components/user-profile";
+
+// PointsBadge moved to its own module to avoid an import cycle with the profile
+// popup; re-export it so existing importers (match page, tests) keep working.
+export { PointsBadge };
 import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 import {
   Collapsible,
@@ -1033,46 +1039,8 @@ function ScoreStepper({
 // for any zero - whether the fan skipped the pick (muted) or made it and
 // scored nothing. Shared with the match page's live-calls rows so points read
 // the same everywhere.
-export function PointsBadge({ muted, points }: { muted?: boolean; points: number }) {
-  // Zero is always grey; green is reserved for a positive score.
-  const grey = muted || points === 0;
-  const gradientId = grey ? "pc-badge-fill-muted" : "pc-badge-fill";
-
-  return (
-    <span
-      aria-label={
-        muted
-          ? "No prediction made - 0 points"
-          : points === 0
-            ? "0 points earned"
-            : `${points} points earned`
-      }
-      className="pc-points-badge"
-      role="img"
-    >
-      <svg aria-hidden="true" fill="none" viewBox="0 0 12 12">
-        <defs>
-          {grey ? (
-            <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
-              <stop offset="0" stopColor="#3a3a42" />
-              <stop offset="1" stopColor="#71717c" />
-            </linearGradient>
-          ) : (
-            <linearGradient id={gradientId} x1="0" x2="12" y1="12" y2="0">
-              <stop offset="0" stopColor="#2f9e44" />
-              <stop offset="1" stopColor="#a3e635" />
-            </linearGradient>
-          )}
-        </defs>
-        <path
-          d="M4.9 0.28a2.2 2.2 0 0 1 2.2 0l3.5 1.95c0.68 0.38 1.1 1.07 1.1 1.82v3.9c0 0.75-0.42 1.44-1.1 1.82l-3.5 1.95a2.2 2.2 0 0 1-2.2 0l-3.5-1.95a2.1 2.1 0 0 1-1.1-1.82v-3.9c0-0.75 0.42-1.44 1.1-1.82z"
-          fill={`url(#${gradientId})`}
-        />
-      </svg>
-      <span className="pc-points-num">{points}</span>
-    </span>
-  );
-}
+// PointsBadge now lives in @/components/points-badge (imported + re-exported
+// above) to break the import cycle with the profile popup.
 
 function PredictionCard({
   final,
@@ -1643,6 +1611,8 @@ function PredictionsFeed({
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
     "You";
   const syncProfile = useMutation(api.leagues.syncProfile);
+  // The league member whose picks popup is open, if any.
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -1831,10 +1801,14 @@ function PredictionsFeed({
                 key={player.userId ?? player.name}
               >
                 {player.userId ? (
-                  // Real league members link to their profile; bots don't.
-                  <Link className="pred-row-link" href={`/u/${player.userId}`}>
+                  // Real league members open a picks popup; bots don't.
+                  <button
+                    className="pred-row-link"
+                    onClick={() => setProfileUserId(player.userId)}
+                    type="button"
+                  >
                     {content}
-                  </Link>
+                  </button>
                 ) : (
                   content
                 )}
@@ -1857,6 +1831,14 @@ function PredictionsFeed({
             leaderboards against friends.
           </p>
         )}
+        <UserProfileDialog
+          onOpenChange={(open) => {
+            if (!open) {
+              setProfileUserId(null);
+            }
+          }}
+          userId={profileUserId}
+        />
       </aside>
     </div>
   );

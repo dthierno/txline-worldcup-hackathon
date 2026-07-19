@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/../convex/_generated/api";
+import { UserProfileDialog } from "@/components/user-profile";
 import { settlePrediction, type MatchOutcome } from "@/lib/prediction-engine";
 import {
   botScorelinePoints,
@@ -62,6 +63,8 @@ export function MatchLeaderboard({
 }) {
   const myLeagues = useQuery(api.leagues.myLeagues) ?? [];
   const [board, setBoard] = useState("global");
+  // The league member whose picks popup is open, if any.
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   // Bumped whenever settlements might have changed, to re-read the device board.
   const [settleTick, setSettleTick] = useState(0);
   // This match's live-call answers, re-read the moment one is saved.
@@ -262,9 +265,13 @@ export function MatchLeaderboard({
               key={row.key}
             >
               {row.userId ? (
-                <Link className="pred-row-link" href={`/u/${row.userId}`}>
+                <button
+                  className="pred-row-link"
+                  onClick={() => setProfileUserId(row.userId)}
+                  type="button"
+                >
                   {content}
-                </Link>
+                </button>
               ) : (
                 content
               )}
@@ -282,6 +289,15 @@ export function MatchLeaderboard({
             ? "You against the prediction bots - points tick up as calls settle."
             : "You against the prediction bots. Create a league on the home page to battle friends."}
       </p>
+
+      <UserProfileDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setProfileUserId(null);
+          }
+        }}
+        userId={profileUserId}
+      />
     </section>
   );
 }

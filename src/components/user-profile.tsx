@@ -7,7 +7,12 @@ import Link from "next/link";
 import { type CSSProperties, useMemo } from "react";
 
 import { api } from "@/../convex/_generated/api";
-import { PointsBadge } from "@/components/home-page";
+import { PointsBadge } from "@/components/points-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useNow } from "@/lib/match-shared";
 import type { MatchPrediction } from "@/lib/prediction-engine";
 import { isPredictionLocked, loadCachedFixtures } from "@/lib/prediction-store";
@@ -138,12 +143,22 @@ function ProfileMatchCard({
   );
 }
 
-// A league-mate's profile: their standing plus the picks they made. Only shown
-// to viewers the server authorised (same league); each pick stays hidden until
-// its match kicks off, so nobody copies before the deadline.
-export function UserProfile({ userId }: { userId: string }) {
-  const profile = useQuery(api.gameplay.userPredictions, { userId });
+// A league-mate's profile in a popup: their standing plus the picks they made,
+// each in the homepage card design. Opens when `userId` is set; the server only
+// returns picks to viewers who share a league, and each pick stays hidden until
+// its match kicks off.
+export function UserProfileDialog({
+  onOpenChange,
+  userId,
+}: {
+  onOpenChange: (open: boolean) => void;
+  userId: string | null;
+}) {
   const now = useNow();
+  const profile = useQuery(
+    api.gameplay.userPredictions,
+    userId ? { userId } : "skip",
+  );
 
   const fixtureById = useMemo(() => {
     const map = new Map<number, WorldCupFixture>();
@@ -170,99 +185,96 @@ export function UserProfile({ userId }: { userId: string }) {
     return map;
   }, []);
 
-  if (profile === undefined) {
-    return (
-      <main className="prof">
-        <p className="muted">Loading…</p>
-      </main>
-    );
-  }
-
-  if (profile === null) {
-    return (
-      <main className="prof">
-        <Link className="prof-back" href="/">
-          ← Back
-        </Link>
-        <p className="prof-locked">
-          You can only see a player&apos;s picks if you share a league with them.
-          Sign in and join their league to view this profile.
-        </p>
-      </main>
-    );
-  }
-
   const settlementBy = new Map(
-    profile.settlements.map((settlement) => [settlement.fixtureId, settlement]),
+    (profile?.settlements ?? []).map((settlement) => [
+      settlement.fixtureId,
+      settlement,
+    ]),
   );
+  const rows = profile
+    ? profile.predictions
+        .map((entry) => ({
+          entry,
+          fixture: fixtureById.get(entry.fixtureId) ?? null,
+          settlement: settlementBy.get(entry.fixtureId) ?? null,
+        }))
+        .sort((left, right) => {
+          const leftKick = left.fixture
+            ? new Date(left.fixture.kickoffUtc).getTime()
+            : 0;
+          const rightKick = right.fixture
+            ? new Date(right.fixture.kickoffUtc).getTime()
+            : 0;
 
-  const rows = profile.predictions
-    .map((entry) => ({
-      entry,
-      fixture: fixtureById.get(entry.fixtureId) ?? null,
-      settlement: settlementBy.get(entry.fixtureId) ?? null,
-    }))
-    .sort((left, right) => {
-      const leftKick = left.fixture
-        ? new Date(left.fixture.kickoffUtc).getTime()
-        : 0;
-      const rightKick = right.fixture
-        ? new Date(right.fixture.kickoffUtc).getTime()
-        : 0;
-
-      return rightKick - leftKick;
-    });
+          return rightKick - leftKick;
+        })
+    : [];
 
   return (
-    <main className="prof">
-      <Link className="prof-back" href="/">
-        ← Back
-      </Link>
+    <Dialog onOpenChange={onOpenChange} open={userId !== null}>
+      <DialogContent className="lc-prompt prof-dialog">
+        {profile ? (
+          <>
+            <header className="prof-head">
+              <span aria-hidden className="prof-avatar">
+                {profile.name[0]}
+              </span>
+              <div className="prof-id">
+                <DialogTitle className="prof-name">{profile.name}</DialogTitle>
+                <span className="prof-meta">
+                  {profile.points} pts · {profile.predictions.length} prediction
+                  {profile.predictions.length === 1 ? "" : "s"}
+                </span>
+              </div>
+            </header>
 
-      <header className="prof-head">
-        <span aria-hidden className="prof-avatar">
-          {profile.name[0]}
-        </span>
-        <div className="prof-id">
-          <h1 className="prof-name">{profile.name}</h1>
-          <span className="prof-meta">
-            {profile.points} pts · {profile.predictions.length} prediction
-            {profile.predictions.length === 1 ? "" : "s"}
-          </span>
-        </div>
-      </header>
+            {rows.length ? (
+              <div className="prof-cards">
+                {rows.map(({ entry, fixture, settlement }) => {
+                  const prediction = entry.prediction as MatchPrediction;
+                  const home = fixture?.homeTeam ?? "Home";
+                  const away = fixture?.awayTeam ?? "Away";
 
-      {rows.length ? (
-        <div className="prof-cards">
-          {rows.map(({ entry, fixture, settlement }) => {
-            const prediction = entry.prediction as MatchPrediction;
-            const home = fixture?.homeTeam ?? "Home";
-            const away = fixture?.awayTeam ?? "Away";
-
-            return (
-              <ProfileMatchCard
-                away={away}
-                awayIso={teamFlag(away)}
-                finalScore={settlement?.finalScore ?? null}
-                fixtureId={entry.fixtureId}
-                home={home}
-                homeIso={teamFlag(home)}
-                key={entry.fixtureId}
-                locked={
-                  fixture !== null && now !== null
-                    ? isPredictionLocked(fixture, now)
-                    : false
-                }
-                pickAway={prediction.awayGoals}
-                pickHome={prediction.homeGoals}
-                points={settlement?.totalPoints ?? null}
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <p className="muted">No predictions yet.</p>
-      )}
-    </main>
+                  return (
+                    <ProfileMatchCard
+                      away={away}
+                      awayIso={teamFlag(away)}
+                      finalScore={settlement?.finalScore ?? null}
+                      fixtureId={entry.fixtureId}
+                      home={home}
+                      homeIso={teamFlag(home)}
+                      key={entry.fixtureId}
+                      locked={
+                        fixture !== null && now !== null
+                          ? isPredictionLocked(fixture, now)
+                          : false
+                      }
+                      pickAway={prediction.awayGoals}
+                      pickHome={prediction.homeGoals}
+                      points={settlement?.totalPoints ?? null}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="muted">No predictions yet.</p>
+            )}
+          </>
+        ) : profile === null ? (
+          <>
+            <DialogTitle className="prof-name">Profile</DialogTitle>
+            <p className="prof-locked">
+              You can only see a player&apos;s picks if you share a league with
+              them.
+            </p>
+          </>
+        ) : (
+          <>
+            <DialogTitle className="sr-only">Loading profile</DialogTitle>
+            <p className="muted">Loading…</p>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

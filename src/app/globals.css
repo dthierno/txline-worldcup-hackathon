@@ -2846,11 +2846,16 @@ dt {
 .pred-you .pred-avatar {
   background: color-mix(in srgb, var(--won) 22%, #3f3f46);
 }
-/* A real member's row links to their profile; the anchor is display:contents so
+/* A real member's row opens a picks popup; the button is display:contents so
    the row keeps its exact flex layout. */
 .pred-row-link {
+  appearance: none;
+  background: none;
+  border: 0;
   color: inherit;
   display: contents;
+  font: inherit;
+  text-align: inherit;
   text-decoration: none;
 }
 .pred-row:has(> .pred-row-link) {
@@ -6763,24 +6768,19 @@ dt {
   }
 }
 
-/* User profile page: a league-mate's standing + the picks they made. Matches
-   the nav bar / main content column (1088px box, 24px gutters). */
-.prof {
-  margin: 0 auto;
-  max-width: 1088px;
-  padding: 24px 24px 60px;
-  width: 100%;
+/* League-mate picks popup: their standing + the picks they made, in the
+   homepage card design. */
+.prof-dialog {
+  max-width: 620px;
+  width: calc(100vw - 32px);
 }
-.prof-back {
-  color: var(--muted-foreground);
-  display: inline-block;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 18px;
-  text-decoration: none;
+.prof-dialog .prof-head {
+  margin-bottom: 16px;
 }
-.prof-back:hover {
-  color: #fff;
+.prof-dialog .prof-cards {
+  max-height: min(58vh, 520px);
+  overflow-y: auto;
+  padding-right: 3px;
 }
 .prof-locked {
   color: var(--muted-foreground);
