@@ -7,15 +7,10 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/../convex/_generated/api";
 import { UserProfileDialog } from "@/components/user-profile";
 import { settlePrediction, type MatchOutcome } from "@/lib/prediction-engine";
-import {
-  botScorelinePoints,
-  botStandings,
-  gradeBotCalls,
-} from "@/lib/prediction-bots";
+import { globalBotStandings } from "@/lib/prediction-bots";
 import {
   GOAL_CALLS_CHANGED_EVENT,
   LEAGUES_CHANGED_EVENT,
-  loadCachedFixtures,
   loadGoalCalls,
   loadPrediction,
   loadSelectedBoard,
@@ -23,7 +18,6 @@ import {
   saveSelectedBoard,
   settleGoalCallPoints,
   type GoalCallAnswer,
-  type StoredSettlement,
 } from "@/lib/prediction-store";
 import type { SettleableCall } from "@/lib/txline-normalize";
 
@@ -111,60 +105,42 @@ export function MatchLeaderboard({
     api.leagues.leaderboard,
     selectedLeague ? { leagueId: selectedLeague.id } : "skip",
   );
+  // The global board is every real user (server points), ranked with the bots.
+  const globalUsers = useQuery(api.users.globalLeaderboard) ?? [];
 
-  // Baseline: every settled match EXCEPT this one - this match is overlaid live
-  // below, so it must not be double-counted from a stored settlement.
-  const { botBase, youBase } = useMemo(() => {
-    const finals = loadSettlements();
-    const others: Record<string, StoredSettlement> = {};
-
-    for (const [key, settlement] of Object.entries(finals)) {
-      if (settlement.fixtureId !== fixtureId) {
-        others[key] = settlement;
-      }
-    }
-
-    return {
-      botBase: botStandings(others, loadCachedFixtures()),
-      youBase: Object.values(others).reduce(
+  // Your device settled total, only for the signed-out "You" fallback.
+  const settledPoints = useMemo(
+    () =>
+      Object.values(loadSettlements()).reduce(
         (total, settlement) => total + (settlement.totalPoints ?? 0),
         0,
       ),
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settleTick, fixtureId]);
+    [settleTick],
+  );
 
-  // This match's provisional points, recomputed as calls resolve and answers
-  // land: live-call points always, plus the scoreline once it's full time.
+  // This match's provisional points for YOU: live-call points always, plus the
+  // scoreline once it's decided - overlaid on your row while the match is live.
   const provisional = useMemo(() => {
-    // Call points are graded only over the calls the fan answered, so bots
-    // never score on calls the fan skipped. The scoreline (and any market that
-    // has settled) counts once the fan has predicted this match - settled off
-    // the very same outcome the slip uses, so the board matches the ticket.
-    // Otherwise it stays a fair head-to-head: no one is scored on a match the
-    // fan sat out.
-    const botCall = gradeBotCalls(calls, answers);
     const userCall = settleGoalCallPoints(calls, answers);
     const prediction = loadPrediction(fixtureId);
-    let botScore: Record<string, number> = {};
-    let userScore = 0;
+    const userScore =
+      prediction && outcome
+        ? settlePrediction(prediction, outcome, { awayTeam, homeTeam })
+            .totalPoints
+        : 0;
 
-    if (prediction && outcome) {
-      userScore = settlePrediction(prediction, outcome, {
-        awayTeam,
-        homeTeam,
-      }).totalPoints;
-      botScore = botScorelinePoints(fixtureId, homeTeam, awayTeam, outcome);
-    }
-
-    return { botCall, botScore, userCall, userScore };
+    return { userCall, userScore };
   }, [answers, awayTeam, calls, fixtureId, homeTeam, outcome]);
 
-  // On a league board only your own live points can be shown - friends' rows
-  // move when their devices settle and sync. Overlay yours only while the match
-  // is live; at full time it settles and syncs like any other, so no
-  // double-count against your synced Convex total.
+  // Overlay your live points only while the match is live; at full time it
+  // settles and syncs, so no double-count against your server total.
   const myLivePoints = live ? provisional.userCall + provisional.userScore : 0;
+
+  // The bots' fixed global score (same for everyone) and whether you're already
+  // in the server board.
+  const globalBots = useMemo(() => globalBotStandings(), []);
+  const meInGlobal = globalUsers.some((entry) => entry.isMe);
 
   const rows: BoardRow[] = selectedLeague
     ? (leagueBoard ?? [])
@@ -180,25 +156,35 @@ export function MatchLeaderboard({
         }))
         .sort((left, right) => right.points - left.points)
     : [
-        {
+        ...globalUsers.map((entry) => ({
           bot: false,
-          key: "you",
-          mine: true,
-          name: "You",
-          points: youBase + provisional.userCall + provisional.userScore,
+          key: entry.userId,
+          mine: entry.isMe,
+          name: entry.isMe ? "You" : entry.name,
+          points: entry.points + (entry.isMe ? myLivePoints : 0),
           userId: null,
-        },
-        ...botBase.map((entry) => ({
+        })),
+        ...globalBots.map((entry) => ({
           bot: true,
           key: entry.botId,
           mine: false,
           name: entry.name,
-          points:
-            entry.points +
-            (provisional.botCall[entry.botId] ?? 0) +
-            (provisional.botScore[entry.botId] ?? 0),
+          points: entry.points,
           userId: null,
         })),
+        // Signed out (or not yet recorded), still show your device total + live.
+        ...(meInGlobal
+          ? []
+          : [
+              {
+                bot: false,
+                key: "you-local",
+                mine: true,
+                name: "You",
+                points: settledPoints + myLivePoints,
+                userId: null,
+              },
+            ]),
       ].sort((left, right) => right.points - left.points);
 
   return (
@@ -286,8 +272,8 @@ export function MatchLeaderboard({
             ? `${selectedLeague.name} · your points tick up live; friends' update as their matches settle.`
             : `${selectedLeague.name} · invite code ${selectedLeague.code}`
           : live
-            ? "You against the prediction bots - points tick up as calls settle."
-            : "You against the prediction bots. Create a league on the home page to battle friends."}
+            ? "Every player and the bots - your points tick up live as calls settle."
+            : "Every player ranked by points, with the bots. Create a league to battle friends."}
       </p>
 
       <UserProfileDialog
