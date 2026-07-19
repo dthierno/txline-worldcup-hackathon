@@ -2666,9 +2666,15 @@ dt {
   border: none;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   gap: 6px;
   justify-content: center;
   padding: 0;
+}
+/* The two goal boxes sit close together, with the lock centred above them. */
+.pc-locked-row {
+  display: flex;
+  gap: 4px;
 }
 .pc-stepper-locked {
   opacity: 0.5;
