@@ -1,5 +1,7 @@
 "use client";
 
+import { SignInButton } from "@clerk/nextjs";
+import { useConvexAuth } from "convex/react";
 import Link from "next/link";
 import {
   ArrowDown01Icon,
@@ -175,6 +177,27 @@ import {
 } from "@/lib/world-cup-fixtures";
 import { pastWorldCupFixtures } from "@/lib/past-world-cup-fixtures";
 
+// Padlock for the signed-out prediction cover.
+function LockGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      height="22"
+      viewBox="0 0 24 24"
+      width="22"
+    >
+      <path
+        d="M7 10V8a5 5 0 0 1 10 0v2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <rect fill="currentColor" height="11" rx="2.5" width="15" x="4.5" y="9.5" />
+    </svg>
+  );
+}
+
 type MatchTab =
   | "knockout"
   | "lineups"
@@ -258,6 +281,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   );
   const [matchTab, setMatchTab] = useState<MatchTab>("overview");
   const now = useNow();
+  // Predicting needs an account (a device-local pick never reaches a board), so
+  // signed out the market cards still render but locked behind a sign-in cover.
+  const { isAuthenticated } = useConvexAuth();
   const playCard = usePlayCard(fixtureId);
   const scorerPool = details.scorerPool?.data ?? null;
   const reconcileScorerPicks = playCard.reconcile;
@@ -1624,15 +1650,45 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 matches keep the locked card in the rail. */}
             <div className="mp2-main">
               {preMatchPlay && fixture ? (
-                <MarketCards
-                  board={playBoard}
-                  draft={playCard.draft}
-                  fixture={fixture}
-                  odds1x2={playOdds}
-                  patchDraft={playCard.patchDraft}
-                  scorerPool={scorerPool}
-                  sideMarkets={details.oddsUpdates?.data?.sideMarkets ?? null}
-                />
+                isAuthenticated ? (
+                  <MarketCards
+                    board={playBoard}
+                    draft={playCard.draft}
+                    fixture={fixture}
+                    odds1x2={playOdds}
+                    patchDraft={playCard.patchDraft}
+                    scorerPool={scorerPool}
+                    sideMarkets={details.oddsUpdates?.data?.sideMarkets ?? null}
+                  />
+                ) : (
+                  <div className="mp2-play-locked">
+                    <div aria-hidden="true" className="mp2-play-locked-cards" inert>
+                      <MarketCards
+                        board={playBoard}
+                        draft={playCard.draft}
+                        fixture={fixture}
+                        odds1x2={playOdds}
+                        patchDraft={playCard.patchDraft}
+                        scorerPool={scorerPool}
+                        sideMarkets={details.oddsUpdates?.data?.sideMarkets ?? null}
+                      />
+                    </div>
+                    <div className="mp2-play-lock-cover">
+                      <span className="mp2-play-lock-ic" aria-hidden="true">
+                        <LockGlyph />
+                      </span>
+                      <p className="mp2-play-lock-title">Sign in to predict</p>
+                      <p className="mp2-play-lock-sub">
+                        Make your calls, score points and climb the leaderboard.
+                      </p>
+                      <SignInButton mode="modal">
+                        <button className="mp2-play-lock-btn" type="button">
+                          Sign in or sign up
+                        </button>
+                      </SignInButton>
+                    </div>
+                  </div>
+                )
               ) : null}
 
               {finished ? (
@@ -1861,6 +1917,7 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 <TicketCard
                   draft={playCard.draft}
                   fixture={fixture}
+                  locked={!isAuthenticated}
                   odds1x2={playOdds}
                   onSave={playCard.save}
                   saved={Boolean(playCard.saved)}
@@ -4800,6 +4857,7 @@ type TicketVisual =
 function TicketCard({
   draft,
   fixture,
+  locked,
   odds1x2,
   onSave,
   saved,
@@ -4807,6 +4865,7 @@ function TicketCard({
 }: {
   draft: MatchPrediction;
   fixture: WorldCupFixture;
+  locked: boolean;
   odds1x2: { away: number; draw: number; home: number } | null;
   onSave: (odds1x2: { away: number; draw: number; home: number } | null) => void;
   saved: boolean;
@@ -5084,14 +5143,22 @@ function TicketCard({
       )}
       <div aria-hidden className="mp2-ticket-tear" />
       <PotentialPoints points={potentialPoints} />
-      <Button
-        className="mp2-ticket-save"
-        disabled={ticketRows.length === 0}
-        onClick={() => onSave(odds1x2)}
-        type="button"
-      >
-        {saved ? "Update picks" : "Save picks"}
-      </Button>
+      {locked ? (
+        <SignInButton mode="modal">
+          <Button className="mp2-ticket-save" type="button">
+            Sign in to save picks
+          </Button>
+        </SignInButton>
+      ) : (
+        <Button
+          className="mp2-ticket-save"
+          disabled={ticketRows.length === 0}
+          onClick={() => onSave(odds1x2)}
+          type="button"
+        >
+          {saved ? "Update picks" : "Save picks"}
+        </Button>
+      )}
     </section>
   );
 }

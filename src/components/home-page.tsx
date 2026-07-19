@@ -1,5 +1,6 @@
 "use client";
 
+import { SignInButton } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 
@@ -1035,6 +1036,66 @@ function ScoreStepper({
   );
 }
 
+function LockGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="pc-lock-ic"
+      height="14"
+      viewBox="0 0 24 24"
+      width="14"
+    >
+      <path
+        d="M7 10V8a5 5 0 0 1 10 0v2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <rect fill="currentColor" height="11" rx="2.5" width="15" x="4.5" y="9.5" />
+    </svg>
+  );
+}
+
+// Signed-out state for the score picker: the stepper widget still shows (so the
+// card reads the same) but it's locked — non-interactive spans wrapped in one
+// sign-in button, so any tap opens the Clerk modal. Predicting needs an account;
+// a device-local pick would never reach a leaderboard.
+function LockedScores({ away, home }: { away: string; home: string }) {
+  return (
+    <SignInButton mode="modal">
+      <button
+        aria-label="Sign in to predict this match"
+        className="pc-scores-locked"
+        title="Sign in or sign up to predict"
+        type="button"
+      >
+        <span aria-hidden="true" className="pc-stepper pc-stepper-locked">
+          <span className="pc-step pc-step-up">
+            <StepPlusIcon />
+          </span>
+          <span className="pc-score-box">{home || "?"}</span>
+          <span className="pc-step pc-step-down">
+            <StepMinusIcon />
+          </span>
+        </span>
+        <span className="pc-lock-badge">
+          <LockGlyph />
+        </span>
+        <span aria-hidden="true" className="pc-stepper pc-stepper-locked">
+          <span className="pc-step pc-step-up">
+            <StepPlusIcon />
+          </span>
+          <span className="pc-score-box">{away || "?"}</span>
+          <span className="pc-step pc-step-down">
+            <StepMinusIcon />
+          </span>
+        </span>
+      </button>
+    </SignInButton>
+  );
+}
+
 // Rounded-hexagon points badge: green only for points actually earned, grey
 // for any zero - whether the fan skipped the pick (muted) or made it and
 // scored nothing. Shared with the match page's live-calls rows so points read
@@ -1059,6 +1120,7 @@ function PredictionCard({
   onPredictedChange: (fixtureId: number, predicted: boolean) => void;
   score?: LiveScore;
 }) {
+  const { isAuthenticated } = useConvexAuth();
   const [favourite, setFavourite] = useState(false);
   const [home, setHome] = useState(
     prediction ? String(prediction.homeGoals) : "",
@@ -1371,6 +1433,8 @@ function PredictionCard({
                   {prediction ? prediction.awayGoals : "–"}
                 </span>
               </>
+            ) : !isAuthenticated ? (
+              <LockedScores away={away} home={home} />
             ) : (
               <>
                 <ScoreStepper
@@ -1632,8 +1696,9 @@ function PredictionsFeed({
           simulated: true,
           userId: null as string | null,
         })),
-        // Signed out (or not yet recorded), still show your device total.
-        ...(meInGlobal
+        // Signed in but not yet recorded: still show your device total. Signed
+        // out there's no "You" row — playing needs an account.
+        ...(!isAuthenticated || meInGlobal
           ? []
           : [
               {

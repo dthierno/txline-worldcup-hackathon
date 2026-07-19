@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -140,6 +140,7 @@ export function MatchLeaderboard({
   // The bots' fixed global score (same for everyone) and whether you're already
   // in the server board.
   const globalBots = useMemo(() => globalBotStandings(), []);
+  const { isAuthenticated } = useConvexAuth();
   const meInGlobal = globalUsers.some((entry) => entry.isMe);
 
   const rows: BoardRow[] = selectedLeague
@@ -172,8 +173,10 @@ export function MatchLeaderboard({
           points: entry.points,
           userId: null,
         })),
-        // Signed out (or not yet recorded), still show your device total + live.
-        ...(meInGlobal
+        // Signed in but not yet recorded on the server board: still show your
+        // device total + live points. Signed out, there's no "You" row at all —
+        // predicting needs an account.
+        ...(!isAuthenticated || meInGlobal
           ? []
           : [
               {
