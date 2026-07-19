@@ -95,4 +95,7 @@ export const worldCupResults: WorldCupResult[] = [
   // (game_finalised stat banks) on 17 Jul 2026.
   { fixtureId: 18237038, home: "France", away: "Spain", kickoffUtc: "2026-07-14T19:00:00.000Z", score: [0, 2] },
   { fixtureId: 18241006, home: "England", away: "Argentina", kickoffUtc: "2026-07-15T19:00:00.000Z", score: [1, 2] },
+  // Final - Spain win it in extra time (0-0 after 90). Verified against the
+  // TxLINE game_finalised record (statusId 100) on 19 Jul 2026.
+  { fixtureId: 18257739, home: "Spain", away: "Argentina", kickoffUtc: "2026-07-19T19:00:00.000Z", score: [1, 0] },
 ];
