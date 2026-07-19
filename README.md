@@ -1,24 +1,92 @@
-# Fan Forecast
+# PredGame
 
-Fan Forecast is a web-only football prediction league demo for the TxLINE World Cup hackathon. It is built around TxLINE's World Cup free tier and is intentionally database-free for now.
+A free-to-play World Cup companion that turns watching into playing — built on
+TxLINE for the TxODDS World Cup hackathon.
 
-## What Works
+## Core idea
 
-- Official TxLINE-covered World Cup fixtures, with docs-backed seed fallback
-- Featured match: `fixtureId 18209181`, France vs Morocco, July 9, 2026 at 20:00 UTC
-- Private league UI and live leaderboard
-- Local prediction persistence with `localStorage`
-- Prediction locking/editing demo flow
-- Score, winner, total goals, and first-goal scoring
-- TxLINE score snapshots, score update events, and odds snapshots wired into the match view
-- Optional replay controls for goals, cards, corners, and full-time settlement demo narration
-- Server-side TxLINE API proxy routes so tokens are not exposed in browser code
-- In-app TxLINE diagnostics showing fixture source, score source, updates source, odds source, network, and feed mode
-- Demo fallback when TxLINE credentials are not configured or a live request fails
+Most fans watch the World Cup with a phone in their hand, but all it shows them
+is the score. PredGame turns the match into a game: before kickoff you predict
+the result and player markets, then as it unfolds the match becomes a stream of
+rapid **live calls** — _"goal in the next 8 minutes?"_, _"who scores next?"_,
+_"booked?"_ — that **settle the instant TxLINE's feed confirms them**. You earn
+points, climb a global leaderboard, and battle friends in private leagues that
+tick up live. Free to play — no stake, just the fun and the bragging rights.
 
-## TxLINE Setup
+## What it does
 
-Copy `.env.example` to `.env.local` and fill in the values after activating your TxLINE free tier:
+- **Pre-match predictions** — scoreline, winner, over/under, anytime scorer,
+  booked/sent-off, and side markets, priced off TxLINE's demarginated odds.
+- **Live in-match calls** — scout "possible goal" moments, timed goal windows,
+  next-goal, corners, added time, VAR — graded in real time off the feed.
+- **Private leagues + a global leaderboard** that update live as calls settle.
+- **Prediction bots** (Rocco / Vega / Chaos) that make their own picks and
+  compete on the same board.
+- **A Telegram bot** — link your account and a server-side poller DMs you the
+  live calls during real matches; answer with one tap in the chat and it syncs
+  straight to your web leaderboard, points and all, even with the app closed.
+  `/demo` replays a scripted match so the loop is demonstrable any time.
+
+## Technical highlights
+
+- **Real-time settlement off TxLINE's revision model.** Every event emits
+  records sharing one action `Id` (`Confirmed: false → true`); we merge by id,
+  read the scorer/card `PlayerId` from sibling records, and treat
+  `action_discarded` as a walk-back — so a VAR-disallowed goal correctly comes
+  off the board and "booked" settles the moment a player is carded.
+- **Demarginated odds as fair probabilities.** `TXLineStablePriceDemargined`
+  `Pct` values sum to ~100, so the entire points economy and a Poisson
+  scoreline model price directly off them with zero overround handling.
+- **Convex as one reactive source of truth.** The same data drives the web app
+  and the Telegram bot — a tap on either surface lands in the same table and
+  both update live via Convex reactivity; leaderboard totals are re-derived
+  server-side so they can't be spoofed from a device.
+- **An autonomous live-call engine.** A Convex cron polls the TxLINE feed,
+  generates goal-window calls, fans them out to linked Telegram users, and
+  grades them by watching the score — server-side, so it runs during real
+  matches whether or not anyone has the app open. The bot's webhook is a Convex
+  HTTP action (no always-on server).
+- **One normalized feed schema across snapshots + SSE**, consumed by the same
+  normalizer on the server and in the browser, behind server proxy routes so
+  the TxLINE credentials never reach browser JavaScript.
+
+## Business / monetization
+
+Free-to-play prediction is the biggest on-ramp in sports and the proven
+top-of-funnel operators use to acquire and retain casual fans — it reaches the
+audience that will never open a sportsbook, works in every market (including
+where real-money isn't legal), and keeps a fan engaged for all 90 minutes.
+Private leagues drive social retention and virality; the Telegram bot is a
+re-engagement channel that pulls fans back for every match. Same TxLINE feed, a
+much wider addressable audience than a betting product.
+
+## TxLINE endpoints used
+
+Base URL `{TXLINE_API_ORIGIN}/api`, auth `Authorization: Bearer <JWT>` +
+`X-Api-Token: <token>`, `cache: no-store` (SSE endpoints add
+`Accept: text/event-stream`).
+
+| Endpoint | Used for |
+| --- | --- |
+| `GET /scores/snapshot/{fixtureId}` | Current score, stats, per-half banks, cards/corners, and (at full time) `PlayerStats` — drives live scores, the server poller, and settlement. |
+| `GET /scores/updates/{fixtureId}` | Live SSE event stream (goals, `yellow_card`/`red_card`, corners, VAR, substitutions, `game_finalised`); `?since=<seq>` cursor for deltas. Powers live calls + live player/goal/card attribution. |
+| `GET /scores/historical/{fixtureId}` | Finished-match score history after the snapshot retention window. |
+| `GET /odds/snapshot/{fixtureId}` | Demarginated 1X2 + market prices — the points economy and Poisson pricing. |
+| `GET /odds/updates/{fixtureId}` | Live odds SSE (in-running price movement). |
+| `GET /fixtures/snapshot` | World Cup fixture list / schedule. |
+| `GET /scores/stat-validation` · `/scores/stat-validation-v3` · `/odds/validation` · `/fixtures/batch-validation` | Cross-checking feed values while building. |
+| `GET /{scores|odds}/stream` | Combined SSE streams. |
+
+## Stack
+
+Next.js 16 (App Router, Turbopack) · React 19 · Convex (reactive DB, HTTP
+actions, cron, actions) · Clerk (auth) · Telegram Bot API · TxLINE (scores,
+odds, fixtures over HTTP + SSE). Deployed on Vercel + Convex.
+
+## Local development
+
+Copy `.env.example` to `.env.local` and fill in your TxLINE free-tier
+credentials (plus Clerk keys, the Convex URL, and `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`):
 
 ```bash
 TXLINE_NETWORK=devnet
@@ -27,56 +95,13 @@ TXLINE_JWT=your_guest_jwt
 TXLINE_API_TOKEN=your_activated_api_token
 ```
 
-If the env vars are missing, the app still runs using the TxLINE docs schedule seed and the local demo replay. With `TXLINE_JWT` and `TXLINE_API_TOKEN` present in `.env.local`, the server routes call TxLINE directly without exposing either credential to browser JavaScript.
-
-### Optional player headshots
-
-Lineups can be enriched with current player headshots from API-Football. Add the following server-only values to `.env.local`:
-
-```bash
-API_FOOTBALL_KEY=your_api_football_key
-API_FOOTBALL_ORIGIN=https://v3.football.api-sports.io
-```
-
-The app resolves each national team and its current squad, matches players conservatively using name, age, shirt number, and position, then caches the provider data for seven days. If the key is missing, the quota is exhausted, or a player cannot be matched confidently, the existing silhouette is shown instead. The API key is never sent to browser JavaScript.
-
-If the validator has created `../txline-validation/out/txline-devnet-result.json`,
-import it without printing secrets:
-
-```bash
-npm run txline:env
-```
-
-## API Routes
-
-- `GET /api/txline/status` reports whether the app is using configured TxLINE credentials or demo fallback.
-- `GET /api/txline/fixtures` returns TxLINE fixture snapshots when configured, otherwise the docs-backed fixture seed.
-- `GET /api/txline/scores/:fixtureId` returns normalized score stats when configured.
-- `GET /api/txline/scores/:fixtureId/updates` returns normalized score update events when configured.
-- `GET /api/txline/scores/:fixtureId/lineups` returns normalized lineups and optionally enriches them with API-Football player headshots.
-- `GET /api/txline/odds/:fixtureId` returns normalized 1X2 probabilities and available odds markets when configured.
-
-## Hackathon Demo Flow
-
-1. Open the app and show the France vs Morocco featured match.
-2. Show the `TxLINE Status` card first. In live mode it proves fixtures, score snapshot, score updates, and odds are coming through the proxy routes.
-3. Open the `Live rounds` tab to show next goal, next card, and higher/lower corners backed by the current TxLINE score stats and odds snapshot.
-4. Use `Run Demo Replay` or `Next event` only when you want to narrate how goals, cards, corners, and full-time settlement affect the leaderboard during judging.
-5. Point judges to the `TxLINE Status` card to prove whether the app is using live TxLINE credentials or docs-seed fallback.
-
-## Development
-
 ```bash
 npm install
-npm run dev -- --port 3001
+npm run dev          # Next.js on :3000
+npx convex dev       # Convex functions + live-call cron
 ```
 
-Open `http://localhost:3001`.
-
-## Verification
-
-```bash
-npm run lint
-npm run test
-npm run build
-```
+Server proxy routes under `/api/txline/*` keep the TxLINE credentials off the
+client. See [TXLINE-FEEDBACK.md](TXLINE-FEEDBACK.md) for our running notes on
+the API, and [API-WISHLIST.md](API-WISHLIST.md) for the endpoint ideas each gap
+produced.
