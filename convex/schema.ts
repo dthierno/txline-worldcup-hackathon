@@ -129,6 +129,21 @@ export default defineSchema({
     .index("by_fixture", ["fixtureId"])
     .index("by_callId", ["callId"]),
 
+  // Answers to bot live calls (liveCalls + /demo), from a Telegram tap OR the
+  // web. Kept separate from goalCalls on purpose: goalCalls is mirrored from
+  // localStorage with a full replace, which would clobber a Telegram-only
+  // answer. This table is Convex-reactive, so a tap on either surface updates
+  // both. answer is "yes" | "no".
+  liveCallAnswers: defineTable({
+    userId: v.string(),
+    fixtureId: v.number(),
+    callId: v.string(),
+    answer: v.string(),
+    answeredAt: v.string(),
+  })
+    .index("by_user_call", ["userId", "callId"])
+    .index("by_user_fixture", ["userId", "fixtureId"]),
+
   // Short-lived, single-use tokens for the connect flow: the app mints one tied
   // to the signed-in user, hands it to Telegram via the t.me/<bot>?start=<token>
   // deep link, and the webhook redeems it to bind chatId -> userId, then deletes

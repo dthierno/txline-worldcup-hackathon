@@ -6,8 +6,10 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  mutation,
+  query,
 } from "./_generated/server";
-import { telegramFetch } from "./telegram";
+import { telegramFetch, upsertLiveCallAnswer } from "./telegram";
 import { getFixtureScore, type FixtureScore } from "./txline";
 
 // A goal-window call stays open for this long, then the next opens after a gap,
@@ -154,17 +156,17 @@ export const activeLinks = internalQuery({
 });
 
 export const readAnswer = internalQuery({
-  args: { callId: v.string(), fixtureId: v.number(), userId: v.string() },
+  args: { callId: v.string(), userId: v.string() },
   returns: v.union(v.null(), v.string()),
   handler: async (ctx, args) => {
     const row = await ctx.db
-      .query("goalCalls")
-      .withIndex("by_user_fixture", (q) =>
-        q.eq("userId", args.userId).eq("fixtureId", args.fixtureId),
+      .query("liveCallAnswers")
+      .withIndex("by_user_call", (q) =>
+        q.eq("userId", args.userId).eq("callId", args.callId),
       )
       .first();
 
-    return row?.answers[args.callId]?.answer ?? null;
+    return row?.answer ?? null;
   },
 });
 
@@ -329,7 +331,6 @@ async function announceResolution(
   for (const link of links) {
     const answer = await ctx.runQuery(internal.liveBot.readAnswer, {
       callId,
-      fixtureId: fixture.fixtureId,
       userId: link.userId,
     });
 
@@ -429,5 +430,97 @@ export const debugOpenCall = internalAction({
     await openAndSend(ctx, fixture, score, windowEndMs, score.totalGoals, nowMs);
 
     return `opened a ${args.windowSeconds ?? 90}s call for ${fixture.homeTeam} vs ${fixture.awayTeam}`;
+  },
+});
+
+// --- web surface (public) --------------------------------------------------
+
+// The bot's live calls for one fixture, newest first, each carrying the signed
+// -in fan's own answer — so the match page can render them in the Live Calls
+// card and stay in sync with Telegram. Reactive: a tap on either surface
+// re-runs this query.
+export const callsForFixture = query({
+  args: { fixtureId: v.number() },
+  returns: v.array(
+    v.object({
+      callId: v.string(),
+      correctAnswer: v.union(v.null(), v.string()),
+      myAnswer: v.union(v.null(), v.string()),
+      question: v.string(),
+      status: v.string(),
+      windowEndMs: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject ?? null;
+
+    const calls = await ctx.db
+      .query("liveCalls")
+      .withIndex("by_fixture", (q) => q.eq("fixtureId", args.fixtureId))
+      .collect();
+    const recent = calls
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, 20);
+
+    const rows = [];
+
+    for (const call of recent) {
+      let myAnswer: string | null = null;
+
+      if (userId) {
+        const answer = await ctx.db
+          .query("liveCallAnswers")
+          .withIndex("by_user_call", (q) =>
+            q.eq("userId", userId).eq("callId", call.callId),
+          )
+          .first();
+        myAnswer = answer?.answer ?? null;
+      }
+
+      rows.push({
+        callId: call.callId,
+        correctAnswer: call.correctAnswer ?? null,
+        myAnswer,
+        question: call.question,
+        status: call.status,
+        windowEndMs: call.windowEndMs,
+      });
+    }
+
+    return rows;
+  },
+});
+
+// Answer a bot live call from the web. Writes the same liveCallAnswers row a
+// Telegram tap would, so the two surfaces are one. Silently ignores answers to
+// a call that's already closed (resolved or past its window).
+export const answerLiveCall = mutation({
+  args: { answer: v.string(), callId: v.string(), fixtureId: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("You must be signed in.");
+    }
+
+    const call = await ctx.db
+      .query("liveCalls")
+      .withIndex("by_callId", (q) => q.eq("callId", args.callId))
+      .first();
+
+    if (!call || call.status !== "open" || Date.now() >= call.windowEndMs) {
+      return null;
+    }
+
+    await upsertLiveCallAnswer(ctx, {
+      answer: args.answer === "yes" ? "yes" : "no",
+      callId: args.callId,
+      fixtureId: args.fixtureId,
+      userId: identity.subject,
+    });
+
+    return null;
   },
 });

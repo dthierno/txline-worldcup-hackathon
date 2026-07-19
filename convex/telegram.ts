@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import {
   internalAction,
@@ -22,6 +22,34 @@ async function requireUser(ctx: QueryCtx): Promise<string> {
   }
 
   return identity.subject;
+}
+
+// Upsert one bot-live-call answer (from a Telegram tap or the web), keyed by
+// (userId, callId) so re-answering overwrites. Shared by the webhook handler
+// and the web answerLiveCall mutation, so both surfaces write the same row.
+export async function upsertLiveCallAnswer(
+  ctx: MutationCtx,
+  args: { answer: string; callId: string; fixtureId: number; userId: string },
+): Promise<void> {
+  const existing = await ctx.db
+    .query("liveCallAnswers")
+    .withIndex("by_user_call", (q) =>
+      q.eq("userId", args.userId).eq("callId", args.callId),
+    )
+    .first();
+  const answeredAt = new Date().toISOString();
+
+  if (existing) {
+    await ctx.db.patch(existing._id, { answer: args.answer, answeredAt });
+  } else {
+    await ctx.db.insert("liveCallAnswers", {
+      answer: args.answer,
+      answeredAt,
+      callId: args.callId,
+      fixtureId: args.fixtureId,
+      userId: args.userId,
+    });
+  }
 }
 
 // Mint a one-time connect token for the signed-in fan. The client drops it into
@@ -268,26 +296,13 @@ export const recordTelegramAnswer = internalMutation({
     }
 
     const userId = link.userId;
-    const entry = { answer: args.answer, answeredAt: new Date().toISOString() };
 
-    const existing = await ctx.db
-      .query("goalCalls")
-      .withIndex("by_user_fixture", (q) =>
-        q.eq("userId", userId).eq("fixtureId", args.fixtureId),
-      )
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        answers: { ...existing.answers, [args.callId]: entry },
-      });
-    } else {
-      await ctx.db.insert("goalCalls", {
-        answers: { [args.callId]: entry },
-        fixtureId: args.fixtureId,
-        userId,
-      });
-    }
+    await upsertLiveCallAnswer(ctx, {
+      answer: args.answer,
+      callId: args.callId,
+      fixtureId: args.fixtureId,
+      userId,
+    });
 
     return { userId };
   },
@@ -374,14 +389,14 @@ export const startDemo = internalMutation({
 
     // Fresh start: wipe any answers from a previous demo run.
     const prior = await ctx.db
-      .query("goalCalls")
+      .query("liveCallAnswers")
       .withIndex("by_user_fixture", (q) =>
         q.eq("userId", userId).eq("fixtureId", DEMO_FIXTURE_ID),
       )
-      .first();
+      .collect();
 
-    if (prior) {
-      await ctx.db.delete(prior._id);
+    for (const row of prior) {
+      await ctx.db.delete(row._id);
     }
 
     await ctx.scheduler.runAfter(0, internal.telegram.sendMessage, {
@@ -424,14 +439,24 @@ export const readDemoAnswers = internalQuery({
     ),
   ),
   handler: async (ctx, args) => {
-    const row = await ctx.db
-      .query("goalCalls")
+    const rows = await ctx.db
+      .query("liveCallAnswers")
       .withIndex("by_user_fixture", (q) =>
         q.eq("userId", args.userId).eq("fixtureId", DEMO_FIXTURE_ID),
       )
-      .first();
+      .collect();
 
-    return row ? row.answers : null;
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const answers: Record<string, { answer: string; answeredAt: string }> = {};
+
+    for (const row of rows) {
+      answers[row.callId] = { answer: row.answer, answeredAt: row.answeredAt };
+    }
+
+    return answers;
   },
 });
 

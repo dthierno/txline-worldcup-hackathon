@@ -1,7 +1,7 @@
 "use client";
 
 import { SignInButton } from "@clerk/nextjs";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import {
   ArrowDown01Icon,
@@ -30,6 +30,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { api } from "@/../convex/_generated/api";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -284,6 +285,10 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
   // Predicting needs an account (a device-local pick never reaches a board), so
   // signed out the market cards still render but locked behind a sign-in cover.
   const { isAuthenticated } = useConvexAuth();
+  // The bot's live calls for this match + our own answers, straight from Convex
+  // so a Telegram tap and a web tap stay in lockstep.
+  const botLiveCalls = useQuery(api.liveBot.callsForFixture, { fixtureId }) ?? [];
+  const answerLiveCall = useMutation(api.liveBot.answerLiveCall);
   const playCard = usePlayCard(fixtureId);
   const scorerPool = details.scorerPool?.data ?? null;
   const reconcileScorerPicks = playCard.reconcile;
@@ -1697,9 +1702,20 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
 
               <LiveCallsPanel
                 key={`calls-${fixture.fixtureId}`}
+                botCalls={botLiveCalls}
                 calls={liveCalls}
                 fixtureId={fixture.fixtureId}
                 live={liveStreamEligible}
+                onAnswerBot={
+                  isAuthenticated
+                    ? (callId, index) =>
+                        void answerLiveCall({
+                          answer: index === 0 ? "yes" : "no",
+                          callId,
+                          fixtureId: fixture.fixtureId,
+                        })
+                    : undefined
+                }
               />
 
               {/* TxLINE's demarginated 1X2 as a segmented bar. Finished
@@ -2286,16 +2302,29 @@ function CallKindIcon({ kind }: { kind: CallKind }) {
   return <LineupGoalIcon />;
 }
 
+export type BotCallView = {
+  callId: string;
+  correctAnswer: string | null;
+  myAnswer: string | null;
+  question: string;
+  status: string;
+  windowEndMs: number;
+};
+
 export function LiveCallsPanel({
+  botCalls,
   calls,
   fixtureId,
   freezePrompt,
   live,
+  onAnswerBot,
 }: {
+  botCalls?: BotCallView[];
   calls: LiveUiCall[];
   fixtureId: number;
   freezePrompt?: boolean;
   live: boolean;
+  onAnswerBot?: (callId: string, index: 0 | 1) => void;
 }) {
   const mounted = useIsMounted();
   const [answers, setAnswers] = useState<Record<string, GoalCallAnswer>>(() =>
@@ -2372,6 +2401,78 @@ export function LiveCallsPanel({
     expanded || settledRows.length <= SETTLED_CALLS_PREVIEW
       ? settledRows
       : settledRows.slice(0, SETTLED_CALLS_PREVIEW);
+
+  // The bot's live calls come straight from Convex (open + settled), answered
+  // by a Telegram tap or the inline buttons here — same row either way.
+  const botRows = botCalls ?? [];
+
+  function renderBotCall(bot: BotCallView) {
+    const resolved = bot.status === "resolved";
+    const pickedLabel =
+      bot.myAnswer === "yes" ? "Yes" : bot.myAnswer === "no" ? "No" : null;
+    const correct =
+      resolved && bot.myAnswer && bot.correctAnswer
+        ? bot.myAnswer === bot.correctAnswer
+        : null;
+
+    let trailing: ReactNode;
+
+    if (resolved) {
+      trailing = (
+        <PointsBadge
+          muted={correct === null}
+          points={correct ? GOAL_CALL_POINTS : 0}
+        />
+      );
+    } else if (pickedLabel) {
+      trailing = <span className="lcx-chip lcx-chip-picked">{pickedLabel}</span>;
+    } else if (onAnswerBot) {
+      trailing = (
+        <div className="lcx-choose">
+          <button
+            className="lcx-choose-btn"
+            onClick={() => onAnswerBot(bot.callId, 0)}
+            type="button"
+          >
+            Yes
+          </button>
+          <button
+            className="lcx-choose-btn"
+            onClick={() => onAnswerBot(bot.callId, 1)}
+            type="button"
+          >
+            No
+          </button>
+        </div>
+      );
+    } else {
+      trailing = <span className="lcx-chip lcx-chip-muted">Open</span>;
+    }
+
+    return (
+      <li className="lcx-row" key={bot.callId}>
+        <span aria-hidden className="lcx-row-icon">
+          <HugeiconsIcon icon={FootballIcon} size={16} strokeWidth={2} />
+        </span>
+        <div className="lcx-row-body">
+          <span className="lcx-row-q">{bot.question}</span>
+          <div className="lcx-row-meta">
+            {resolved ? (
+              <span className="lcx-outcome">
+                {bot.correctAnswer === "yes" ? "⚽ Goal" : "No goal"}
+              </span>
+            ) : (
+              <span className="lcx-min">Telegram-synced</span>
+            )}
+            {pickedLabel ? (
+              <span className="lcx-you">You: {pickedLabel}</span>
+            ) : null}
+          </div>
+        </div>
+        {trailing}
+      </li>
+    );
+  }
 
   function renderCall(call: LiveUiCall) {
     const kind = callKindOf(call.question);
@@ -2469,20 +2570,34 @@ export function LiveCallsPanel({
         </span>
       </header>
 
-      {calls.length === 0 ? (
-        <div className="lcx-empty">
-          <div aria-hidden className="lcx-empty-ghosts">
-            <span className="lcx-empty-ghost" />
-            <span className="lcx-empty-ghost" />
-            <span className="lcx-empty-ghost" />
+      {botRows.length ? (
+        <div className="lcx-boardwrap">
+          <div className="lcx-board-head">
+            <span aria-hidden className="lcx-open-dot" />
+            Live calls · answer here or in Telegram
           </div>
-          <p className="lcx-empty-title">No calls yet</p>
-          <p className="lcx-empty-sub">
-            When the match kicks off, live micro-calls appear here the moment a
-            play turns dangerous - and settle themselves against the TxLINE
-            feed.
-          </p>
+          <div className="lcx-board-body">
+            <ul className="lcx-list">{botRows.map(renderBotCall)}</ul>
+          </div>
         </div>
+      ) : null}
+
+      {calls.length === 0 ? (
+        botRows.length === 0 ? (
+          <div className="lcx-empty">
+            <div aria-hidden className="lcx-empty-ghosts">
+              <span className="lcx-empty-ghost" />
+              <span className="lcx-empty-ghost" />
+              <span className="lcx-empty-ghost" />
+            </div>
+            <p className="lcx-empty-title">No calls yet</p>
+            <p className="lcx-empty-sub">
+              When the match kicks off, live micro-calls appear here the moment a
+              play turns dangerous - and settle themselves against the TxLINE
+              feed.
+            </p>
+          </div>
+        ) : null
       ) : (
         <>
           {kinds.length > 1 ? (
