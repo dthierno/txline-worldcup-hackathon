@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
-import { userSettledTotal } from "./model/settlements";
+import { userTotalPoints } from "./model/settlements";
 
 // Upsert the caller's row on sign-in: stamp firstSeenAt the first time, bump
 // lastSeenAt (and refresh the name + settled points) every time after. Keyed on
@@ -18,7 +18,7 @@ export const recordUser = mutation({
 
     const userId = identity.subject;
     const now = new Date().toISOString();
-    const points = await userSettledTotal(ctx, userId);
+    const points = await userTotalPoints(ctx, userId);
     const existing = await ctx.db
       .query("users")
       .withIndex("by_user", (q) => q.eq("userId", userId))

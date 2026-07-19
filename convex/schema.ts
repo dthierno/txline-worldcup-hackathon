@@ -142,7 +142,8 @@ export default defineSchema({
     answeredAt: v.string(),
   })
     .index("by_user_call", ["userId", "callId"])
-    .index("by_user_fixture", ["userId", "fixtureId"]),
+    .index("by_user_fixture", ["userId", "fixtureId"])
+    .index("by_call", ["callId"]),
 
   // Short-lived, single-use tokens for the connect flow: the app mints one tied
   // to the signed-in user, hands it to Telegram via the t.me/<bot>?start=<token>

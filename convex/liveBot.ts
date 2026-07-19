@@ -9,6 +9,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { refreshUserPoints } from "./model/settlements";
 import { telegramFetch, upsertLiveCallAnswer } from "./telegram";
 import { getFixtureScore, type FixtureScore } from "./txline";
 
@@ -214,6 +215,17 @@ export const markResolved = internalMutation({
         resolvedAt: args.resolvedAt,
         status: "resolved",
       });
+
+      // The call is now graded — refresh the standing of everyone who answered
+      // it so their live-call points land on the leaderboards.
+      const answerers = await ctx.db
+        .query("liveCallAnswers")
+        .withIndex("by_call", (q) => q.eq("callId", args.callId))
+        .collect();
+
+      for (const answerer of answerers) {
+        await refreshUserPoints(ctx, answerer.userId);
+      }
     }
 
     return null;

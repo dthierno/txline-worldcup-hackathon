@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
-import { userSettledTotal } from "./model/settlements";
+import { refreshUserPoints } from "./model/settlements";
 
 async function requireUser(ctx: QueryCtx): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
@@ -95,29 +95,9 @@ export const saveSettlement = mutation({
       });
     }
 
-    // Re-derive the caller's standing and refresh every board they're on.
-    const total = await userSettledTotal(ctx, userId);
-
-    const memberships = await ctx.db
-      .query("members")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    for (const membership of memberships) {
-      if (membership.points !== total) {
-        await ctx.db.patch(membership._id, { points: total });
-      }
-    }
-
-    // Keep the caller's global-board row current too.
-    const userRow = await ctx.db
-      .query("users")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    if (userRow && userRow.points !== total) {
-      await ctx.db.patch(userRow._id, { points: total });
-    }
+    // Re-derive the caller's standing (settled fixtures + graded live calls)
+    // and refresh every board they're on, including the global users row.
+    await refreshUserPoints(ctx, userId);
 
     return null;
   },
