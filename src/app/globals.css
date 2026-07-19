@@ -4620,6 +4620,33 @@ dt {
 .mp2-overview-events li:last-child {
   padding-bottom: 2px;
 }
+/* Event-line pills: a flag chip for the country, a tinted chip for the player. */
+.mp2-overview-events .ev-country,
+.mp2-overview-events .ev-player {
+  border-radius: 999px;
+  font-weight: 650;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.mp2-overview-events .ev-country {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: inline-flex;
+  gap: 5px;
+  padding: 1px 8px 1px 5px;
+}
+.mp2-overview-events .ev-country img {
+  border-radius: 3px;
+  height: 11px;
+  object-fit: cover;
+  width: 15px;
+}
+.mp2-overview-events .ev-player {
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  color: #bcd3ff;
+  padding: 1px 8px;
+}
 .mp2-timeline-grid {
   align-items: start;
   display: grid;

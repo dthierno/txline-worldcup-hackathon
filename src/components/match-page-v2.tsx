@@ -87,6 +87,7 @@ import {
   useIsMounted,
   useNow,
   type ApiResult,
+  type DisplayUpdate,
   type GameDetails,
   type PlayerDirectory,
   type StreamStatus,
@@ -1832,7 +1833,9 @@ export function MatchPageV2({ fixtureId }: { fixtureId: number }) {
                 {overviewEvents.length ? (
                   <ol className="mp2-overview-events">
                     {overviewEvents.map((update) => (
-                      <li key={update.id}>{update.text}</li>
+                      <li key={update.id}>
+                        {renderEventLine(update, fixture, playerDirectory)}
+                      </li>
                     ))}
                   </ol>
                 ) : (
@@ -5525,6 +5528,78 @@ function StopwatchIcon() {
   );
 }
 
+// Lift an event line above plain text: wrap the country names (flag chips) and
+// any resolvable player names (tinted chips, family name) in pills, leaving the
+// rest of the sentence as-is. Player ids come off the structured update, so we
+// pill the exact name the feed already wrote into the text.
+function renderEventLine(
+  entry: DisplayUpdate,
+  fixture: WorldCupFixture,
+  players?: PlayerDirectory,
+): ReactNode {
+  const entities: Array<{
+    iso?: string;
+    kind: "country" | "player";
+    label: string;
+    match: string;
+  }> = [];
+
+  for (const team of [fixture.homeTeam, fixture.awayTeam]) {
+    entities.push({ iso: teamFlag(team), kind: "country", label: team, match: team });
+  }
+
+  for (const id of [entry.playerId, entry.playerInId, entry.playerOutId]) {
+    const name = id !== undefined ? players?.get(id)?.name : undefined;
+
+    if (name) {
+      entities.push({
+        kind: "player",
+        label: shortPlayerName(name),
+        match: name,
+      });
+    }
+  }
+
+  const present = entities
+    .filter((entity) => entry.text.includes(entity.match))
+    // Longest first, so a player's full name wins over any shorter overlap.
+    .sort((left, right) => right.match.length - left.match.length);
+
+  if (!present.length) {
+    return entry.text;
+  }
+
+  const pattern = present
+    .map((entity) => entity.match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+
+  return entry.text.split(new RegExp(`(${pattern})`, "g")).map((part, index) => {
+    const entity = present.find((candidate) => candidate.match === part);
+
+    if (!entity) {
+      return part;
+    }
+
+    if (entity.kind === "country") {
+      return (
+        <span className="ev-country" key={index}>
+          {entity.iso ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" src={`https://flagcdn.com/w20/${entity.iso}.png`} />
+          ) : null}
+          {entity.label}
+        </span>
+      );
+    }
+
+    return (
+      <span className="ev-player" key={index}>
+        {entity.label}
+      </span>
+    );
+  });
+}
+
 function UpdatesSection({
   fixture,
   players,
@@ -5544,7 +5619,7 @@ function UpdatesSection({
         // overview's Key moments: newest first, hairline-separated.
         <ol className="mp2-overview-events">
           {[...displayUpdates].reverse().map((entry) => (
-            <li key={entry.id}>{entry.text}</li>
+            <li key={entry.id}>{renderEventLine(entry, fixture, players)}</li>
           ))}
         </ol>
       ) : (
