@@ -2402,9 +2402,22 @@ export function LiveCallsPanel({
       ? settledRows
       : settledRows.slice(0, SETTLED_CALLS_PREVIEW);
 
-  // The bot's live calls come straight from Convex (open + settled), answered
-  // by a Telegram tap or the inline buttons here — same row either way.
+  // The bot's live calls come straight from Convex (answered by a Telegram tap
+  // or the inline buttons here), split so they slot into the same Open / Settled
+  // subsections as the feed's scout calls.
   const botRows = botCalls ?? [];
+  const openBotRows = botRows.filter((bot) => bot.status !== "resolved");
+  const settledBotRows = botRows.filter((bot) => bot.status === "resolved");
+  // Bot points earned in this match, folded into the Settled strip's total.
+  const botPoints = settledBotRows.reduce(
+    (total, bot) =>
+      bot.myAnswer && bot.correctAnswer && bot.myAnswer === bot.correctAnswer
+        ? total + GOAL_CALL_POINTS
+        : total,
+    0,
+  );
+  const hasOpenCalls = openRows.length > 0 || openBotRows.length > 0;
+  const hasSettledCalls = settledRows.length > 0 || settledBotRows.length > 0;
 
   function renderBotCall(bot: BotCallView) {
     const resolved = bot.status === "resolved";
@@ -2570,34 +2583,20 @@ export function LiveCallsPanel({
         </span>
       </header>
 
-      {botRows.length ? (
-        <div className="lcx-boardwrap">
-          <div className="lcx-board-head">
-            <span aria-hidden className="lcx-open-dot" />
-            Live calls · answer here or in Telegram
+      {calls.length === 0 && botRows.length === 0 ? (
+        <div className="lcx-empty">
+          <div aria-hidden className="lcx-empty-ghosts">
+            <span className="lcx-empty-ghost" />
+            <span className="lcx-empty-ghost" />
+            <span className="lcx-empty-ghost" />
           </div>
-          <div className="lcx-board-body">
-            <ul className="lcx-list">{botRows.map(renderBotCall)}</ul>
-          </div>
+          <p className="lcx-empty-title">No calls yet</p>
+          <p className="lcx-empty-sub">
+            When the match kicks off, live micro-calls appear here the moment a
+            play turns dangerous - and settle themselves against the TxLINE
+            feed.
+          </p>
         </div>
-      ) : null}
-
-      {calls.length === 0 ? (
-        botRows.length === 0 ? (
-          <div className="lcx-empty">
-            <div aria-hidden className="lcx-empty-ghosts">
-              <span className="lcx-empty-ghost" />
-              <span className="lcx-empty-ghost" />
-              <span className="lcx-empty-ghost" />
-            </div>
-            <p className="lcx-empty-title">No calls yet</p>
-            <p className="lcx-empty-sub">
-              When the match kicks off, live micro-calls appear here the moment a
-              play turns dangerous - and settle themselves against the TxLINE
-              feed.
-            </p>
-          </div>
-        ) : null
       ) : (
         <>
           {kinds.length > 1 ? (
@@ -2623,11 +2622,13 @@ export function LiveCallsPanel({
             </div>
           ) : null}
 
-          {openRows.length || settledRows.length ? (
+          {hasOpenCalls || hasSettledCalls ? (
             <>
               {/* Open and settled live in their own board containers so a
-                  live match reads as two clean subsections. */}
-              {openRows.length ? (
+                  live match reads as two clean subsections. Bot calls
+                  (Telegram-synced) sit at the top of each alongside the feed's
+                  own scout calls. */}
+              {hasOpenCalls ? (
                 <div className="lcx-boardwrap">
                   <div className="lcx-board-head">
                     <span aria-hidden className="lcx-open-dot" />
@@ -2635,21 +2636,26 @@ export function LiveCallsPanel({
                   </div>
                   <div className="lcx-board-body">
                     <ul className="lcx-list">
+                      {openBotRows.map((bot) => renderBotCall(bot))}
                       {openRows.map((call) => renderCall(call))}
                     </ul>
                   </div>
                 </div>
               ) : null}
-              {settledRows.length ? (
+              {hasSettledCalls ? (
                 <div className="lcx-boardwrap">
                   <div className="lcx-board-head lcx-board-head-split">
                     Settled
                     {mounted ? (
-                      <PointsBadge muted={points === 0} points={points} />
+                      <PointsBadge
+                        muted={points + botPoints === 0}
+                        points={points + botPoints}
+                      />
                     ) : null}
                   </div>
                   <div className="lcx-board-body">
                     <ul className="lcx-list">
+                      {settledBotRows.map((bot) => renderBotCall(bot))}
                       {settledPreview.map((call) => renderCall(call))}
                     </ul>
                     {settledRows.length > SETTLED_CALLS_PREVIEW ? (
