@@ -1,28 +1,140 @@
 "use client";
 
+import { FootballIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { type CSSProperties, useMemo } from "react";
 
 import { api } from "@/../convex/_generated/api";
+import { PointsBadge } from "@/components/home-page";
 import { useNow } from "@/lib/match-shared";
 import type { MatchPrediction } from "@/lib/prediction-engine";
 import { isPredictionLocked, loadCachedFixtures } from "@/lib/prediction-store";
-import { teamFlag } from "@/lib/team-visuals";
+import { teamFlag, teamGlow } from "@/lib/team-visuals";
 import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
 import { worldCupResults } from "@/lib/world-cup-results";
 
-function Flag({ team }: { team: string }) {
-  const iso = teamFlag(team);
+// One of the player's matches, in the same card design as the homepage
+// predictions: World Cup header, team flags/names either side, and the middle
+// showing their pick, the final score and the points it scored.
+function ProfileMatchCard({
+  away,
+  awayIso,
+  finalScore,
+  fixtureId,
+  home,
+  homeIso,
+  locked,
+  pickAway,
+  pickHome,
+  points,
+}: {
+  away: string;
+  awayIso?: string;
+  finalScore: string | null;
+  fixtureId: number;
+  home: string;
+  homeIso?: string;
+  locked: boolean;
+  pickAway: number | null;
+  pickHome: number | null;
+  points: number | null;
+}) {
+  const glowHome = (homeIso && teamGlow[homeIso]) || "#3b3b44";
+  const glowAway = (awayIso && teamGlow[awayIso]) || "#3b3b44";
+  const ft = finalScore ? finalScore.split("-").map(Number) : null;
+  const settled = ft !== null && ft.length === 2 && ft.every(Number.isFinite);
+  const exactHit = settled && pickHome === ft![0] && pickAway === ft![1];
+  const pickWinner =
+    pickHome != null && pickAway != null
+      ? pickHome > pickAway
+        ? "h"
+        : pickAway > pickHome
+          ? "a"
+          : "d"
+      : null;
+  const ftWinner = settled
+    ? ft![0] > ft![1]
+      ? "h"
+      : ft![1] > ft![0]
+        ? "a"
+        : "d"
+    : null;
+  const winnerHit = settled && pickWinner !== null && pickWinner === ftWinner;
 
-  return iso ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img alt="" className="prof-flag" src={`https://flagcdn.com/w40/${iso}.png`} />
-  ) : (
-    <span className="prof-flag prof-flag-tbd" />
+  const teamSide = (name: string, iso?: string) => (
+    <Link className="pc-team" href={`/match/${fixtureId}`}>
+      {iso ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt="" className="pc-flag" src={`https://flagcdn.com/w80/${iso}.png`} />
+      ) : (
+        <span aria-hidden className="pc-flag pc-flag-tbd" />
+      )}
+      <span className="pc-name">{name}</span>
+    </Link>
+  );
+
+  return (
+    <div
+      className="pc-card"
+      style={
+        { "--glow-away": glowAway, "--glow-home": glowHome } as CSSProperties
+      }
+    >
+      <div className="pc-head">
+        <span aria-hidden className="pc-head-ic">
+          <HugeiconsIcon className="pc-ball" icon={FootballIcon} strokeWidth={2} />
+        </span>
+        <span className="pc-comp">World Cup 2026</span>
+      </div>
+      <div className="pc-panel">
+        <div className="pc-teams">
+          {teamSide(home, homeIso)}
+
+          {!locked ? (
+            <div className="pc-scores">
+              <span className="prof-card-hidden">Hidden until kickoff</span>
+            </div>
+          ) : settled ? (
+            <div className="pc-scores pc-scores-ended">
+              <span className="pc-livebox pc-box-home pc-final-box">
+                {pickHome ?? "-"}
+              </span>
+              <PointsBadge muted={(points ?? 0) === 0} points={points ?? 0} />
+              <span className="pc-livebox pc-box-away pc-final-box">
+                {pickAway ?? "-"}
+              </span>
+              <span className="pc-ftline">
+                <span className="pc-ft-tag">FT</span>
+                <span className="pc-ft-score">{ft![0]}</span>
+                <span className="pc-ft-dash">-</span>
+                <span className="pc-ft-score">{ft![1]}</span>
+              </span>
+              {exactHit || winnerHit || (points ?? 0) > 0 ? (
+                <span className="pc-why">
+                  {exactHit
+                    ? "Exact score!"
+                    : winnerHit
+                      ? "Right winner"
+                      : "Good calls!"}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <div className="pc-scores">
+              <span className="pc-score-final">{pickHome ?? "-"}</span>
+              <span className="pc-score-final">{pickAway ?? "-"}</span>
+            </div>
+          )}
+
+          {teamSide(away, awayIso)}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -121,57 +233,33 @@ export function UserProfile({ userId }: { userId: string }) {
       </header>
 
       {rows.length ? (
-        <ol className="prof-list">
+        <div className="prof-cards">
           {rows.map(({ entry, fixture, settlement }) => {
             const prediction = entry.prediction as MatchPrediction;
-            const locked =
-              fixture !== null && now !== null
-                ? isPredictionLocked(fixture, now)
-                : false;
             const home = fixture?.homeTeam ?? "Home";
             const away = fixture?.awayTeam ?? "Away";
-            const pick =
-              prediction.homeGoals != null && prediction.awayGoals != null
-                ? `${prediction.homeGoals}-${prediction.awayGoals}`
-                : "—";
 
             return (
-              <li className="prof-row" key={entry.fixtureId}>
-                <Link className="prof-match" href={`/match/${entry.fixtureId}`}>
-                  <span className="prof-team">
-                    <Flag team={home} />
-                    {home}
-                  </span>
-                  <span className="prof-vs">v</span>
-                  <span className="prof-team prof-team-away">
-                    {away}
-                    <Flag team={away} />
-                  </span>
-                </Link>
-                <div className="prof-pick">
-                  {locked ? (
-                    <>
-                      <span className="prof-pick-chip">{pick}</span>
-                      {settlement ? (
-                        <span
-                          className={`prof-pts${
-                            settlement.totalPoints > 0 ? " prof-pts-won" : ""
-                          }`}
-                        >
-                          FT {settlement.finalScore} · +{settlement.totalPoints}
-                        </span>
-                      ) : (
-                        <span className="prof-pts">picked</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="prof-hidden">Hidden until kickoff</span>
-                  )}
-                </div>
-              </li>
+              <ProfileMatchCard
+                away={away}
+                awayIso={teamFlag(away)}
+                finalScore={settlement?.finalScore ?? null}
+                fixtureId={entry.fixtureId}
+                home={home}
+                homeIso={teamFlag(home)}
+                key={entry.fixtureId}
+                locked={
+                  fixture !== null && now !== null
+                    ? isPredictionLocked(fixture, now)
+                    : false
+                }
+                pickAway={prediction.awayGoals}
+                pickHome={prediction.homeGoals}
+                points={settlement?.totalPoints ?? null}
+              />
             );
           })}
-        </ol>
+        </div>
       ) : (
         <p className="muted">No predictions yet.</p>
       )}

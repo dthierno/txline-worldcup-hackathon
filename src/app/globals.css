@@ -6817,87 +6817,14 @@ dt {
   font-size: 13px;
   font-weight: 600;
 }
-.prof-list {
+.prof-cards {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  gap: 14px;
 }
-.prof-row {
-  align-items: center;
-  background: #15151b;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  margin: 0;
-  padding: 12px 14px;
-}
-.prof-match {
-  align-items: center;
-  color: #fff;
-  display: flex;
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-  gap: 8px;
-  min-width: 0;
-  text-decoration: none;
-}
-.prof-team {
-  align-items: center;
-  display: inline-flex;
-  gap: 6px;
-  min-width: 0;
-  white-space: nowrap;
-}
-.prof-flag {
-  border-radius: 3px;
-  flex: 0 0 auto;
-  height: 13px;
-  object-fit: cover;
-  width: 18px;
-}
-.prof-flag-tbd {
-  background: rgba(255, 255, 255, 0.1);
-}
-.prof-vs {
-  color: var(--muted-foreground);
-  flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 500;
-}
-.prof-pick {
-  align-items: center;
-  display: flex;
-  flex: 0 0 auto;
-  gap: 8px;
-}
-.prof-pick-chip {
-  background: color-mix(in srgb, var(--brand) 20%, transparent);
-  border-radius: 999px;
-  color: #bcd3ff;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  padding: 3px 10px;
-  white-space: nowrap;
-}
-.prof-pts {
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.prof-pts-won {
-  color: var(--won);
-}
-.prof-hidden {
+.prof-card-hidden {
   color: var(--muted-foreground);
   font-size: 12px;
   font-style: italic;
+  text-align: center;
 }
