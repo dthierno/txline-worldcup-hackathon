@@ -1,9 +1,11 @@
 "use client";
 
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { api } from "@/../convex/_generated/api";
 import {
   GAMESTATE_HYDRATED_EVENT,
   loadSettlements,
@@ -88,6 +90,22 @@ function AccountGlyph({ size }: { size: number }) {
   );
 }
 
+// Telegram paper-plane, for the account-menu connect action.
+function TelegramGlyph() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="currentColor"
+      height="16"
+      viewBox="0 0 24 24"
+      width="16"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M21.94 4.63a1.3 1.3 0 0 0-1.35-.2L3.3 11.2c-.86.34-.84 1.57.03 1.88l4.2 1.5 1.63 5.02a1 1 0 0 0 1.67.4l2.28-2.2 4.3 3.16a1.3 1.3 0 0 0 2.03-.8l2.9-14.2a1.3 1.3 0 0 0-.4-1.33ZM9.7 14.13l7.6-6.06-9.03 5.35Z" />
+    </svg>
+  );
+}
+
 // Sticky top header (structure from FotMob's Predict header; PredGame wordmark
 // and a generic account icon in place of their branded assets). Once the fan
 // has settled points on this device the icon grows into the intro widget's
@@ -95,6 +113,35 @@ function AccountGlyph({ size }: { size: number }) {
 export function Header() {
   // null = signed-out presentation (also the SSR state).
   const [points, setPoints] = useState<number | null>(null);
+  // The fan's Telegram link (null until connected) toggles the menu label.
+  const telegramLink = useQuery(api.telegram.myTelegramLink);
+  const createLinkToken = useMutation(api.telegram.createLinkToken);
+
+  // Connect: mint a one-time token and hand it to the bot via a deep link, so
+  // Telegram's /start carries it back to our webhook. Already linked: just open
+  // the chat. Needs the bot's @username at build time.
+  const openTelegram = async () => {
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
+
+    if (!botUsername) {
+      console.warn("NEXT_PUBLIC_TELEGRAM_BOT_USERNAME is not set.");
+
+      return;
+    }
+
+    if (telegramLink) {
+      window.open(`https://t.me/${botUsername}`, "_blank", "noopener");
+
+      return;
+    }
+
+    const token = await createLinkToken({});
+    window.open(
+      `https://t.me/${botUsername}?start=${token}`,
+      "_blank",
+      "noopener",
+    );
+  };
 
   useEffect(() => {
     // Re-read the settled total on every change: a fresh settle, the sign-in
@@ -154,7 +201,21 @@ export function Header() {
                 appearance={{
                   elements: { userButtonAvatarBox: "app-clerk-avatar" },
                 }}
-              />
+              >
+                <UserButton.MenuItems>
+                  <UserButton.Action
+                    label={
+                      telegramLink
+                        ? telegramLink.username
+                          ? `Telegram: @${telegramLink.username}`
+                          : "Telegram connected"
+                        : "Connect Telegram"
+                    }
+                    labelIcon={<TelegramGlyph />}
+                    onClick={openTelegram}
+                  />
+                </UserButton.MenuItems>
+              </UserButton>
             </div>
           </Show>
         </div>

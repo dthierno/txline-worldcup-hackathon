@@ -84,4 +84,29 @@ export default defineSchema({
   })
     .index("by_user_fixture", ["userId", "fixtureId"])
     .index("by_user", ["userId"]),
+
+  // Links a Clerk user to their private Telegram chat so the bot can DM live
+  // calls to them and score their taps into the same gameplay tables. chatId is
+  // Telegram's numeric chat id for the 1:1 chat (equals the user's Telegram id).
+  telegramLinks: defineTable({
+    userId: v.string(),
+    chatId: v.number(),
+    // Telegram @username at link time, just for display ("Connected as @x").
+    username: v.optional(v.string()),
+    linkedAt: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_chat", ["chatId"]),
+
+  // Short-lived, single-use tokens for the connect flow: the app mints one tied
+  // to the signed-in user, hands it to Telegram via the t.me/<bot>?start=<token>
+  // deep link, and the webhook redeems it to bind chatId -> userId, then deletes
+  // it. createdAt lets us expire stale tokens.
+  telegramLinkTokens: defineTable({
+    token: v.string(),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_user", ["userId"]),
 });

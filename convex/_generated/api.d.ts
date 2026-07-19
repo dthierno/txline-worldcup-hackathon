@@ -9,8 +9,10 @@
  */
 
 import type * as gameplay from "../gameplay.js";
+import type * as http from "../http.js";
 import type * as leagues from "../leagues.js";
 import type * as model_settlements from "../model/settlements.js";
+import type * as telegram from "../telegram.js";
 import type * as users from "../users.js";
 
 import type {
@@ -21,8 +23,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   gameplay: typeof gameplay;
+  http: typeof http;
   leagues: typeof leagues;
   "model/settlements": typeof model_settlements;
+  telegram: typeof telegram;
   users: typeof users;
 }>;
 
