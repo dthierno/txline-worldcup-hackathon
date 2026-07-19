@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
 
@@ -29,9 +30,13 @@ export function GameplaySync() {
   // Clerk's isSignedIn races - myGameState would run before Convex trusts the
   // token, return empty, and the one-shot hydration would lock that in.
   const { isAuthenticated } = useConvexAuth();
+  // Clerk user is only used for the display name recorded below - the auth
+  // gate is useConvexAuth above.
+  const { user } = useUser();
   const savePrediction = useMutation(api.gameplay.savePrediction);
   const saveSettlement = useMutation(api.gameplay.saveSettlement);
   const saveGoalCalls = useMutation(api.gameplay.saveGoalCalls);
+  const recordUser = useMutation(api.users.recordUser);
   const gameState = useQuery(api.gameplay.myGameState, isAuthenticated ? {} : "skip");
   const hydrated = useRef(false);
 
@@ -129,6 +134,20 @@ export function GameplaySync() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, savePrediction, saveSettlement, saveGoalCalls]);
+
+  // Record the user (best-effort name) once authenticated, so the unique-user
+  // count is visible in the Convex dashboard's users table.
+  useEffect(() => {
+    if (isAuthenticated) {
+      void recordUser({
+        name:
+          user?.fullName ||
+          user?.username ||
+          user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+          "Player",
+      });
+    }
+  }, [isAuthenticated, recordUser, user]);
 
   return null;
 }

@@ -11,6 +11,7 @@
 import type * as gameplay from "../gameplay.js";
 import type * as leagues from "../leagues.js";
 import type * as model_settlements from "../model/settlements.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -22,6 +23,7 @@ declare const fullApi: ApiFromModules<{
   gameplay: typeof gameplay;
   leagues: typeof leagues;
   "model/settlements": typeof model_settlements;
+  users: typeof users;
 }>;
 
 /**

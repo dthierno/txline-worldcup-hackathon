@@ -6,6 +6,15 @@ import { v } from "convex/values";
 // live-call answers — lives here keyed by Clerk identity (identity.subject),
 // so a fresh device rehydrates on sign-in instead of trusting localStorage.
 export default defineSchema({
+  // One row per Clerk user, upserted on sign-in. Not used for auth (Clerk owns
+  // identity) - it's just so the unique-user count is visible at a glance.
+  users: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    firstSeenAt: v.string(),
+    lastSeenAt: v.string(),
+  }).index("by_user", ["userId"]),
+
   leagues: defineTable({
     name: v.string(),
     // Invite code (PG-XXXX); the thing friends share to join.
