@@ -109,6 +109,16 @@ export const saveSettlement = mutation({
       }
     }
 
+    // Keep the caller's global-board row current too.
+    const userRow = await ctx.db
+      .query("users")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (userRow && userRow.points !== total) {
+      await ctx.db.patch(userRow._id, { points: total });
+    }
+
     return null;
   },
 });

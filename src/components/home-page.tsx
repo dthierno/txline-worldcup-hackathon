@@ -114,7 +114,7 @@ import {
   txlineWorldCupFixtures,
   type WorldCupFixture,
 } from "@/lib/world-cup-fixtures";
-import { botStandings, gradeBotCalls } from "@/lib/prediction-bots";
+import { globalBotStandings, gradeBotCalls } from "@/lib/prediction-bots";
 import { worldCupResults } from "@/lib/world-cup-results";
 
 // Confirmed live score folded from the TxLINE updates feed.
@@ -1403,25 +1403,6 @@ function PredictionCard({
   );
 }
 
-// The global board pits the fan against three prediction bots (see
-// prediction-bots): each bot makes its own call on every match the fan has
-// played and is scored by the same engine, so it can finish above or below
-// them. Not a real cross-device league - those come from Convex.
-function globalLeaderboard(
-  settledPoints: number,
-  bots: Array<{ name: string; points: number }>,
-): Array<{ bot: boolean; mine: boolean; name: string; points: number }> {
-  return [
-    { bot: false, mine: true, name: "You", points: settledPoints },
-    ...bots.map((entry) => ({
-      bot: true,
-      mine: false,
-      name: entry.name,
-      points: entry.points,
-    })),
-  ].sort((left, right) => right.points - left.points);
-}
-
 function PredictionsFeed({
   finals,
   fixtures,
@@ -1573,12 +1554,9 @@ function PredictionsFeed({
     0,
   );
 
-  // The bots play the exact matches the fan has settled, so their board is a
-  // fair head-to-head that fills in as the fan predicts more.
-  const botRows = useMemo(
-    () => botStandings(finals, fixtures),
-    [finals, fixtures],
-  );
+  // The bots' fixed global score over every real result - the same for every
+  // viewer, so they sit in the shared board alongside real users.
+  const globalBots = useMemo(() => globalBotStandings(), []);
 
   // Leagues and their standings are real and cross-device (Convex); only which
   // board is on show is a local preference, announced by the league dialogs.
@@ -1623,12 +1601,14 @@ function PredictionsFeed({
     }
   }, [displayName, isAuthenticated, syncProfile]);
 
-  // A selected league shows its live members; the global board is a friendly
-  // simulated benchmark so a brand-new fan still sees where they'd sit.
+  // A selected league shows its live members; the global board is every real
+  // user (server points) ranked alongside the prediction bots.
   const leagueBoard = useQuery(
     api.leagues.leaderboard,
     selectedLeague ? { leagueId: selectedLeague.id } : "skip",
   );
+  const globalUsers = useQuery(api.users.globalLeaderboard) ?? [];
+  const meInGlobal = globalUsers.some((entry) => entry.isMe);
   const rows = selectedLeague
     ? (leagueBoard ?? []).map((member) => ({
         mine: member.isMe,
@@ -1636,16 +1616,43 @@ function PredictionsFeed({
         // your display name.
         name: member.isMe ? "You" : member.name,
         points: member.points,
+        rowKey: member.userId,
         simulated: false,
         userId: member.userId as string | null,
       }))
-    : globalLeaderboard(settledPoints, botRows).map((player) => ({
-        mine: player.mine,
-        name: player.name,
-        points: player.points,
-        simulated: player.bot,
-        userId: null as string | null,
-      }));
+    : [
+        ...globalUsers.map((entry) => ({
+          mine: entry.isMe,
+          name: entry.isMe ? "You" : entry.name,
+          points: entry.points,
+          // Keyed by the real id (rows aren't clickable on the global board, so
+          // userId stays null) - two players can share a display name.
+          rowKey: entry.userId,
+          simulated: false,
+          userId: null as string | null,
+        })),
+        ...globalBots.map((bot) => ({
+          mine: false,
+          name: bot.name,
+          points: bot.points,
+          rowKey: bot.botId,
+          simulated: true,
+          userId: null as string | null,
+        })),
+        // Signed out (or not yet recorded), still show your device total.
+        ...(meInGlobal
+          ? []
+          : [
+              {
+                mine: true,
+                name: "You",
+                points: settledPoints,
+                rowKey: "you-local",
+                simulated: false,
+                userId: null as string | null,
+              },
+            ]),
+      ].sort((left, right) => right.points - left.points);
 
   // Roster management: owners only, tucked behind one ghost affordance.
   const [manageOpen, setManageOpen] = useState(false);
@@ -1801,7 +1808,7 @@ function PredictionsFeed({
             return (
               <li
                 className={`pred-row${player.mine ? " pred-you" : ""}`}
-                key={player.userId ?? player.name}
+                key={player.rowKey}
               >
                 {player.userId ? (
                   // Real league members open a picks popup; bots don't.
@@ -1828,10 +1835,10 @@ function PredictionsFeed({
           </p>
         ) : (
           <p className="muted">
-            The global board pits you against three prediction bots - each makes
-            its own call on every match you&apos;ve played, scored on the same
-            rules from TxLINE results. Create or join a league for real
-            leaderboards against friends.
+            The global board ranks every PredGame player by total points, with
+            the three prediction bots in the mix - each bot calls every match,
+            scored on the same TxLINE rules. Create or join a league to battle
+            friends directly.
           </p>
         )}
         <UserProfileDialog

@@ -292,6 +292,43 @@ export function botScorelinePoints(
 
 export type BotStanding = { botId: string; name: string; points: number };
 
+// The bots' total over EVERY real result (scoreline only) - a fixed number,
+// the same for every viewer - so they can sit in the shared global board next
+// to real users. Live-call points are per-user, so they're excluded here.
+export function globalBotStandings(): BotStanding[] {
+  const totals = BOTS.map((bot) => ({
+    botId: bot.botId,
+    name: bot.name,
+    points: 0,
+  }));
+
+  for (const result of worldCupResults) {
+    const outcome: MatchOutcome = {
+      awayGoals: result.score[1],
+      finished: true,
+      homeGoals: result.score[0],
+      totalCards: 0,
+      totalCorners: 0,
+    };
+
+    BOTS.forEach((bot, index) => {
+      const prediction = botPrediction(
+        result.fixtureId,
+        result.home,
+        result.away,
+        bot.strategy,
+      );
+
+      totals[index].points += settlePrediction(prediction, outcome, {
+        awayTeam: result.away,
+        homeTeam: result.home,
+      }).totalPoints;
+    });
+  }
+
+  return totals;
+}
+
 // Score every bot over the matches the fan has already settled, using the same
 // final scores the fan was scored on. Same match set for everyone, so the board
 // is a fair head-to-head that grows as the fan plays more.

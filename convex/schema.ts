@@ -7,13 +7,19 @@ import { v } from "convex/values";
 // so a fresh device rehydrates on sign-in instead of trusting localStorage.
 export default defineSchema({
   // One row per Clerk user, upserted on sign-in. Not used for auth (Clerk owns
-  // identity) - it's just so the unique-user count is visible at a glance.
+  // identity). `points` mirrors the user's settled total (like members.points)
+  // so the global board is a real cross-user leaderboard; by_points serves it.
   users: defineTable({
     userId: v.string(),
     name: v.string(),
+    // Server-derived settled total; optional only to keep pre-existing rows
+    // (written before this field) valid until their next sign-in refreshes it.
+    points: v.optional(v.number()),
     firstSeenAt: v.string(),
     lastSeenAt: v.string(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_points", ["points"]),
 
   leagues: defineTable({
     name: v.string(),
